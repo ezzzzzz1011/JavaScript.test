@@ -3,200 +3,209 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五子棋 - 職業高手 AI</title>
+    <title>經典暗棋 - 雙人對弈版</title>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
-        #menu { margin-bottom: 20px; text-align: center; }
-        .status { font-size: 24px; margin-bottom: 10px; color: #2ecc71; font-weight: bold; height: 35px; }
-        .btn-group { display: flex; gap: 15px; }
-        button { padding: 12px 25px; font-size: 18px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; transition: 0.3s; }
-        .btn-pc { background-color: #e67e22; color: white; }
-        .btn-friend { background-color: #3498db; color: white; }
-        .btn-reset { background-color: #95a5a6; color: white; }
-        button:hover { opacity: 0.8; transform: translateY(-2px); }
-        button.active { outline: 4px solid white; box-shadow: 0 0 15px white; }
-        canvas { background-color: #dcb35c; box-shadow: 0 0 30px rgba(0,0,0,0.5); cursor: pointer; border: 2px solid #5d4037; }
+        #ui { margin-bottom: 15px; text-align: center; }
+        .status { font-size: 24px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; }
+        canvas { background-color: #dcb35c; box-shadow: 0 0 30px rgba(0,0,0,0.5); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; }
+        .controls { margin-top: 15px; }
+        button { padding: 10px 25px; font-size: 18px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="menu">
-    <div id="statusDisplay" class="status">挑戰職業 AI</div>
-    <div class="btn-group">
-        <button id="pvcBtn" class="btn-pc" onclick="setMode('pvc')">職業電腦</button>
-        <button id="pvpBtn" class="btn-friend" onclick="setMode('pvp')">雙人對戰</button>
-        <button class="btn-reset" onclick="resetGame()">清空</button>
-    </div>
+<div id="ui">
+    <div class="status" id="statusDisplay">點擊棋子開始翻牌</div>
+    <div id="turnDisplay">輪到：紅/黑 (待定)</div>
+    <div class="controls"><button onclick="initGame()">重新開局</button></div>
 </div>
 
-<canvas id="goBoard"></canvas>
+<canvas id="chessBoard"></canvas>
 
 <script>
-    const canvas = document.getElementById('goBoard');
+    const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
     const statusDisplay = document.getElementById('statusDisplay');
+    const turnDisplay = document.getElementById('turnDisplay');
 
-    const GRID_COUNT = 15;
-    const PADDING = 30;
-    let cellSize, board, currentPlayer, gameOver, gameMode;
+    const COLS = 4, ROWS = 8;
+    const PADDING = 20;
+    let cellSize, board = [], selected = null, currentPlayer = 0; // 0: 未定, 1: 紅, 2: 黑
+    let turn = 1; // 1或2輪流
 
-    // 職業級權重表
-    const P_SCORE = {
-        FIVE: 100000,
-        ALIVE_FOUR: 10000,
-        DEAD_FOUR: 1000,
-        ALIVE_THREE: 1000,
-        DEAD_THREE: 100,
-        ALIVE_TWO: 100,
-        DEAD_TWO: 10,
-    };
+    // 棋子定義 (等級由大到小)
+    const PIECES = [
+        { name: '帥', level: 7, count: 1, color: 1 }, { name: '仕', level: 6, count: 2, color: 1 },
+        { name: '相', level: 5, count: 2, color: 1 }, { name: '車', level: 4, count: 2, color: 1 },
+        { name: '傌', level: 3, count: 2, color: 1 }, { name: '炮', level: 2, count: 2, color: 1 },
+        { name: '兵', level: 1, count: 5, color: 1 },
+        { name: '將', level: 7, count: 1, color: 2 }, { name: '士', level: 6, count: 2, color: 2 },
+        { name: '象', level: 5, count: 2, color: 2 }, { name: '車', level: 4, count: 2, color: 2 },
+        { name: '馬', level: 3, count: 2, color: 2 }, { name: '包', level: 2, count: 2, color: 2 },
+        { name: '卒', level: 1, count: 5, color: 2 }
+    ];
 
-    function init() {
-        const size = Math.min(window.innerWidth, window.innerHeight) * 0.75;
-        canvas.width = canvas.height = size;
-        cellSize = (canvas.width - PADDING * 2) / (GRID_COUNT - 1);
-        setMode('pvc');
+    function initGame() {
+        const sizeW = Math.min(window.innerWidth * 0.9, 400);
+        canvas.width = sizeW;
+        canvas.height = sizeW * 2;
+        cellSize = (canvas.width - PADDING * 2) / COLS;
+        
+        // 生成棋池
+        let pool = [];
+        PIECES.forEach(p => { for(let i=0; i<p.count; i++) pool.push({...p, revealed: false}); });
+        pool.sort(() => Math.random() - 0.5);
+
+        board = [];
+        for(let r=0; r<ROWS; r++) {
+            board[r] = [];
+            for(let c=0; c<COLS; c++) board[r][c] = pool.shift();
+        }
+        currentPlayer = 0; turn = 1; selected = null;
+        statusDisplay.innerText = "請翻牌決定顏色";
+        updateTurnUI();
+        draw();
     }
 
-    function setMode(mode) {
-        gameMode = mode;
-        document.getElementById('pvcBtn').classList.toggle('active', mode === 'pvc');
-        document.getElementById('pvpBtn').classList.toggle('active', mode === 'pvp');
-        resetGame();
-    }
-
-    function resetGame() {
-        board = Array.from({ length: GRID_COUNT }, () => Array(GRID_COUNT).fill(0));
-        currentPlayer = 1;
-        gameOver = false;
-        statusDisplay.innerText = "你是黑子，請落子";
-        drawBoard();
-    }
-
-    function drawBoard() {
+    function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // 畫網格
         ctx.strokeStyle = "#5d4037";
-        for (let i = 0; i < GRID_COUNT; i++) {
-            ctx.beginPath();
-            ctx.moveTo(PADDING + i * cellSize, PADDING);
-            ctx.lineTo(PADDING + i * cellSize, canvas.height - PADDING);
-            ctx.moveTo(PADDING, PADDING + i * cellSize);
-            ctx.lineTo(canvas.width - PADDING, PADDING + i * cellSize);
-            ctx.stroke();
+        ctx.lineWidth = 2;
+        for(let r=0; r<=ROWS; r++) {
+            ctx.beginPath(); ctx.moveTo(PADDING, PADDING + r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING + r*cellSize); ctx.stroke();
         }
-        for (let r = 0; r < GRID_COUNT; r++) {
-            for (let c = 0; c < GRID_COUNT; c++) {
-                if (board[r][c] !== 0) drawStone(r, c, board[r][c]);
-            }
+        for(let c=0; c<=COLS; c++) {
+            ctx.beginPath(); ctx.moveTo(PADDING + c*cellSize, PADDING); ctx.lineTo(PADDING + c*cellSize, canvas.height-PADDING); ctx.stroke();
         }
-    }
 
-    function drawStone(r, c, type) {
-        const x = PADDING + r * cellSize;
-        const y = PADDING + c * cellSize;
-        ctx.beginPath();
-        ctx.arc(x, y, cellSize * 0.43, 0, Math.PI * 2);
-        ctx.fillStyle = type === 1 ? "#000" : "#fff";
-        ctx.shadowBlur = 4; ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    }
+        // 畫棋子
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                const p = board[r][c];
+                if(!p) continue;
+                const x = PADDING + c*cellSize + cellSize/2;
+                const y = PADDING + r*cellSize + cellSize/2;
 
-    canvas.addEventListener('mousedown', (e) => {
-        if (gameOver || (gameMode === 'pvc' && currentPlayer === 2)) return;
-        const rect = canvas.getBoundingClientRect();
-        const r = Math.round((e.clientX - rect.left - PADDING) / cellSize);
-        const c = Math.round((e.clientY - rect.top - PADDING) / cellSize);
-        if (r >= 0 && r < GRID_COUNT && c >= 0 && c < GRID_COUNT && board[r][c] === 0) {
-            placeStone(r, c);
-            if (!gameOver && gameMode === 'pvc') setTimeout(proAiMove, 200);
-        }
-    });
+                if(selected && selected.r === r && selected.c === c) {
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                    ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize);
+                }
 
-    function placeStone(r, c) {
-        board[r][c] = currentPlayer;
-        drawBoard();
-        if (checkWin(r, c, board)) {
-            statusDisplay.innerText = (currentPlayer === 1 ? "黑子" : "白子") + " 勝利！";
-            gameOver = true;
-            return;
-        }
-        currentPlayer = currentPlayer === 1 ? 2 : 1;
-        statusDisplay.innerText = currentPlayer === 1 ? "你的回合" : "AI 計算中...";
-    }
+                ctx.beginPath();
+                ctx.arc(x, y, cellSize*0.4, 0, Math.PI*2);
+                if(!p.revealed) {
+                    ctx.fillStyle = "#8d6e63"; // 蓋著的顏色
+                } else {
+                    ctx.fillStyle = "#f5f5dc"; // 翻開的底色
+                }
+                ctx.fill();
+                ctx.strokeStyle = "#3e2723"; ctx.lineWidth = 2; ctx.stroke();
 
-    // --- 🏆 職業 AI 核心邏輯 ---
-    function proAiMove() {
-        let bestScore = -Infinity;
-        let moves = [];
-
-        for (let r = 0; r < GRID_COUNT; r++) {
-            for (let c = 0; c < GRID_COUNT; c++) {
-                if (board[r][c] === 0) {
-                    // 基礎分數加上中心距離分數
-                    let distScore = (7 - Math.abs(7-r)) + (7 - Math.abs(7-c));
-                    let attack = getScore(r, c, 2); // 電腦進攻
-                    let defend = getScore(r, c, 1); // 玩家防守
-                    
-                    let total = attack * 1.2 + defend + distScore;
-                    
-                    if (total > bestScore) {
-                        bestScore = total;
-                        moves = [{r, c}];
-                    } else if (total === bestScore) {
-                        moves.push({r, c});
-                    }
+                if(p.revealed) {
+                    ctx.fillStyle = p.color === 1 ? "#d32f2f" : "#212121";
+                    ctx.font = `bold ${cellSize*0.5}px sans-serif`;
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText(p.name, x, y);
                 }
             }
         }
-        const pick = moves[Math.floor(Math.random() * moves.length)];
-        placeStone(pick.r, pick.c);
     }
 
-    function getScore(r, c, type) {
-        let score = 0;
-        const dirs = [[1,0],[0,1],[1,1],[1,-1]];
-        for (let [dr, dc] of dirs) {
-            let line = "";
-            for (let i = -5; i <= 5; i++) {
-                let nr = r + dr * i, nc = c + dc * i;
-                if (nr < 0 || nr >= GRID_COUNT || nc < 0 || nc >= GRID_COUNT) line += "X";
-                else if (i === 0) line += type;
-                else if (board[nr][nc] === 0) line += "0";
-                else if (board[nr][nc] === type) line += type;
-                else line += "X";
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const c = Math.floor((e.clientX - rect.left - PADDING) / cellSize);
+        const r = Math.floor((e.clientY - rect.top - PADDING) / cellSize);
+        if(r<0 || r>=ROWS || c<0 || c>=COLS) return;
+
+        const clicked = board[r][c];
+
+        // 1. 翻牌邏輯
+        if(clicked && !clicked.revealed) {
+            clicked.revealed = true;
+            if(currentPlayer === 0) {
+                currentPlayer = clicked.color; // 第一個翻牌的人拿到該顏色
+                turn = currentPlayer; 
             }
-            score += patternScore(line, type.toString());
+            nextTurn();
+            return;
         }
-        return score;
-    }
 
-    function patternScore(line, t) {
-        if (line.includes(t.repeat(5))) return P_SCORE.FIVE;
-        if (line.includes("0" + t.repeat(4) + "0")) return P_SCORE.ALIVE_FOUR;
-        if (line.includes(t.repeat(4) + "0") || line.includes("0" + t.repeat(4))) return P_SCORE.DEAD_FOUR;
-        if (line.includes("0" + t.repeat(3) + "0")) return P_SCORE.ALIVE_THREE;
-        if (line.includes("0" + t.repeat(2) + "0")) return P_SCORE.ALIVE_TWO;
-        return 0;
-    }
-
-    function checkWin(r, c, b) {
-        const t = b[r][c], dirs = [[1,0],[0,1],[1,1],[1,-1]];
-        for (let [dr, dc] of dirs) {
-            let count = 1;
-            for(let i=1; i<5; i++){
-                let nr=r+dr*i, nc=c+dc*i;
-                if(nr>=0 && nr<GRID_COUNT && nc>=0 && nc<GRID_COUNT && b[nr][nc]===t) count++; else break;
+        // 2. 選取/移動邏輯
+        if(selected) {
+            if(canMove(selected.r, selected.c, r, c)) {
+                board[r][c] = board[selected.r][selected.c];
+                board[selected.r][selected.c] = null;
+                selected = null;
+                nextTurn();
+            } else {
+                selected = (clicked && clicked.color === turn) ? {r, c} : null;
+                draw();
             }
-            for(let i=1; i<5; i++){
-                let nr=r-dr*i, nc=c-dc*i;
-                if(nr>=0 && nr<GRID_COUNT && nc>=0 && nc<GRID_COUNT && b[nr][nc]===t) count++; else break;
-            }
-            if (count >= 5) return true;
+        } else if(clicked && clicked.revealed && clicked.color === turn) {
+            selected = {r, c};
+            draw();
         }
-        return false;
+    });
+
+    function canMove(r1, c1, r2, c2) {
+        const p1 = board[r1][c1], p2 = board[r2][c2];
+        const dist = Math.abs(r1-r2) + Math.abs(c1-c2);
+        
+        // 炮(level 2)的特殊吃法
+        if(p1.name === '炮' || p1.name === '包') {
+            if(p2) { // 吃子：必須隔一個棋子
+                if(r1 !== r2 && c1 !== c2) return false;
+                let count = 0;
+                if(r1 === r2) {
+                    for(let i = Math.min(c1,c2)+1; i < Math.max(c1,c2); i++) if(board[r1][i]) count++;
+                } else {
+                    for(let i = Math.min(r1,r2)+1; i < Math.max(r1,r2); i++) if(board[i][c1]) count++;
+                }
+                return count === 1 && p1.color !== p2.color;
+            }
+        }
+
+        // 一般移動：只能走一格
+        if(dist !== 1) return false;
+        if(!p2) return true; // 空地直接走
+
+        // 吃子判定
+        if(p1.color === p2.color || !p2.revealed) return false;
+        if(p1.level === 1 && p2.level === 7) return true; // 兵吃帥
+        if(p1.level === 7 && p2.level === 1) return false; // 帥不吃兵
+        return p1.level >= p2.level; // 大吃小
     }
-    window.onload = init;
+
+    function nextTurn() {
+        turn = turn === 1 ? 2 : 1;
+        selected = null;
+        updateTurnUI();
+        draw();
+        checkGameOver();
+    }
+
+    function updateTurnUI() {
+        if(currentPlayer === 0) {
+            turnDisplay.innerText = "輪到：紅/黑 (待定)";
+        } else {
+            const colorName = turn === 1 ? "紅方" : "黑方";
+            turnDisplay.innerText = "輪到：" + colorName;
+            turnDisplay.style.color = turn === 1 ? "#ff5252" : "#444";
+        }
+    }
+
+    function checkGameOver() {
+        let red = 0, black = 0;
+        board.forEach(row => row.forEach(p => { if(p) { if(p.color === 1) red++; else black++; } }));
+        if(red === 0) alert("黑方獲勝！");
+        if(black === 0) alert("紅方獲勝！");
+        if(red === 0 || black === 0) initGame();
+    }
+
+    initGame();
 </script>
+
 </body>
 </html>
