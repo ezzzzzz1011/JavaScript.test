@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 加速終極修復版</title>
+    <title>JS Slither - 長度穩定版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
-        canvas { display: block; touch-action: none; } /* 增加觸控相容 */
+        canvas { display: block; touch-action: none; }
         #ui { position: absolute; top: 20px; left: 20px; color: #00FF41; pointer-events: none; z-index: 10; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -23,11 +23,12 @@
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5.0</h2>
-        <p>🚀 狀態：<span id="boostStatus">正常游動</span> (按住左鍵加速至 1.8)</p>
+        <p>🚀 [按住左鍵] 加速 | 長度會「緩慢」減少，不會突然跳回 5</p>
     </div>
 
     <div id="overlay">
         <h1 style="color:#ff4444; font-size: 48px;">💥 撞車陣亡！</h1>
+        <p id="finalStat" style="margin-bottom: 20px; font-size: 18px;"></p>
         <button id="restartBtn">重新復活</button>
     </div>
 
@@ -37,9 +38,9 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('scoreDisplay');
-    const boostStatus = document.getElementById('boostStatus');
     const overlay = document.getElementById('overlay');
     const restartBtn = document.getElementById('restartBtn');
+    const finalStat = document.getElementById('finalStat');
 
     const WORLD_SIZE = 2000;
     const SNAKE_SIZE = 8;
@@ -47,7 +48,7 @@
     let snakes = [];
     let foods = [];
     let gameActive = false;
-    let isMouseDown = false; // 全域滑鼠狀態
+    let isMouseDown = false;
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -63,26 +64,26 @@
             this.isPlayer = isPlayer;
             this.angle = Math.random() * Math.PI * 2;
             this.targetAngle = this.angle;
-            this.bodyLength = 5.0;
+            this.bodyLength = 5.0; // 初始長度
             this.history = [];
             this.alive = true;
             this.baseSpeed = 1.2;
             this.boostSpeed = 1.8;
             this.isBoosting = false;
-            for(let i=0; i<800; i++) this.history.push({x: this.x, y: this.y});
+            // 預填路徑，確保開場不會因為 history 為空而閃爍
+            for(let i=0; i<1000; i++) this.history.push({x: this.x, y: this.y});
         }
 
         update(mouse) {
             if (!this.alive) return;
 
-            // 玩家加速邏輯：直接讀取全域按鍵狀態
+            // 只有長度大於 3 時才允許加速
             if (this.isPlayer) {
-                this.isBoosting = isMouseDown && this.bodyLength > 3;
-                boostStatus.innerText = this.isBoosting ? "🔥 噴射加速中！" : "正常游動";
-                boostStatus.style.color = this.isBoosting ? "#00ffff" : "#00FF41";
+                this.isBoosting = isMouseDown && this.bodyLength > 3.0;
                 
                 if (this.isBoosting) {
-                    this.bodyLength -= 0.015; // 加速消耗
+                    // 加速時的消耗量調低一點，讓長度變化更平滑
+                    this.bodyLength -= 0.01; 
                     scoreDisplay.innerText = `長度: ${this.bodyLength.toFixed(1)}`;
                 }
                 
@@ -91,7 +92,7 @@
                 this.targetAngle = Math.atan2(dy, dx);
             } else {
                 // AI 避障
-                const margin = 250;
+                const margin = 200;
                 if (this.x < margin || this.x > WORLD_SIZE - margin || this.y < margin || this.y > WORLD_SIZE - margin) {
                     this.targetAngle = Math.atan2(WORLD_SIZE/2 - this.y, WORLD_SIZE/2 - this.x);
                 } else if (Math.random() < 0.02) {
@@ -108,7 +109,10 @@
             this.x += Math.cos(this.angle) * speed;
             this.y += Math.sin(this.angle) * speed;
 
-            if (this.x <= 0 || this.x >= WORLD_SIZE || this.y <= 0 || this.y >= WORLD_SIZE) this.die();
+            // 邊界致死判定
+            if (this.x <= 0 || this.x >= WORLD_SIZE || this.y <= 0 || this.y >= WORLD_SIZE) {
+                this.die();
+            }
 
             this.history.unshift({x: this.x, y: this.y});
             if (this.history.length > 3000) this.history.pop();
@@ -117,11 +121,22 @@
         die() {
             if (!this.alive) return;
             this.alive = false;
+            // 噴發點點遺產
             for (let i = 0; i < this.bodyLength * 2; i++) {
                 let pos = this.history[i * 6] || {x: this.x, y: this.y};
-                foods.push({ x: pos.x + (Math.random()-0.5)*20, y: pos.y + (Math.random()-0.5)*20, size: 3, color: this.color });
+                foods.push({
+                    x: pos.x + (Math.random()-0.5)*20,
+                    y: pos.y + (Math.random()-0.5)*20,
+                    size: 2.5,
+                    color: this.color,
+                    isLegacy: true
+                });
             }
-            if (this.isPlayer) { gameActive = false; overlay.style.display = 'flex'; }
+            if (this.isPlayer) {
+                gameActive = false;
+                finalStat.innerText = `最終成績長度: ${this.bodyLength.toFixed(1)}`;
+                overlay.style.display = 'flex';
+            }
         }
 
         draw() {
@@ -130,6 +145,7 @@
             
             // 身體
             for (let i = Math.floor(this.bodyLength * 3); i > 0; i--) {
+                // 加速時縮短 index 以維持肉感不分離
                 let index = Math.floor(i * (4 / speed) * 2.8); 
                 let pos = this.history[index];
                 if (pos) {
@@ -144,10 +160,13 @@
             // 頭
             ctx.save();
             ctx.translate(this.x, this.y); ctx.rotate(this.angle);
-            if (this.isPlayer && this.isBoosting) { ctx.shadowBlur = 15; ctx.shadowColor = '#00ffff'; }
+            if (this.isPlayer && this.isBoosting) {
+                ctx.shadowBlur = 10; ctx.shadowColor = '#00ffff';
+            }
             ctx.beginPath(); ctx.arc(0, 0, SNAKE_SIZE, 0, Math.PI * 2);
             ctx.fillStyle = (this.isPlayer && this.isBoosting) ? '#ffffff' : this.color; 
             ctx.fill();
+            // 眼睛
             ctx.fillStyle = "white";
             ctx.beginPath(); ctx.arc(4, -3, 3, 0, Math.PI * 2); ctx.arc(4, 3, 3, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "black";
@@ -159,9 +178,11 @@
     function initGame() {
         overlay.style.display = 'none';
         snakes = []; foods = []; isMouseDown = false;
+        // 確保重新開始時長度回到 5.0
         snakes.push(new Snake(WORLD_SIZE/2, WORLD_SIZE/2, '#ff6666', true));
         for(let i=0; i<MAX_ENEMIES; i++) spawnEnemy();
         for(let i=0; i<150; i++) spawnRandomFood();
+        scoreDisplay.innerText = "長度: 5.0";
         gameActive = true;
     }
 
@@ -171,20 +192,17 @@
     }
 
     function spawnRandomFood() {
-        foods.push({ x: Math.random()*WORLD_SIZE, y: Math.random()*WORLD_SIZE, size: 2, color: `hsl(${Math.random()*360},100%,70%)` });
+        foods.push({
+            x: Math.random() * WORLD_SIZE, y: Math.random() * WORLD_SIZE,
+            size: Math.random() * 2 + 1.5, color: `hsl(${Math.random()*360}, 100%, 70%)`,
+            isLegacy: false
+        });
     }
 
-    // --- 強化版事件監聽 ---
     let mouse = { x: 0, y: 0 };
     window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
-    
-    // 使用 window 級別的監聽，確保百分之百抓到點擊
-    window.addEventListener('mousedown', () => { isMouseDown = true; });
-    window.addEventListener('mouseup', () => { isMouseDown = false; });
-    // 增加觸控支援
-    window.addEventListener('touchstart', () => { isMouseDown = true; });
-    window.addEventListener('touchend', () => { isMouseDown = false; });
-
+    window.addEventListener('mousedown', () => isMouseDown = true);
+    window.addEventListener('mouseup', () => isMouseDown = false);
     restartBtn.addEventListener('click', initGame);
 
     function gameLoop() {
@@ -207,6 +225,7 @@
             if (!s.alive) return;
             s.update(mouse);
 
+            // 全域碰撞 (零自撞)
             snakes.forEach(other => {
                 if (!other.alive || s === other) return; 
                 for (let i = 10; i < other.bodyLength * 12; i += 6) {
@@ -215,9 +234,12 @@
                 }
             });
 
+            // 吃食物
             foods.forEach((f, i) => {
                 if (Math.hypot(s.x - f.x, s.y - f.y) < SNAKE_SIZE + f.size) {
-                    s.bodyLength += 0.15; foods.splice(i, 1); spawnRandomFood();
+                    s.bodyLength += f.isLegacy ? 0.3 : 0.08; 
+                    foods.splice(i, 1);
+                    if (!f.isLegacy) spawnRandomFood();
                     if(s.isPlayer) scoreDisplay.innerText = `長度: ${s.bodyLength.toFixed(1)}`;
                 }
             });
