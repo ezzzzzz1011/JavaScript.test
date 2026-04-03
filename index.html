@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 微型緩慢成長版</title>
+    <title>JS Slither - Fix Version</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
@@ -19,7 +19,7 @@
 <body>
     <div id="ui">
         <h3 id="scoreDisplay">長度: 15.0</h3>
-        <p style="font-size: 0.7em;">滑鼠轉向 | 左鍵噴射 (加速消耗變快)</p>
+        <p style="font-size: 0.7em;">滑鼠轉向 | 左鍵噴射</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -35,35 +35,40 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- 參數微調：極致小蛇 ---
+    // --- 核心參數：極小蛇 ---
     let snake = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
         angle: 0,
         targetAngle: 0,
-        speed: 3,
         baseSpeed: 3,
         boostSpeed: 6,
-        size: 6,         // 再次縮小到 6 (超精緻小頭)
+        size: 6,         
         color: '#22ff00',
         boostColor: '#00ffff',
         history: [],      
-        bodyLength: 15,  // 初始長度
+        bodyLength: 15,  
         isBoosting: false
     };
 
+    // 預填初始路徑，防止一開始找不到座標而消失
+    for(let i=0; i<500; i++) {
+        snake.history.push({x: snake.x, y: snake.y});
+    }
+
     let foods = [];
-    for(let i=0; i<80; i++) { createFood(); } // 點點變多，但營養變低
+    for(let i=0; i<80; i++) { createFood(); }
 
     function createFood() {
         foods.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            size: Math.random() * 2 + 1, // 食物也變得超小
+            size: Math.random() * 2 + 1,
             color: `hsl(${Math.random() * 360}, 100%, 70%)`
         });
     }
 
+    // 初始化滑鼠位置，避免 NaN
     let mouse = { x: snake.x, y: snake.y };
     window.addEventListener('mousemove', (e) => {
         mouse.x = e.clientX;
@@ -74,22 +79,30 @@
     window.addEventListener('mouseup', (e) => { if(e.button === 0) snake.isBoosting = false; });
 
     function gameLoop() {
+        // 清除背景
         ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        drawGrid();
+        // 畫格線
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 60) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 60) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
 
-        let currentSpeed = snake.baseSpeed;
-        let currentColor = snake.color;
-
-        // 加速邏輯
+        // 加速與速度邏輯
+        let currentSpeed = (snake.isBoosting && snake.bodyLength > 5) ? snake.boostSpeed : snake.baseSpeed;
+        let currentColor = (snake.isBoosting && snake.bodyLength > 5) ? snake.boostColor : snake.color;
+        
         if (snake.isBoosting && snake.bodyLength > 5) {
-            currentSpeed = snake.boostSpeed;
-            currentColor = snake.boostColor;
-            snake.bodyLength -= 0.03; // 加速消耗也稍微調慢
+            snake.bodyLength -= 0.03;
             scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
         }
 
+        // 計算轉向
         let dx = mouse.x - snake.x;
         let dy = mouse.y - snake.y;
         snake.targetAngle = Math.atan2(dy, dx);
@@ -99,11 +112,13 @@
         while (diff > Math.PI) diff -= Math.PI * 2;
         snake.angle += diff * 0.15; 
 
+        // 更新位置
         snake.x += Math.cos(snake.angle) * currentSpeed;
         snake.y += Math.sin(snake.angle) * currentSpeed;
 
+        // 紀錄路徑
         snake.history.unshift({x: snake.x, y: snake.y});
-        if (snake.history.length > 3000) snake.history.pop();
+        if (snake.history.length > 2000) snake.history.pop();
 
         // 畫食物
         foods.forEach((f, index) => {
@@ -114,9 +129,7 @@
 
             let dist = Math.hypot(snake.x - f.x, snake.y - f.y);
             if (dist < snake.size + f.size) {
-                // --- 核心修改：成長速度變慢 ---
-                // 原本是 1.5 或 2.5，現在改成 0.3，代表要吃 10 顆才會長大一點點
-                snake.bodyLength += 0.3; 
+                snake.bodyLength += 0.3; // 緩慢成長
                 foods.splice(index, 1);
                 createFood();
                 scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
@@ -129,8 +142,10 @@
             if (snake.history[index]) {
                 let pos = snake.history[index];
                 ctx.beginPath();
-                ctx.arc(pos.x, pos.y, snake.size * 0.85, 0, Math.PI * 2);
-                ctx.fillStyle = snake.isBoosting ? `rgba(0, 255, 255, ${0.6 - i/snake.bodyLength})` : `rgba(34, 255, 0, ${0.6 - i/snake.bodyLength})`;
+                ctx.arc(pos.x, pos.y, snake.size * 0.8, 0, Math.PI * 2);
+                ctx.fillStyle = (snake.isBoosting && snake.bodyLength > 5) ? 
+                    `rgba(0, 255, 255, ${0.6 - i/snake.bodyLength})` : 
+                    `rgba(34, 255, 0, ${0.6 - i/snake.bodyLength})`;
                 ctx.fill();
             }
         }
@@ -143,28 +158,12 @@
         ctx.arc(0, 0, snake.size, 0, Math.PI * 2);
         ctx.fillStyle = currentColor;
         ctx.fill();
-
-        // 極小眼睛
+        // 眼睛
         ctx.fillStyle = "white";
-        ctx.beginPath();
-        ctx.arc(3, -2, 2.5, 0, Math.PI * 2);
-        ctx.arc(3, 2, 2.5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(3, -2, 2, 0, Math.PI * 2); ctx.arc(3, 2, 2, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
 
         requestAnimationFrame(gameLoop);
-    }
-
-    function drawGrid() {
-        ctx.strokeStyle = '#111';
-        ctx.lineWidth = 1;
-        const step = 60;
-        for (let x = 0; x < canvas.width; x += step) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-        }
-        for (let y = 0; y < canvas.height; y += step) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-        }
     }
 
     gameLoop();
