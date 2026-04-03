@@ -3,43 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>經典五子棋 - 模式切換版</title>
+    <title>五子棋 - 雙模式版</title>
     <style>
         body { 
             margin: 0; padding: 0; display: flex; flex-direction: column; 
-            align-items: center; background-color: #2c3e50; font-family: sans-serif; 
-            height: 100vh; justify-content: center;
+            align-items: center; background-color: #1a1a1a; font-family: sans-serif; 
+            height: 100vh; justify-content: center; color: white;
         }
-        #ui { color: white; margin-bottom: 20px; text-align: center; }
-        .btn-group { margin-top: 15px; display: flex; gap: 10px; justify-content: center; }
-        canvas { 
-            background-color: #e3bc82; 
-            box-shadow: 0 0 40px rgba(0,0,0,0.5);
-            cursor: pointer;
-            border-radius: 4px;
-            max-width: 95vw;
-            max-height: 70vh;
-        }
-        .status { font-size: 22px; font-weight: bold; margin-bottom: 5px; height: 30px; }
-        .mode-info { font-size: 14px; color: #bdc3c7; margin-bottom: 10px; }
+        #menu { margin-bottom: 20px; text-align: center; }
+        .status { font-size: 24px; margin-bottom: 10px; color: #2ecc71; font-weight: bold; }
+        
+        /* 按鈕樣式 */
+        .btn-group { display: flex; gap: 15px; }
         button {
-            padding: 10px 20px; font-size: 14px; cursor: pointer;
-            background: #34495e; border: 1px solid #7f8c8d; color: white; border-radius: 5px;
-            transition: 0.2s;
+            padding: 12px 25px; font-size: 18px; cursor: pointer;
+            border: none; border-radius: 8px; font-weight: bold; transition: 0.3s;
         }
-        button.active { background: #27ae60; border-color: #2ecc71; }
-        button:hover { background: #1abc9c; }
+        .btn-pc { background-color: #e67e22; color: white; } /* 電腦模式按鈕 */
+        .btn-friend { background-color: #3498db; color: white; } /* 朋友模式按鈕 */
+        .btn-reset { background-color: #95a5a6; color: white; }
+        
+        button:hover { opacity: 0.8; transform: translateY(-2px); }
+        button.active { outline: 4px solid white; box-shadow: 0 0 15px white; }
+
+        canvas { 
+            background-color: #dcb35c; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            cursor: pointer; border: 2px solid #5d4037;
+        }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <div class="status" id="statusDisplay">準備開局</div>
-    <div class="mode-info" id="modeDisplay">模式：未選擇</div>
+<div id="menu">
+    <div id="statusDisplay" class="status">請選擇模式開始</div>
     <div class="btn-group">
-        <button id="pvcBtn" onclick="setMode('pvc')">跟電腦 PK</button>
-        <button id="pvpBtn" onclick="setMode('pvp')">跟朋友玩</button>
-        <button onclick="resetGame()" style="background: #c0392b;">清空重來</button>
+        <button id="pvcBtn" class="btn-pc" onclick="setMode('pvc')">跟電腦下</button>
+        <button id="pvpBtn" class="btn-friend" onclick="setMode('pvp')">跟朋友下</button>
+        <button class="btn-reset" onclick="resetGame()">清空棋盤</button>
     </div>
 </div>
 
@@ -49,28 +50,23 @@
     const canvas = document.getElementById('goBoard');
     const ctx = canvas.getContext('2d');
     const statusDisplay = document.getElementById('statusDisplay');
-    const modeDisplay = document.getElementById('modeDisplay');
 
     const GRID_COUNT = 15;
     const PADDING = 30;
-    let cellSize;
-    let board = [];
-    let currentPlayer = 1; // 1:黑, 2:白
-    let gameOver = false;
-    let gameMode = 'pvp'; // 'pvp' 或 'pvc'
+    let cellSize, board, currentPlayer, gameOver, gameMode;
 
     function init() {
         const size = Math.min(window.innerWidth, window.innerHeight) * 0.7;
         canvas.width = canvas.height = size;
         cellSize = (canvas.width - PADDING * 2) / (GRID_COUNT - 1);
-        setMode('pvp'); // 預設跟朋友玩
+        setMode('pvp'); // 預設為朋友模式
     }
 
     function setMode(mode) {
         gameMode = mode;
-        document.getElementById('pvcBtn').className = mode === 'pvc' ? 'active' : '';
-        document.getElementById('pvpBtn').className = mode === 'pvp' ? 'active' : '';
-        modeDisplay.innerText = mode === 'pvc' ? "模式：單人 vs 電腦" : "模式：雙人對戰";
+        // 切換按鈕發光狀態
+        document.getElementById('pvcBtn').classList.toggle('active', mode === 'pvc');
+        document.getElementById('pvpBtn').classList.toggle('active', mode === 'pvp');
         resetGame();
     }
 
@@ -78,46 +74,37 @@
         board = Array.from({ length: GRID_COUNT }, () => Array(GRID_COUNT).fill(0));
         currentPlayer = 1;
         gameOver = false;
-        statusDisplay.innerText = "輪到：黑子 (先手)";
-        statusDisplay.style.color = "black";
+        statusDisplay.innerText = gameMode === 'pvc' ? "你拿黑子，請下棋" : "黑子回合";
         drawBoard();
     }
 
     function drawBoard() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.beginPath();
-        ctx.strokeStyle = "#444";
+        ctx.strokeStyle = "#5d4037";
+        ctx.lineWidth = 1;
         for (let i = 0; i < GRID_COUNT; i++) {
+            ctx.beginPath();
             ctx.moveTo(PADDING + i * cellSize, PADDING);
             ctx.lineTo(PADDING + i * cellSize, canvas.height - PADDING);
             ctx.moveTo(PADDING, PADDING + i * cellSize);
             ctx.lineTo(canvas.width - PADDING, PADDING + i * cellSize);
+            ctx.stroke();
         }
-        ctx.stroke();
-
+        // 畫棋子
         for (let r = 0; r < GRID_COUNT; r++) {
             for (let c = 0; c < GRID_COUNT; c++) {
-                if (board[r][c] !== 0) {
-                    const x = PADDING + r * cellSize;
-                    const y = PADDING + c * cellSize;
-                    drawStone(x, y, board[r][c]);
-                }
+                if (board[r][c] !== 0) drawStone(r, c, board[r][c]);
             }
         }
     }
 
-    function drawStone(x, y, type) {
-        const color = type === 1 ? "black" : "white";
-        const grad = ctx.createRadialGradient(x-2, y-2, 1, x, y, cellSize/2.2);
-        if (type === 1) {
-            grad.addColorStop(0, "#555"); grad.addColorStop(1, "#000");
-        } else {
-            grad.addColorStop(0, "#fff"); grad.addColorStop(1, "#bbb");
-        }
+    function drawStone(r, c, type) {
+        const x = PADDING + r * cellSize;
+        const y = PADDING + c * cellSize;
         ctx.beginPath();
-        ctx.arc(x, y, cellSize/2.2, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.shadowBlur = 3; ctx.shadowColor = "rgba(0,0,0,0.3)";
+        ctx.arc(x, y, cellSize * 0.42, 0, Math.PI * 2);
+        ctx.fillStyle = type === 1 ? "#000" : "#fff";
+        ctx.shadowBlur = 4; ctx.shadowColor = "rgba(0,0,0,0.4)";
         ctx.fill();
         ctx.shadowBlur = 0;
     }
@@ -126,58 +113,52 @@
         if (gameOver || (gameMode === 'pvc' && currentPlayer === 2)) return;
 
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const r = Math.round((x - PADDING) / cellSize);
-        const c = Math.round((y - PADDING) / cellSize);
+        const r = Math.round((e.clientX - rect.left - PADDING) / cellSize);
+        const c = Math.round((e.clientY - rect.top - PADDING) / cellSize);
 
         if (r >= 0 && r < GRID_COUNT && c >= 0 && c < GRID_COUNT && board[r][c] === 0) {
-            makeMove(r, c);
-            
-            // 如果是電腦模式且遊戲沒結束，換電腦下
-            if (gameMode === 'pvc' && !gameOver) {
-                statusDisplay.innerText = "電腦思考中...";
-                setTimeout(aiMove, 500); // 延遲一下讓感覺更真實
+            placeStone(r, c);
+            if (!gameOver && gameMode === 'pvc') {
+                setTimeout(aiMove, 400); // 電腦在 0.4 秒後下棋
             }
         }
     });
 
-    function makeMove(r, c) {
+    function placeStone(r, c) {
         board[r][c] = currentPlayer;
         drawBoard();
         if (checkWin(r, c)) {
-            statusDisplay.innerText = `${currentPlayer === 1 ? "黑子" : "白子"} 獲勝！`;
+            statusDisplay.innerText = (currentPlayer === 1 ? "黑子" : "白子") + " 勝利！";
             gameOver = true;
             return;
         }
         currentPlayer = currentPlayer === 1 ? 2 : 1;
-        statusDisplay.innerText = `輪到：${currentPlayer === 1 ? "黑子" : "白子"}`;
+        statusDisplay.innerText = gameMode === 'pvc' ? (currentPlayer === 1 ? "你的回合" : "電腦思考中...") : (currentPlayer === 1 ? "黑子回合" : "白子回合");
     }
 
     function aiMove() {
         if (gameOver) return;
-        // 基礎 AI：找所有空格，隨機選一個
-        let emptySpots = [];
-        for (let r = 0; r < GRID_COUNT; r++) {
-            for (let c = 0; c < GRID_COUNT; c++) {
-                if (board[r][c] === 0) emptySpots.push({r, c});
+        // AI 邏輯：隨機找空格（基礎版）
+        let empty = [];
+        for (let r=0; r<GRID_COUNT; r++) {
+            for (let c=0; c<GRID_COUNT; c++) {
+                if (board[r][c] === 0) empty.push({r, c});
             }
         }
-        if (emptySpots.length > 0) {
-            const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-            makeMove(spot.r, spot.c);
+        if (empty.length > 0) {
+            const pick = empty[Math.floor(Math.random() * empty.length)];
+            placeStone(pick.r, pick.c);
         }
     }
 
     function checkWin(r, c) {
-        const type = board[r][c];
-        const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+        const t = board[r][c], dirs = [[1,0],[0,1],[1,1],[1,-1]];
         for (let [dr, dc] of dirs) {
             let count = 1;
             let nr = r + dr, nc = c + dc;
-            while(nr>=0 && nr<GRID_COUNT && nc>=0 && nc<GRID_COUNT && board[nr][nc] === type) { count++; nr+=dr; nc+=dc; }
+            while(nr>=0 && nr<GRID_COUNT && nc>=0 && nc<GRID_COUNT && board[nr][nc] === t) { count++; nr+=dr; nc+=dc; }
             nr = r - dr; nc = c - dc;
-            while(nr>=0 && nr<GRID_COUNT && nc>=0 && nc<GRID_COUNT && board[nr][nc] === type) { count++; nr-=dr; nc-=dc; }
+            while(nr>=0 && nr<GRID_COUNT && nc>=0 && nc<GRID_COUNT && board[nr][nc] === t) { count++; nr-=dr; nc-=dc; }
             if (count >= 5) return true;
         }
         return false;
