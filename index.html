@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 真實質感版</title>
+    <title>JS Slither - 完美黏合版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; }
         canvas { display: block; }
@@ -20,7 +20,7 @@
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5</h2>
-        <p style="font-size: 0.8em;">絲滑實體質感 | 慢速模式</p>
+        <p style="font-size: 0.8em;">加速不分離 | 實體質感進化</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -36,24 +36,23 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- 核心參數：真正的小短蛇 ---
     let snake = {
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
         angle: 0,
         targetAngle: 0,
-        baseSpeed: 1.2,   // 慢速
-        boostSpeed: 3.5,  
-        size: 7,          // 稍微加大一點點，增加厚實感
+        baseSpeed: 1.2,
+        boostSpeed: 3.5,
+        size: 7,
         color: '#22ff00',
         boostColor: '#00ffff',
         history: [],      
-        bodyLength: 5,    // 初始長度 5
+        bodyLength: 5,
         isBoosting: false
     };
 
-    // 初始化極短的路徑，防止開場撐長
-    for(let i=0; i<100; i++) {
+    // 預填路徑
+    for(let i=0; i<1000; i++) {
         snake.history.push({x: snake.x, y: snake.y});
     }
 
@@ -82,14 +81,14 @@
         ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 畫背景格線
+        // 背景格線
         ctx.strokeStyle = '#111';
         ctx.lineWidth = 1;
         for (let x = 0; x < canvas.width; x += 60) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
         }
         for (let y = 0; y < canvas.height; y += 60) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.height, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
         }
 
         let currentSpeed = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostSpeed : snake.baseSpeed;
@@ -100,7 +99,6 @@
             scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
         }
 
-        // 轉向
         let dx = mouse.x - snake.x;
         let dy = mouse.y - snake.y;
         snake.targetAngle = Math.atan2(dy, dx);
@@ -109,47 +107,43 @@
         while (diff > Math.PI) diff -= Math.PI * 2;
         snake.angle += diff * 0.08; 
 
-        // 更新位置
         snake.x += Math.cos(snake.angle) * currentSpeed;
         snake.y += Math.sin(snake.angle) * currentSpeed;
 
         snake.history.unshift({x: snake.x, y: snake.y});
-        if (snake.history.length > 2000) snake.history.pop();
+        if (snake.history.length > 3000) snake.history.pop();
 
-        // 畫食物
         foods.forEach((f, index) => {
             ctx.beginPath();
             ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
             ctx.fillStyle = f.color;
             ctx.fill();
-
             let dist = Math.hypot(snake.x - f.x, snake.y - f.y);
             if (dist < snake.size + f.size) {
-                snake.bodyLength += 0.2; // 成長極慢
+                snake.bodyLength += 0.2;
                 foods.splice(index, 1);
                 createFood();
                 scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
             }
         });
 
-        // --- 核心修改：.io 質感身體 ---
-        for (let i = Math.floor(snake.bodyLength * 2); i > 0; i--) {
-            // 間距縮小到 3，讓圓圈高度重疊變成「一條實心的肉」
-            let index = i * 3; 
+        // --- 核心修改：動態間距補償 ---
+        // 關鍵在於：間距 / 目前速度 = 固定距離
+        let step = 4 / currentSpeed; 
+        
+        for (let i = Math.floor(snake.bodyLength * 3); i > 0; i--) {
+            // 讓 index 隨著速度變動，跑越快，取得座標幀越近
+            let index = Math.floor(i * (4 / currentSpeed) * 3); 
+            
             if (snake.history[index]) {
                 let pos = snake.history[index];
                 ctx.beginPath();
-                // 身體半徑隨長度微縮
-                let r = snake.size * 0.9;
-                ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-                
-                // 漸層色：加速時變青色，平時綠色
+                ctx.arc(pos.x, pos.y, snake.size * 0.9, 0, Math.PI * 2);
                 ctx.fillStyle = snake.isBoosting ? '#00e5ff' : '#1fb500';
                 
-                // 加一點深色描邊增加立體感
+                // 實體描邊
                 ctx.strokeStyle = '#000';
                 ctx.lineWidth = 0.5;
-                
                 ctx.fill();
                 ctx.stroke();
             }
@@ -167,7 +161,7 @@
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // 經典大眼睛
+        // 眼睛
         ctx.fillStyle = "white";
         ctx.beginPath(); ctx.arc(4, -3, 3.5, 0, Math.PI * 2); ctx.arc(4, 3, 3.5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "black";
