@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - Fix Version</title>
+    <title>JS Slither - 慢速優雅版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
@@ -19,7 +19,7 @@
 <body>
     <div id="ui">
         <h3 id="scoreDisplay">長度: 15.0</h3>
-        <p style="font-size: 0.7em;">滑鼠轉向 | 左鍵噴射</p>
+        <p style="font-size: 0.7em;">慢速模式 | 按住左鍵噴射加速</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -35,14 +35,14 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- 核心參數：極小蛇 ---
+    // --- 核心參數修改：更慢的速度 ---
     let snake = {
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
         angle: 0,
         targetAngle: 0,
-        baseSpeed: 3,
-        boostSpeed: 6,
+        baseSpeed: 1.5,   // 從 3 降到 1.5 (變得很慢)
+        boostSpeed: 4,    // 加速也降到 4 (原本是 6)
         size: 6,         
         color: '#22ff00',
         boostColor: '#00ffff',
@@ -51,8 +51,8 @@
         isBoosting: false
     };
 
-    // 預填初始路徑，防止一開始找不到座標而消失
-    for(let i=0; i<500; i++) {
+    // 預填路徑
+    for(let i=0; i<800; i++) {
         snake.history.push({x: snake.x, y: snake.y});
     }
 
@@ -68,7 +68,6 @@
         });
     }
 
-    // 初始化滑鼠位置，避免 NaN
     let mouse = { x: snake.x, y: snake.y };
     window.addEventListener('mousemove', (e) => {
         mouse.x = e.clientX;
@@ -79,7 +78,6 @@
     window.addEventListener('mouseup', (e) => { if(e.button === 0) snake.isBoosting = false; });
 
     function gameLoop() {
-        // 清除背景
         ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -93,12 +91,12 @@
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
         }
 
-        // 加速與速度邏輯
+        // 加速邏輯
         let currentSpeed = (snake.isBoosting && snake.bodyLength > 5) ? snake.boostSpeed : snake.baseSpeed;
         let currentColor = (snake.isBoosting && snake.bodyLength > 5) ? snake.boostColor : snake.color;
         
         if (snake.isBoosting && snake.bodyLength > 5) {
-            snake.bodyLength -= 0.03;
+            snake.bodyLength -= 0.02; // 加速消耗也稍微調慢一點
             scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
         }
 
@@ -110,7 +108,10 @@
         let diff = snake.targetAngle - snake.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        snake.angle += diff * 0.15; 
+        
+        // --- 核心修改：轉向靈敏度也調低 ---
+        // 從 0.15 降到 0.08，讓轉彎的弧度變大，看起來更優雅
+        snake.angle += diff * 0.08; 
 
         // 更新位置
         snake.x += Math.cos(snake.angle) * currentSpeed;
@@ -118,7 +119,7 @@
 
         // 紀錄路徑
         snake.history.unshift({x: snake.x, y: snake.y});
-        if (snake.history.length > 2000) snake.history.pop();
+        if (snake.history.length > 3000) snake.history.pop();
 
         // 畫食物
         foods.forEach((f, index) => {
@@ -138,7 +139,9 @@
 
         // 畫身體
         for (let i = Math.floor(snake.bodyLength); i > 0; i--) {
-            let index = i * 4; 
+            // 因為速度變慢，歷史路徑的點會很密集，我們把間隔拉大
+            // 從 i * 4 改成 i * 8，保持節點之間的視覺距離
+            let index = i * 8; 
             if (snake.history[index]) {
                 let pos = snake.history[index];
                 ctx.beginPath();
