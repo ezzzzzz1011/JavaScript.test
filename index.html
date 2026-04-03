@@ -3,31 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 全域碰撞生死鬥</title>
+    <title>JS Slither - 復活與碰撞完美版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
         #ui { position: absolute; top: 20px; left: 20px; color: #00FF41; pointer-events: none; z-index: 10; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: none;
+            background: rgba(0,0,0,0.85); display: none;
             flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100;
         }
         button {
-            padding: 15px 40px; font-size: 20px; cursor: pointer;
+            padding: 15px 40px; font-size: 22px; cursor: pointer;
             background: #22ff00; border: none; border-radius: 50px; font-weight: bold;
+            box-shadow: 0 0 20px rgba(34,255,0,0.4); transition: 0.2s;
         }
+        button:hover { transform: scale(1.1); background: #fff; }
     </style>
 </head>
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5.0</h2>
-        <p>⚠️ 只要頭碰到別人的身體就死掉了！</p>
+        <p>控制：滑鼠轉向 | 規則：頭撞身體即死</p>
     </div>
 
     <div id="overlay">
-        <h1 id="deathMsg">💥 撞車陣亡！</h1>
-        <button onclick="resetGame()">重新復活</button>
+        <h1 style="color:#ff4444; font-size: 48px;">💥 撞車陣亡！</h1>
+        <button onclick="initGame()">重新復活</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -38,10 +40,11 @@
     const scoreDisplay = document.getElementById('scoreDisplay');
     const overlay = document.getElementById('overlay');
 
-    const WORLD_SIZE = 1500;
-    const SNAKE_SIZE = 9;
+    const WORLD_SIZE = 1600;
+    const SNAKE_SIZE = 8;
     let snakes = [];
     let foods = [];
+    let gameActive = false;
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -50,7 +53,6 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- 蛇的物件導向設計 ---
     class Snake {
         constructor(x, y, color, isPlayer = false) {
             this.x = x; this.y = y;
@@ -61,39 +63,38 @@
             this.bodyLength = 5;
             this.history = [];
             this.alive = true;
-            this.speed = 1.2;
+            this.speed = 1.3;
             this.turnTimer = 0;
-            // 預填路徑
-            for(let i=0; i<800; i++) this.history.push({x: this.x, y: this.y});
+            this.invincible = 120; // 剛出生有 2 秒無敵（防止自撞）
+
+            for(let i=0; i<600; i++) this.history.push({x: this.x, y: this.y});
         }
 
         update(mouse) {
             if (!this.alive) return;
+            if (this.invincible > 0) this.invincible--;
 
-            let currentSpeed = this.speed;
             if (this.isPlayer) {
-                // 玩家跟隨滑鼠
                 let dx = mouse.x - canvas.width / 2;
                 let dy = mouse.y - canvas.height / 2;
                 this.targetAngle = Math.atan2(dy, dx);
             } else {
-                // AI 隨機亂走
                 this.turnTimer--;
                 if (this.turnTimer <= 0) {
-                    this.targetAngle += (Math.random() - 0.5) * 1.5;
-                    this.turnTimer = 40 + Math.random() * 60;
+                    this.targetAngle += (Math.random() - 0.5) * 2;
+                    this.turnTimer = 30 + Math.random() * 50;
                 }
             }
 
             let diff = this.targetAngle - this.angle;
             while (diff < -Math.PI) diff += Math.PI * 2;
             while (diff > Math.PI) diff -= Math.PI * 2;
-            this.angle += diff * 0.08;
+            this.angle += diff * 0.1;
 
-            this.x += Math.cos(this.angle) * currentSpeed;
-            this.y += Math.sin(this.angle) * currentSpeed;
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
 
-            // 邊界檢查
+            // 邊界判定
             if (this.x <= 0 || this.x >= WORLD_SIZE || this.y <= 0 || this.y >= WORLD_SIZE) {
                 this.die();
             }
@@ -104,48 +105,55 @@
 
         die() {
             this.alive = false;
-            if (this.isPlayer) overlay.style.display = 'flex';
+            if (this.isPlayer) {
+                gameActive = false;
+                overlay.style.display = 'flex';
+            }
         }
 
         draw() {
             if (!this.alive) return;
-            // 畫立體肉感身體 (由尾至頭)
+            // 畫立體身體
             for (let i = Math.floor(this.bodyLength * 3); i > 0; i--) {
-                let index = i * 10; // 間距拉開一點方便碰撞
+                let index = i * 6; 
                 let pos = this.history[index];
                 if (pos) {
                     ctx.beginPath();
                     ctx.arc(pos.x, pos.y, SNAKE_SIZE * 0.9, 0, Math.PI * 2);
                     ctx.fillStyle = this.color;
-                    ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.globalAlpha = 0.6;
                     ctx.fill();
-                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0;
                 }
             }
-            // 畫蛇頭與大眼睛
+            // 畫頭
             ctx.save();
             ctx.translate(this.x, this.y); ctx.rotate(this.angle);
             ctx.beginPath(); ctx.arc(0, 0, SNAKE_SIZE, 0, Math.PI * 2);
             ctx.fillStyle = this.color; ctx.fill();
+            // 眼睛
             ctx.fillStyle = "white";
-            ctx.beginPath(); ctx.arc(5, -4, 4, 0, Math.PI * 2); ctx.arc(5, 4, 4, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(4, -3, 3, 0, Math.PI * 2); ctx.arc(4, 3, 3, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "black";
-            ctx.beginPath(); ctx.arc(6, -4, 2, 0, Math.PI * 2); ctx.arc(6, 4, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(5, -3, 1.5, 0, Math.PI * 2); ctx.arc(5, 3, 1.5, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
         }
     }
 
-    function resetGame() {
+    function initGame() {
         overlay.style.display = 'none';
-        snakes = [
-            new Snake(WORLD_SIZE/2, WORLD_SIZE/2, '#ff6666', true), // 玩家
-            new Snake(200, 200, '#00CCFF'),
-            new Snake(WORLD_SIZE-200, 200, '#FFAA00'),
-            new Snake(200, WORLD_SIZE-200, '#FF00FF'),
-            new Snake(WORLD_SIZE-200, WORLD_SIZE-200, '#00FF88')
-        ];
+        snakes = [];
         foods = [];
-        for(let i=0; i<100; i++) createFood();
+        // 重新初始化玩家
+        snakes.push(new Snake(WORLD_SIZE/2, WORLD_SIZE/2, '#ff6666', true));
+        // 重新初始化敵人
+        let colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88', '#ffffff'];
+        for(let i=0; i<6; i++) {
+            snakes.push(new Snake(Math.random()*WORLD_SIZE, Math.random()*WORLD_SIZE, colors[i%colors.length]));
+        }
+        // 初始化食物
+        for(let i=0; i<120; i++) createFood();
+        gameActive = true;
     }
 
     function createFood() {
@@ -159,7 +167,14 @@
     window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
     function gameLoop() {
+        if (!gameActive) {
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+
         let player = snakes.find(s => s.isPlayer);
+        if (!player) return;
+
         let camX = canvas.width / 2 - player.x;
         let camY = canvas.height / 2 - player.y;
 
@@ -167,24 +182,29 @@
         ctx.save();
         ctx.translate(camX, camY);
 
-        // 畫地圖與紅色邊界
+        // 背景
         ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-        ctx.strokeStyle = 'red'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+        ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-        // 更新與碰撞偵測
+        // 更新與碰撞判定
         snakes.forEach(s => {
             if (!s.alive) return;
             s.update(mouse);
 
-            // --- 核心：碰撞偵測邏輯 ---
-            snakes.forEach(target => {
-                if (!target.alive) return;
-                // 檢查 s 的頭是否碰到 target 的身體 (跳過自己的頭部)
-                let startIndex = (s === target) ? 30 : 10; 
-                for (let i = startIndex; i < target.bodyLength * 10; i += 5) {
-                    let part = target.history[i];
-                    if (part && Math.hypot(s.x - part.x, s.y - part.y) < SNAKE_SIZE * 1.4) {
-                        s.die();
+            // --- 強化版全域碰撞判定 ---
+            snakes.forEach(other => {
+                if (!other.alive) return;
+                // 如果自己還在無敵時間，不檢查自撞
+                if (s === other && s.invincible > 0) return;
+
+                // 檢查 s 的頭是否撞到 other 的身體
+                // startIndex: 撞別人的話從頭開始算，撞自己從脖子(30)開始算
+                let startIndex = (s === other) ? 40 : 10;
+                for (let i = startIndex; i < other.bodyLength * 12; i += 5) {
+                    let part = other.history[i];
+                    if (part) {
+                        let d = Math.hypot(s.x - part.x, s.y - part.y);
+                        if (d < SNAKE_SIZE * 1.5) s.die();
                     }
                 }
             });
@@ -209,7 +229,7 @@
         requestAnimationFrame(gameLoop);
     }
 
-    resetGame();
+    initGame();
     gameLoop();
 </script>
 </body>
