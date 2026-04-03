@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 無限亂鬥版</title>
+    <title>JS Slither - 無自撞版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
@@ -24,7 +24,7 @@
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5.0</h2>
-        <p>電腦會不斷生成 | 吃掉對方的遺產變長！</p>
+        <p>模式：不會自撞！放心地繞圈圈吧！</p>
     </div>
 
     <div id="overlay">
@@ -45,7 +45,7 @@
 
     const WORLD_SIZE = 2000;
     const SNAKE_SIZE = 8;
-    const MAX_ENEMIES = 10; // 場上同時維持 10 條電腦蛇
+    const MAX_ENEMIES = 10; 
     let snakes = [];
     let foods = [];
     let gameActive = false;
@@ -68,14 +68,12 @@
             this.history = [];
             this.alive = true;
             this.speed = 1.3;
-            this.invincible = 60; 
 
             for(let i=0; i<600; i++) this.history.push({x: this.x, y: this.y});
         }
 
         update(mouse) {
             if (!this.alive) return;
-            if (this.invincible > 0) this.invincible--;
 
             if (this.isPlayer) {
                 let dx = mouse.x - canvas.width / 2;
@@ -103,7 +101,7 @@
             if (!this.alive) return;
             this.alive = false;
             
-            // 爆開成發光食物
+            // 噴發遺產食物
             for (let i = 0; i < this.bodyLength * 2; i++) {
                 let pos = this.history[i * 5] || {x: this.x, y: this.y};
                 foods.push({
@@ -152,23 +150,16 @@
         overlay.style.display = 'none';
         snakes = [];
         foods = [];
-        // 玩家固定在中間
         snakes.push(new Snake(WORLD_SIZE/2, WORLD_SIZE/2, '#ff6666', true));
-        // 初始填充敵人
         for(let i=0; i<MAX_ENEMIES; i++) spawnEnemy();
-        // 初始填充食物
         for(let i=0; i<150; i++) spawnRandomFood();
         gameActive = true;
     }
 
     function spawnEnemy() {
-        const colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88', '#ffffff', '#ffff00'];
+        const colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88', '#ffffff'];
         let rx = Math.random() * WORLD_SIZE;
         let ry = Math.random() * WORLD_SIZE;
-        // 避免生在玩家臉上
-        let player = snakes.find(s => s.isPlayer);
-        if (player && Math.hypot(rx - player.x, ry - player.y) < 300) { rx += 400; ry += 400; }
-        
         snakes.push(new Snake(rx, ry, colors[Math.floor(Math.random()*colors.length)]));
     }
 
@@ -200,7 +191,6 @@
         ctx.save();
         ctx.translate(camX, camY);
 
-        // 背景
         ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
         ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
         for(let i=0; i<=WORLD_SIZE; i+=100) {
@@ -209,21 +199,22 @@
         }
         ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-        // --- 自動補位邏輯 ---
-        let aliveEnemies = snakes.filter(s => !s.isPlayer && s.alive).length;
-        if (aliveEnemies < MAX_ENEMIES) {
-            spawnEnemy();
-        }
+        // 自動補位
+        if (snakes.filter(s => !s.isPlayer && s.alive).length < MAX_ENEMIES) spawnEnemy();
 
-        // 更新與碰撞
         snakes.forEach(s => {
             if (!s.alive) return;
             s.update(mouse);
 
+            // --- 核心修改：碰撞判定 ---
             snakes.forEach(other => {
-                if (!other.alive || (s === other && s.invincible > 0)) return;
-                let startIdx = (s === other) ? 50 : 10;
-                for (let i = startIdx; i < other.bodyLength * 12; i += 6) {
+                if (!other.alive) return;
+                
+                // 【關鍵】如果 s 是自己，且 target 也是自己，直接跳過不檢查碰撞
+                if (s === other) return; 
+
+                // 檢查 s 的頭是否撞到「別人」的身體
+                for (let i = 10; i < other.bodyLength * 12; i += 6) {
                     let part = other.history[i];
                     if (part && Math.hypot(s.x - part.x, s.y - part.y) < SNAKE_SIZE * 1.3) {
                         s.die();
@@ -242,7 +233,6 @@
             s.draw();
         });
 
-        // 畫食物
         foods.forEach(f => {
             ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, Math.PI*2); 
             ctx.fillStyle = f.color;
