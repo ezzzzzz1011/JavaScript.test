@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 無自撞版</title>
+    <title>JS Slither - 零自撞穩定版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
@@ -24,7 +24,7 @@
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5.0</h2>
-        <p>模式：不會自撞！放心地繞圈圈吧！</p>
+        <p>✅ 自撞免疫已啟動 | 撞到別人或邊界才會死</p>
     </div>
 
     <div id="overlay">
@@ -68,13 +68,12 @@
             this.history = [];
             this.alive = true;
             this.speed = 1.3;
-
-            for(let i=0; i<600; i++) this.history.push({x: this.x, y: this.y});
+            // 預填大量初始路徑
+            for(let i=0; i<800; i++) this.history.push({x: this.x, y: this.y});
         }
 
         update(mouse) {
             if (!this.alive) return;
-
             if (this.isPlayer) {
                 let dx = mouse.x - canvas.width / 2;
                 let dy = mouse.y - canvas.height / 2;
@@ -82,37 +81,34 @@
             } else {
                 if (Math.random() < 0.02) this.targetAngle += (Math.random() - 0.5) * 2;
             }
-
             let diff = this.targetAngle - this.angle;
             while (diff < -Math.PI) diff += Math.PI * 2;
             while (diff > Math.PI) diff -= Math.PI * 2;
             this.angle += diff * 0.1;
-
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
 
+            // 邊界必死
             if (this.x <= 0 || this.x >= WORLD_SIZE || this.y <= 0 || this.y >= WORLD_SIZE) this.die();
 
             this.history.unshift({x: this.x, y: this.y});
-            if (this.history.length > 2000) this.history.pop();
+            if (this.history.length > 3000) this.history.pop();
         }
 
         die() {
             if (!this.alive) return;
             this.alive = false;
-            
-            // 噴發遺產食物
+            // 遺產
             for (let i = 0; i < this.bodyLength * 2; i++) {
-                let pos = this.history[i * 5] || {x: this.x, y: this.y};
+                let pos = this.history[i * 6] || {x: this.x, y: this.y};
                 foods.push({
-                    x: pos.x + (Math.random()-0.5)*15,
-                    y: pos.y + (Math.random()-0.5)*15,
+                    x: pos.x + (Math.random()-0.5)*20,
+                    y: pos.y + (Math.random()-0.5)*20,
                     size: 3 + Math.random()*2,
                     color: this.color,
                     isLegacy: true
                 });
             }
-
             if (this.isPlayer) {
                 gameActive = false;
                 finalStat.innerText = `最終長度: ${this.bodyLength.toFixed(1)}`;
@@ -158,9 +154,7 @@
 
     function spawnEnemy() {
         const colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88', '#ffffff'];
-        let rx = Math.random() * WORLD_SIZE;
-        let ry = Math.random() * WORLD_SIZE;
-        snakes.push(new Snake(rx, ry, colors[Math.floor(Math.random()*colors.length)]));
+        snakes.push(new Snake(Math.random()*WORLD_SIZE, Math.random()*WORLD_SIZE, colors[Math.floor(Math.random()*colors.length)]));
     }
 
     function spawnRandomFood() {
@@ -176,11 +170,7 @@
     restartBtn.addEventListener('click', initGame);
 
     function gameLoop() {
-        if (!gameActive) {
-            requestAnimationFrame(gameLoop);
-            return;
-        }
-
+        if (!gameActive) { requestAnimationFrame(gameLoop); return; }
         let player = snakes.find(s => s.isPlayer);
         if (!player) return;
 
@@ -190,7 +180,6 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
         ctx.translate(camX, camY);
-
         ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
         ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
         for(let i=0; i<=WORLD_SIZE; i+=100) {
@@ -199,32 +188,35 @@
         }
         ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-        // 自動補位
         if (snakes.filter(s => !s.isPlayer && s.alive).length < MAX_ENEMIES) spawnEnemy();
 
         snakes.forEach(s => {
             if (!s.alive) return;
             s.update(mouse);
 
-            // --- 核心修改：碰撞判定 ---
+            // --- 徹底移除自撞判定 ---
             snakes.forEach(other => {
                 if (!other.alive) return;
                 
-                // 【關鍵】如果 s 是自己，且 target 也是自己，直接跳過不檢查碰撞
+                // 如果檢查對象是自己，直接結束這次內迴圈，不進行任何座標對比
                 if (s === other) return; 
 
-                // 檢查 s 的頭是否撞到「別人」的身體
+                // 只有 s 不是 other 時，才檢查頭部與身體的距離
                 for (let i = 10; i < other.bodyLength * 12; i += 6) {
                     let part = other.history[i];
-                    if (part && Math.hypot(s.x - part.x, s.y - part.y) < SNAKE_SIZE * 1.3) {
-                        s.die();
+                    if (part) {
+                        let dist = Math.hypot(s.x - part.x, s.y - part.y);
+                        // 碰撞半徑判定
+                        if (dist < SNAKE_SIZE * 1.35) {
+                            s.die();
+                        }
                     }
                 }
             });
 
             foods.forEach((f, i) => {
                 if (Math.hypot(s.x - f.x, s.y - f.y) < SNAKE_SIZE + f.size) {
-                    s.bodyLength += f.isLegacy ? 0.3 : 0.08; 
+                    s.bodyLength += f.isLegacy ? 0.3 : 0.1; 
                     foods.splice(i, 1);
                     if (!f.isLegacy) spawnRandomFood();
                     if(s.isPlayer) scoreDisplay.innerText = `長度: ${s.bodyLength.toFixed(1)}`;
