@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五子棋 - 雙模式版</title>
+    <title>五子棋 - 高手 AI 版</title>
     <style>
         body { 
             margin: 0; padding: 0; display: flex; flex-direction: column; 
@@ -11,21 +11,17 @@
             height: 100vh; justify-content: center; color: white;
         }
         #menu { margin-bottom: 20px; text-align: center; }
-        .status { font-size: 24px; margin-bottom: 10px; color: #2ecc71; font-weight: bold; }
-        
-        /* 按鈕樣式 */
+        .status { font-size: 24px; margin-bottom: 10px; color: #2ecc71; font-weight: bold; height: 30px; }
         .btn-group { display: flex; gap: 15px; }
         button {
             padding: 12px 25px; font-size: 18px; cursor: pointer;
             border: none; border-radius: 8px; font-weight: bold; transition: 0.3s;
         }
-        .btn-pc { background-color: #e67e22; color: white; } /* 電腦模式按鈕 */
-        .btn-friend { background-color: #3498db; color: white; } /* 朋友模式按鈕 */
+        .btn-pc { background-color: #e67e22; color: white; }
+        .btn-friend { background-color: #3498db; color: white; }
         .btn-reset { background-color: #95a5a6; color: white; }
-        
         button:hover { opacity: 0.8; transform: translateY(-2px); }
         button.active { outline: 4px solid white; box-shadow: 0 0 15px white; }
-
         canvas { 
             background-color: #dcb35c; 
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
@@ -36,11 +32,11 @@
 <body>
 
 <div id="menu">
-    <div id="statusDisplay" class="status">請選擇模式開始</div>
+    <div id="statusDisplay" class="status">請選擇模式</div>
     <div class="btn-group">
-        <button id="pvcBtn" class="btn-pc" onclick="setMode('pvc')">跟電腦下</button>
+        <button id="pvcBtn" class="btn-pc" onclick="setMode('pvc')">挑戰高手 AI</button>
         <button id="pvpBtn" class="btn-friend" onclick="setMode('pvp')">跟朋友下</button>
-        <button class="btn-reset" onclick="resetGame()">清空棋盤</button>
+        <button class="btn-reset" onclick="resetGame()">清空重來</button>
     </div>
 </div>
 
@@ -55,16 +51,26 @@
     const PADDING = 30;
     let cellSize, board, currentPlayer, gameOver, gameMode;
 
+    // 評分表：高手 AI 的核心
+    const SCORE = {
+        TWO: 10,        // 活二
+        SLEEP_TWO: 5,   // 眠二
+        THREE: 100,     // 活三
+        SLEEP_THREE: 50,// 眠三
+        FOUR: 10000,    // 活四 (必勝)
+        SLEEP_FOUR: 500,// 眠四
+        FIVE: 100000    // 五連 (贏了)
+    };
+
     function init() {
         const size = Math.min(window.innerWidth, window.innerHeight) * 0.7;
         canvas.width = canvas.height = size;
         cellSize = (canvas.width - PADDING * 2) / (GRID_COUNT - 1);
-        setMode('pvp'); // 預設為朋友模式
+        setMode('pvc');
     }
 
     function setMode(mode) {
         gameMode = mode;
-        // 切換按鈕發光狀態
         document.getElementById('pvcBtn').classList.toggle('active', mode === 'pvc');
         document.getElementById('pvpBtn').classList.toggle('active', mode === 'pvp');
         resetGame();
@@ -74,14 +80,13 @@
         board = Array.from({ length: GRID_COUNT }, () => Array(GRID_COUNT).fill(0));
         currentPlayer = 1;
         gameOver = false;
-        statusDisplay.innerText = gameMode === 'pvc' ? "你拿黑子，請下棋" : "黑子回合";
+        statusDisplay.innerText = gameMode === 'pvc' ? "你是黑子，請進攻" : "黑子回合";
         drawBoard();
     }
 
     function drawBoard() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = "#5d4037";
-        ctx.lineWidth = 1;
         for (let i = 0; i < GRID_COUNT; i++) {
             ctx.beginPath();
             ctx.moveTo(PADDING + i * cellSize, PADDING);
@@ -90,7 +95,6 @@
             ctx.lineTo(canvas.width - PADDING, PADDING + i * cellSize);
             ctx.stroke();
         }
-        // 畫棋子
         for (let r = 0; r < GRID_COUNT; r++) {
             for (let c = 0; c < GRID_COUNT; c++) {
                 if (board[r][c] !== 0) drawStone(r, c, board[r][c]);
@@ -111,16 +115,12 @@
 
     canvas.addEventListener('mousedown', (e) => {
         if (gameOver || (gameMode === 'pvc' && currentPlayer === 2)) return;
-
         const rect = canvas.getBoundingClientRect();
         const r = Math.round((e.clientX - rect.left - PADDING) / cellSize);
         const c = Math.round((e.clientY - rect.top - PADDING) / cellSize);
-
         if (r >= 0 && r < GRID_COUNT && c >= 0 && c < GRID_COUNT && board[r][c] === 0) {
             placeStone(r, c);
-            if (!gameOver && gameMode === 'pvc') {
-                setTimeout(aiMove, 400); // 電腦在 0.4 秒後下棋
-            }
+            if (!gameOver && gameMode === 'pvc') setTimeout(aiStrategy, 300);
         }
     });
 
@@ -133,22 +133,58 @@
             return;
         }
         currentPlayer = currentPlayer === 1 ? 2 : 1;
-        statusDisplay.innerText = gameMode === 'pvc' ? (currentPlayer === 1 ? "你的回合" : "電腦思考中...") : (currentPlayer === 1 ? "黑子回合" : "白子回合");
+        statusDisplay.innerText = gameMode === 'pvc' ? (currentPlayer === 1 ? "你的回合" : "電腦正在攔截你...") : (currentPlayer === 1 ? "黑子回合" : "白子回合");
     }
 
-    function aiMove() {
+    // --- 🧠 高手 AI 核心演算法 ---
+    function aiStrategy() {
         if (gameOver) return;
-        // AI 邏輯：隨機找空格（基礎版）
-        let empty = [];
-        for (let r=0; r<GRID_COUNT; r++) {
-            for (let c=0; c<GRID_COUNT; c++) {
-                if (board[r][c] === 0) empty.push({r, c});
+        let bestScore = -1;
+        let bestMove = null;
+
+        for (let r = 0; r < GRID_COUNT; r++) {
+            for (let c = 0; c < GRID_COUNT; c++) {
+                if (board[r][c] === 0) {
+                    // 計算防守得分 (黑子) + 攻擊得分 (白子)
+                    let score = evaluate(r, c, 1) + evaluate(r, c, 2) * 1.1; // 稍微偏重進攻
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = { r, c };
+                    }
+                }
             }
         }
-        if (empty.length > 0) {
-            const pick = empty[Math.floor(Math.random() * empty.length)];
-            placeStone(pick.r, pick.c);
+        if (bestMove) placeStone(bestMove.r, bestMove.c);
+    }
+
+    function evaluate(r, c, type) {
+        let totalScore = 0;
+        const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+        for (let [dr, dc] of dirs) {
+            let line = "";
+            // 抓取包含該點在內的 9 格區域進行棋型比對
+            for (let i = -4; i <= 4; i++) {
+                let nr = r + dr * i, nc = c + dc * i;
+                if (nr < 0 || nr >= GRID_COUNT || nc < 0 || nc >= GRID_COUNT) line += "X"; // 邊界
+                else if (nr === r && nc === c) line += type; // 假設下在這裡
+                else if (board[nr][nc] === 0) line += "0";
+                else if (board[nr][nc] === type) line += type;
+                else line += "X"; // 對方棋子
+            }
+            totalScore += analyzeLine(line, type);
         }
+        return totalScore;
+    }
+
+    function analyzeLine(line, type) {
+        const t = type.toString();
+        if (line.includes(t+t+t+t+t)) return SCORE.FIVE;
+        if (line.includes("0"+t+t+t+t+"0")) return SCORE.FOUR;
+        if (line.includes("X"+t+t+t+t+"0") || line.includes("0"+t+t+t+t+"X")) return SCORE.SLEEP_FOUR;
+        if (line.includes("0"+t+t+t+"00") || line.includes("00"+t+t+t+"0")) return SCORE.THREE;
+        if (line.includes("X"+t+t+t+"00") || line.includes("00"+t+t+t+"X")) return SCORE.SLEEP_THREE;
+        if (line.includes("0"+t+t+"000") || line.includes("000"+t+t+"0")) return SCORE.TWO;
+        return 0;
     }
 
     function checkWin(r, c) {
@@ -163,7 +199,6 @@
         }
         return false;
     }
-
     window.onload = init;
 </script>
 </body>
