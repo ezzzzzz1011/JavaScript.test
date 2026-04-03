@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 遺產與復活修正版</title>
+    <title>JS Slither - 無限亂鬥版</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
@@ -24,7 +24,7 @@
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5.0</h2>
-        <p>規則：頭撞身體即死 | 死亡會掉落點點</p>
+        <p>電腦會不斷生成 | 吃掉對方的遺產變長！</p>
     </div>
 
     <div id="overlay">
@@ -43,8 +43,9 @@
     const restartBtn = document.getElementById('restartBtn');
     const finalStat = document.getElementById('finalStat');
 
-    const WORLD_SIZE = 1800;
+    const WORLD_SIZE = 2000;
     const SNAKE_SIZE = 8;
+    const MAX_ENEMIES = 10; // 場上同時維持 10 條電腦蛇
     let snakes = [];
     let foods = [];
     let gameActive = false;
@@ -63,11 +64,11 @@
             this.isPlayer = isPlayer;
             this.angle = Math.random() * Math.PI * 2;
             this.targetAngle = this.angle;
-            this.bodyLength = 5.0; // 每次出生固定長度
+            this.bodyLength = 5.0;
             this.history = [];
             this.alive = true;
             this.speed = 1.3;
-            this.invincible = 60; // 1秒無敵時間
+            this.invincible = 60; 
 
             for(let i=0; i<600; i++) this.history.push({x: this.x, y: this.y});
         }
@@ -102,15 +103,15 @@
             if (!this.alive) return;
             this.alive = false;
             
-            // --- 死亡噴食物機制 ---
+            // 爆開成發光食物
             for (let i = 0; i < this.bodyLength * 2; i++) {
                 let pos = this.history[i * 5] || {x: this.x, y: this.y};
                 foods.push({
-                    x: pos.x + (Math.random()-0.5)*10,
-                    y: pos.y + (Math.random()-0.5)*10,
+                    x: pos.x + (Math.random()-0.5)*15,
+                    y: pos.y + (Math.random()-0.5)*15,
                     size: 3 + Math.random()*2,
                     color: this.color,
-                    isLegacy: true // 標記為遺產，吃起來長比較快
+                    isLegacy: true
                 });
             }
 
@@ -148,22 +149,27 @@
     }
 
     function initGame() {
-        console.log("遊戲初始化...");
         overlay.style.display = 'none';
         snakes = [];
         foods = [];
-        // 初始玩家
+        // 玩家固定在中間
         snakes.push(new Snake(WORLD_SIZE/2, WORLD_SIZE/2, '#ff6666', true));
-        // 初始敵人
-        let colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88', '#ffffff'];
-        for(let i=0; i<8; i++) {
-            snakes.push(new Snake(Math.random()*WORLD_SIZE, Math.random()*WORLD_SIZE, colors[i%colors.length]));
-        }
-        // 基礎食物
+        // 初始填充敵人
+        for(let i=0; i<MAX_ENEMIES; i++) spawnEnemy();
+        // 初始填充食物
         for(let i=0; i<150; i++) spawnRandomFood();
-        
-        scoreDisplay.innerText = "長度: 5.0";
         gameActive = true;
+    }
+
+    function spawnEnemy() {
+        const colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88', '#ffffff', '#ffff00'];
+        let rx = Math.random() * WORLD_SIZE;
+        let ry = Math.random() * WORLD_SIZE;
+        // 避免生在玩家臉上
+        let player = snakes.find(s => s.isPlayer);
+        if (player && Math.hypot(rx - player.x, ry - player.y) < 300) { rx += 400; ry += 400; }
+        
+        snakes.push(new Snake(rx, ry, colors[Math.floor(Math.random()*colors.length)]));
     }
 
     function spawnRandomFood() {
@@ -196,24 +202,28 @@
 
         // 背景
         ctx.fillStyle = '#080808'; ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-        for(let i=0; i<=WORLD_SIZE; i+=60) {
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+        for(let i=0; i<=WORLD_SIZE; i+=100) {
             ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,WORLD_SIZE); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(WORLD_SIZE,i); ctx.stroke();
         }
-        ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 8; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+        ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+        // --- 自動補位邏輯 ---
+        let aliveEnemies = snakes.filter(s => !s.isPlayer && s.alive).length;
+        if (aliveEnemies < MAX_ENEMIES) {
+            spawnEnemy();
+        }
 
         // 更新與碰撞
         snakes.forEach(s => {
             if (!s.alive) return;
             s.update(mouse);
 
-            // 碰撞判定
             snakes.forEach(other => {
-                if (!other.alive) return;
-                if (s === other && s.invincible > 0) return;
+                if (!other.alive || (s === other && s.invincible > 0)) return;
                 let startIdx = (s === other) ? 50 : 10;
-                for (let i = startIdx; i < other.bodyLength * 12; i += 5) {
+                for (let i = startIdx; i < other.bodyLength * 12; i += 6) {
                     let part = other.history[i];
                     if (part && Math.hypot(s.x - part.x, s.y - part.y) < SNAKE_SIZE * 1.3) {
                         s.die();
@@ -221,10 +231,9 @@
                 }
             });
 
-            // 吃食物
             foods.forEach((f, i) => {
                 if (Math.hypot(s.x - f.x, s.y - f.y) < SNAKE_SIZE + f.size) {
-                    s.bodyLength += f.isLegacy ? 0.4 : 0.15; // 遺產點長更快
+                    s.bodyLength += f.isLegacy ? 0.3 : 0.08; 
                     foods.splice(i, 1);
                     if (!f.isLegacy) spawnRandomFood();
                     if(s.isPlayer) scoreDisplay.innerText = `長度: ${s.bodyLength.toFixed(1)}`;
@@ -237,7 +246,7 @@
         foods.forEach(f => {
             ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, Math.PI*2); 
             ctx.fillStyle = f.color;
-            if(f.isLegacy) { ctx.shadowBlur = 10; ctx.shadowColor = f.color; }
+            if(f.isLegacy) { ctx.shadowBlur = 8; ctx.shadowColor = f.color; }
             ctx.fill();
             ctx.shadowBlur = 0;
         });
