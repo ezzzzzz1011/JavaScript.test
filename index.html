@@ -3,23 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 身體進化版</title>
+    <title>JS Slither - 完整進化版</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #111; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: 'Arial', sans-serif; }
         canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
+        #ui { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            color: #00FF41; 
+            pointer-events: none; 
+            text-shadow: 0 0 10px rgba(0,255,65,0.5);
+        }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h1>🐍 進化：長度系統已啟動</h1>
-        <p>蛇現在有了可以跟隨的路徑身體！</p>
+        <h1>🐍 JS Slither Lab</h1>
+        <p>滑鼠控制方向 | 吃到發光點會變長</p>
+        <h2 id="scoreDisplay">長度: 20</h2>
     </div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('scoreDisplay');
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -28,17 +37,30 @@
     window.addEventListener('resize', resize);
     resize();
 
+    // 遊戲物件設定
     let snake = {
         x: canvas.width / 2,
         y: canvas.height / 2,
         angle: 0,
         targetAngle: 0,
         speed: 4,
-        size: 20,
+        size: 18,
         color: '#00FF41',
-        history: [], // 儲存走過的路徑
-        bodyLength: 20 // 身體的節數
+        history: [],      // 儲存路徑座標
+        bodyLength: 20    // 初始身體節數
     };
+
+    let foods = [];
+    for(let i=0; i<30; i++) { createFood(); }
+
+    function createFood() {
+        foods.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 5 + 2,
+            color: `hsl(${Math.random() * 360}, 100%, 70%)`
+        });
+    }
 
     let mouse = { x: snake.x, y: snake.y };
     window.addEventListener('mousemove', (e) => {
@@ -47,58 +69,89 @@
     });
 
     function gameLoop() {
-        // 清除背景 (不留殘影，讓畫面更乾淨)
-        ctx.fillStyle = '#111';
+        // 1. 徹底清空畫面，防止黑色殘影
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 1. 計算角度
+        // 2. 計算轉向邏輯 (Slither 靈魂：平滑轉動)
         let dx = mouse.x - snake.x;
         let dy = mouse.y - snake.y;
         snake.targetAngle = Math.atan2(dy, dx);
 
-        // 2. 平滑轉向
         let diff = snake.targetAngle - snake.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        snake.angle += diff * 0.1;
+        snake.angle += diff * 0.12; // 轉向平滑度
 
-        // 3. 更新頭部位置
+        // 3. 更新頭部座標
         snake.x += Math.cos(snake.angle) * snake.speed;
         snake.y += Math.sin(snake.angle) * snake.speed;
 
-        // 4. 紀錄路徑 (每移動一幀就存一個座標)
+        // 4. 紀錄路徑 (供身體跟隨)
         snake.history.unshift({x: snake.x, y: snake.y});
-        
-        // 限制路徑長度 (路徑太長會耗效能)
-        if (snake.history.length > 500) snake.history.pop();
+        if (snake.history.length > 2000) snake.history.pop();
 
-        // 5. 畫出身體 (從後往前畫)
-        // 每隔幾幀取一個座標點來畫一節身體
-        for (let i = 1; i < snake.bodyLength; i++) {
-            let index = i * 5; // 身體節點的間隔
+        // 5. 畫出食物 (發光點)
+        foods.forEach((f, index) => {
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
+            ctx.fillStyle = f.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = f.color;
+            ctx.fill();
+            ctx.shadowBlur = 0; // 重設陰影，避免影響其他繪圖
+
+            // 簡單碰撞檢測：吃到食物
+            let dist = Math.hypot(snake.x - f.x, snake.y - f.y);
+            if (dist < snake.size + f.size) {
+                snake.bodyLength += 2;
+                foods.splice(index, 1);
+                createFood();
+                scoreDisplay.innerText = `長度: ${snake.bodyLength}`;
+            }
+        });
+
+        // 6. 畫身體 (由後往前畫，頭才會在最上面)
+        for (let i = snake.bodyLength; i > 0; i--) {
+            let index = i * 6; // 身體節點間距
             if (snake.history[index]) {
                 let pos = snake.history[index];
+                let r = snake.size * (1 - i / (snake.bodyLength * 3)); // 尾巴變細
+                
                 ctx.beginPath();
-                ctx.arc(pos.x, pos.y, snake.size - (i * 0.5), 0, Math.PI * 2); // 越後面越細
-                ctx.fillStyle = `rgba(0, 255, 65, ${1 - i/snake.bodyLength})`; // 越後面越透明
+                ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(0, 200, 60, ${1 - i/(snake.bodyLength * 1.5)})`;
                 ctx.fill();
+                ctx.closePath();
             }
         }
 
-        // 6. 畫出蛇頭
+        // 7. 畫蛇頭 (加上精緻眼睛)
         ctx.save();
         ctx.translate(snake.x, snake.y);
         ctx.rotate(snake.angle);
+        
+        // 蛇頭本體
         ctx.beginPath();
         ctx.arc(0, 0, snake.size, 0, Math.PI * 2);
         ctx.fillStyle = snake.color;
         ctx.fill();
-        // 眼睛
+
+        // 眼白
         ctx.fillStyle = "white";
         ctx.beginPath();
-        ctx.arc(10, -8, 5, 0, Math.PI * 2);
-        ctx.arc(10, 8, 5, 0, Math.PI * 2);
+        ctx.arc(8, -7, 6, 0, Math.PI * 2);
+        ctx.arc(8, 7, 6, 0, Math.PI * 2);
         ctx.fill();
+
+        // 瞳孔
+        ctx.fillStyle = "black";
+        ctx.beginPath();
+        ctx.arc(10, -7, 3, 0, Math.PI * 2);
+        ctx.arc(10, 7, 3, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.restore();
 
         requestAnimationFrame(gameLoop);
