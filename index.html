@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 經典比例版</title>
+    <title>JS Slither - 微型緩慢成長版</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #0a0a0a; font-family: sans-serif; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
         #ui { 
             position: absolute; 
             top: 20px; 
             left: 20px; 
-            color: rgba(0, 255, 65, 0.8); 
+            color: rgba(0, 255, 65, 0.7); 
             pointer-events: none; 
         }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h3 id="scoreDisplay">長度: 15</h3>
-        <p style="font-size: 0.8em;">滑鼠控制方向 | 按住左鍵噴射</p>
+        <h3 id="scoreDisplay">長度: 15.0</h3>
+        <p style="font-size: 0.7em;">滑鼠轉向 | 左鍵噴射 (加速消耗變快)</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -35,36 +35,36 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- 調整為「小蛇比例」 ---
+    // --- 參數微調：極致小蛇 ---
     let snake = {
         x: canvas.width / 2,
         y: canvas.height / 2,
         angle: 0,
         targetAngle: 0,
-        speed: 3,        // 速度也稍微降一點，手感更細膩
+        speed: 3,
         baseSpeed: 3,
         boostSpeed: 6,
-        size: 8,         // 從 18 縮小到 8 (變得很精緻)
+        size: 6,         // 再次縮小到 6 (超精緻小頭)
         color: '#22ff00',
         boostColor: '#00ffff',
         history: [],      
-        bodyLength: 15,  // 初始稍微短一點
+        bodyLength: 15,  // 初始長度
         isBoosting: false
     };
 
     let foods = [];
-    for(let i=0; i<60; i++) { createFood(); } // 食物變多，感覺地圖更廣
+    for(let i=0; i<80; i++) { createFood(); } // 點點變多，但營養變低
 
     function createFood() {
         foods.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            size: Math.random() * 3 + 1, // 食物也變小
+            size: Math.random() * 2 + 1, // 食物也變得超小
             color: `hsl(${Math.random() * 360}, 100%, 70%)`
         });
     }
 
-    let mouse = { x: snake.x, y: mouse?.y || snake.y };
+    let mouse = { x: snake.x, y: snake.y };
     window.addEventListener('mousemove', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
@@ -74,20 +74,20 @@
     window.addEventListener('mouseup', (e) => { if(e.button === 0) snake.isBoosting = false; });
 
     function gameLoop() {
-        ctx.fillStyle = '#0a0a0a';
+        ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 畫格線背景 (增加空間感)
         drawGrid();
 
         let currentSpeed = snake.baseSpeed;
         let currentColor = snake.color;
 
-        if (snake.isBoosting && snake.bodyLength > 8) {
+        // 加速邏輯
+        if (snake.isBoosting && snake.bodyLength > 5) {
             currentSpeed = snake.boostSpeed;
             currentColor = snake.boostColor;
-            snake.bodyLength -= 0.05;
-            scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
+            snake.bodyLength -= 0.03; // 加速消耗也稍微調慢
+            scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
         }
 
         let dx = mouse.x - snake.x;
@@ -103,7 +103,7 @@
         snake.y += Math.sin(snake.angle) * currentSpeed;
 
         snake.history.unshift({x: snake.x, y: snake.y});
-        if (snake.history.length > 2000) snake.history.pop();
+        if (snake.history.length > 3000) snake.history.pop();
 
         // 畫食物
         foods.forEach((f, index) => {
@@ -114,21 +114,23 @@
 
             let dist = Math.hypot(snake.x - f.x, snake.y - f.y);
             if (dist < snake.size + f.size) {
-                snake.bodyLength += 1.5;
+                // --- 核心修改：成長速度變慢 ---
+                // 原本是 1.5 或 2.5，現在改成 0.3，代表要吃 10 顆才會長大一點點
+                snake.bodyLength += 0.3; 
                 foods.splice(index, 1);
                 createFood();
-                scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
+                scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
             }
         });
 
-        // 畫身體 (間距縮小，讓身體看起來更像一條線)
+        // 畫身體
         for (let i = Math.floor(snake.bodyLength); i > 0; i--) {
-            let index = i * 4; // 間距從 6 縮小到 4
+            let index = i * 4; 
             if (snake.history[index]) {
                 let pos = snake.history[index];
                 ctx.beginPath();
-                ctx.arc(pos.x, pos.y, snake.size * 0.9, 0, Math.PI * 2);
-                ctx.fillStyle = snake.isBoosting ? `rgba(0, 255, 255, ${0.7 - i/snake.bodyLength})` : `rgba(34, 255, 0, ${0.7 - i/snake.bodyLength})`;
+                ctx.arc(pos.x, pos.y, snake.size * 0.85, 0, Math.PI * 2);
+                ctx.fillStyle = snake.isBoosting ? `rgba(0, 255, 255, ${0.6 - i/snake.bodyLength})` : `rgba(34, 255, 0, ${0.6 - i/snake.bodyLength})`;
                 ctx.fill();
             }
         }
@@ -142,11 +144,11 @@
         ctx.fillStyle = currentColor;
         ctx.fill();
 
-        // 小眼睛
+        // 極小眼睛
         ctx.fillStyle = "white";
         ctx.beginPath();
-        ctx.arc(4, -3, 3, 0, Math.PI * 2);
-        ctx.arc(4, 3, 3, 0, Math.PI * 2);
+        ctx.arc(3, -2, 2.5, 0, Math.PI * 2);
+        ctx.arc(3, 2, 2.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
@@ -154,9 +156,9 @@
     }
 
     function drawGrid() {
-        ctx.strokeStyle = '#1a1a1a';
+        ctx.strokeStyle = '#111';
         ctx.lineWidth = 1;
-        const step = 50;
+        const step = 60;
         for (let x = 0; x < canvas.width; x += step) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
         }
