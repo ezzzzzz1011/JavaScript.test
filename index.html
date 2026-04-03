@@ -3,32 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 復活與邊界版</title>
+    <title>JS Slither - 邊界死鬥修正版</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #0a0a0a; font-family: "Microsoft JhengHei", sans-serif; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; color: #fff; pointer-events: none; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #00FF41; pointer-events: none; z-index: 10; }
+        /* 死亡覆蓋層 */
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); display: none;
-            flex-direction: column; justify-content: center; align-items: center; color: white;
+            background: rgba(0,0,0,0.85); display: none;
+            flex-direction: column; justify-content: center; align-items: center; 
+            color: white; z-index: 100;
         }
+        h1 { font-size: 48px; color: #ff4444; text-shadow: 0 0 20px rgba(255,0,0,0.5); }
         button {
-            padding: 15px 30px; font-size: 20px; cursor: pointer;
-            background: #22ff00; border: none; border-radius: 5px; font-weight: bold;
+            padding: 20px 50px; font-size: 24px; cursor: pointer;
+            background: #22ff00; border: none; border-radius: 50px; 
+            font-weight: bold; transition: 0.3s; box-shadow: 0 0 15px rgba(34,255,0,0.5);
         }
-        button:hover { background: #1fb500; }
+        button:hover { transform: scale(1.1); background: #fff; color: #000; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h2 id="scoreDisplay">長度: 5</h2>
-        <p>別撞到邊界或其他蛇的身體！</p>
+        <h2 id="scoreDisplay">長度: 5.0</h2>
+        <p>⚠️ 撞到地圖紅色邊緣會立刻死亡！</p>
     </div>
 
     <div id="overlay">
-        <h1 id="deathMsg">你陣亡了！</h1>
-        <button onclick="resetGame()">重新復活</button>
+        <h1>💥 遊戲結束</h1>
+        <p id="finalScore" style="font-size: 20px; margin-bottom: 30px;"></p>
+        <button onclick="resetGame()">重新開始 (復活)</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -38,9 +43,11 @@
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('scoreDisplay');
     const overlay = document.getElementById('overlay');
+    const finalScore = document.getElementById('finalScore');
 
-    // 地圖大小設定
-    const WORLD_SIZE = 2000; 
+    // --- 1. 地圖大小設定 (縮小一點，讓你容易看到邊界) ---
+    const WORLD_SIZE = 1500; 
+    let snake, foods, enemies;
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -49,51 +56,30 @@
     window.addEventListener('resize', resize);
     resize();
 
-    let snake, foods, enemies;
-
     function resetGame() {
         overlay.style.display = 'none';
         
         // 初始化玩家
         snake = {
-            x: WORLD_SIZE / 2,
-            y: WORLD_SIZE / 2,
-            angle: 0,
-            targetAngle: 0,
-            baseSpeed: 1.2,
-            boostSpeed: 3.5,
-            size: 9,
-            color: '#ff6666',
-            history: [],
-            bodyLength: 5,
-            isBoosting: false,
-            alive: true
+            x: WORLD_SIZE / 2, y: WORLD_SIZE / 2,
+            angle: 0, targetAngle: 0,
+            baseSpeed: 1.2, boostSpeed: 3.5,
+            size: 9, color: '#ff6666',
+            history: [], bodyLength: 5,
+            isBoosting: false, alive: true
         };
+
+        // 預填路徑防止開場錯誤
+        for(let i=0; i<1000; i++) snake.history.push({x: snake.x, y: snake.y});
 
         // 初始化食物
         foods = [];
-        for(let i=0; i<150; i++) createFood();
+        for(let i=0; i<100; i++) createFood();
 
-        // 初始化一些敵人蛇
+        // 隨機敵人
         enemies = [];
-        const colors = ['#00aaff', '#ffaa00', '#ff00ff', '#ffffff', '#00ffaa'];
-        for(let i=0; i<8; i++) {
-            enemies.push(createEnemy(colors[i % colors.length]));
-        }
-
-        // 填滿初始路徑
-        for(let i=0; i<1000; i++) { snake.history.push({x: snake.x, y: snake.y}); }
-    }
-
-    function createEnemy(color) {
-        let ex = Math.random() * WORLD_SIZE;
-        let ey = Math.random() * WORLD_SIZE;
-        let enemy = {
-            x: ex, y: ey, angle: Math.random() * Math.PI * 2, color: color,
-            history: [], bodyLength: 5 + Math.random() * 10, alive: true, turnTimer: 0
-        };
-        for(let i=0; i<1000; i++) { enemy.history.push({x: ex, y: ey}); }
-        return enemy;
+        const colors = ['#00CCFF', '#FFAA00', '#FF00FF', '#00FF88'];
+        for(let i=0; i<5; i++) enemies.push(createEnemy(colors[i % colors.length]));
     }
 
     function createFood() {
@@ -105,21 +91,27 @@
         });
     }
 
-    let mouse = { x: 0, y: 0 };
-    window.addEventListener('mousemove', (e) => {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-    });
-    window.addEventListener('mousedown', (e) => { if(e.button === 0) snake.isBoosting = true; });
-    window.addEventListener('mouseup', (e) => { if(e.button === 0) snake.isBoosting = false; });
+    function createEnemy(color) {
+        let ex = Math.random() * WORLD_SIZE, ey = Math.random() * WORLD_SIZE;
+        let en = { x: ex, y: ey, angle: Math.random() * 6, color: color, history: [], bodyLength: 8, alive: true, timer: 0 };
+        for(let i=0; i<1000; i++) en.history.push({x: ex, y: ey});
+        return en;
+    }
+
+    // 監聽操作
+    let mouse = { x: canvas.width/2, y: canvas.height/2 };
+    window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    window.addEventListener('mousedown', () => snake.isBoosting = true);
+    window.addEventListener('mouseup', () => snake.isBoosting = false);
 
     function gameLoop() {
         if (!snake.alive) {
+            finalScore.innerText = `最終長度: ${Math.floor(snake.bodyLength)}`;
             overlay.style.display = 'flex';
+            return; // 停止更新
         }
 
-        // --- 攝像機邏輯 (Camera) ---
-        // 讓玩家永遠在畫面中心，我們要平移畫布
+        // 鏡頭跟隨
         let camX = canvas.width / 2 - snake.x;
         let camY = canvas.height / 2 - snake.y;
 
@@ -127,107 +119,84 @@
         ctx.save();
         ctx.translate(camX, camY);
 
-        // 畫地圖背景與邊界
-        ctx.fillStyle = '#0a0a0a';
+        // --- 2. 畫地圖與強化邊界判定 ---
+        ctx.fillStyle = '#080808';
         ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 5;
-        ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE); // 畫出紅色邊界框
+        
+        // 畫邊界警告線 (紅色)
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 10;
+        ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
         // 更新玩家
-        if (snake.alive) {
-            let speed = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostSpeed : snake.baseSpeed;
-            if (snake.isBoosting && snake.bodyLength > 3) snake.bodyLength -= 0.01;
+        let speed = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostSpeed : snake.baseSpeed;
+        if (snake.isBoosting && snake.bodyLength > 3) snake.bodyLength -= 0.02;
 
-            let dx = (mouse.x - canvas.width / 2);
-            let dy = (mouse.y - canvas.height / 2);
-            snake.targetAngle = Math.atan2(dy, dx);
-            let diff = snake.targetAngle - snake.angle;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            snake.angle += diff * 0.08;
+        let dx = mouse.x - canvas.width / 2;
+        let dy = mouse.y - canvas.height / 2;
+        snake.targetAngle = Math.atan2(dy, dx);
+        let diff = snake.targetAngle - snake.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        snake.angle += diff * 0.08;
 
-            snake.x += Math.cos(snake.angle) * speed;
-            snake.y += Math.sin(snake.angle) * speed;
+        snake.x += Math.cos(snake.angle) * speed;
+        snake.y += Math.sin(snake.angle) * speed;
 
-            // 檢查邊界碰撞
-            if (snake.x < 0 || snake.x > WORLD_SIZE || snake.y < 0 || snake.y > WORLD_SIZE) {
-                snake.alive = false;
-            }
-
-            snake.history.unshift({x: snake.x, y: snake.y});
-            if (snake.history.length > 2000) snake.history.pop();
+        // --- 核心修改：嚴格邊界死掉判定 ---
+        if (snake.x <= 0 || snake.x >= WORLD_SIZE || snake.y <= 0 || snake.y >= WORLD_SIZE) {
+            snake.alive = false;
         }
 
-        // 更新敵人與碰撞偵測
-        enemies.forEach(en => {
-            if (!en.alive) return;
-            en.turnTimer--;
-            if (en.turnTimer <= 0) {
-                en.angle += (Math.random() - 0.5) * 1;
-                en.turnTimer = Math.random() * 50 + 20;
-            }
-            en.x += Math.cos(en.angle) * 1.0;
-            en.y += Math.sin(en.angle) * 1.0;
-
-            // 敵人邊界反彈
-            if (en.x < 0 || en.x > WORLD_SIZE) en.angle = Math.PI - en.angle;
-            if (en.y < 0 || en.y > WORLD_SIZE) en.angle = -en.angle;
-
-            en.history.unshift({x: en.x, y: en.y});
-            if (en.history.length > 1000) en.history.pop();
-
-            // 碰撞判定：玩家撞敵人身體
-            for (let i = 15; i < en.bodyLength * 8; i += 5) {
-                let p = en.history[i];
-                if (p && Math.hypot(snake.x - p.x, snake.y - p.y) < snake.size * 1.5) {
-                    snake.alive = false;
-                }
-            }
-            
-            drawSnake(en);
-        });
+        snake.history.unshift({x: snake.x, y: snake.y});
+        if (snake.history.length > 2000) snake.history.pop();
 
         // 畫食物
         foods.forEach((f, i) => {
-            ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2); ctx.fillStyle = f.color; ctx.fill();
-            if (snake.alive && Math.hypot(snake.x - f.x, snake.y - f.y) < snake.size + f.size) {
+            ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, Math.PI*2); ctx.fillStyle = f.color; ctx.fill();
+            if (Math.hypot(snake.x - f.x, snake.y - f.y) < snake.size + f.size) {
                 snake.bodyLength += 0.2; foods.splice(i, 1); createFood();
                 scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
             }
         });
 
+        // 畫蛇 (調用之前的立體肉感繪製)
         drawSnake(snake);
-        ctx.restore();
+        enemies.forEach(en => {
+            en.timer--;
+            if(en.timer <= 0) { en.angle += (Math.random()-0.5)*1.2; en.timer = 40; }
+            en.x += Math.cos(en.angle) * 1.0; en.y += Math.sin(en.angle) * 1.0;
+            // 敵人碰到邊緣反彈
+            if(en.x<0 || en.x>WORLD_SIZE) en.angle = Math.PI - en.angle;
+            if(en.y<0 || en.y>WORLD_SIZE) en.angle = -en.angle;
+            en.history.unshift({x: en.x, y: en.y});
+            drawSnake(en);
+        });
 
+        ctx.restore();
         requestAnimationFrame(gameLoop);
     }
 
     function drawSnake(s) {
-        if (!s.alive) return;
         let speed = (s === snake && s.isBoosting) ? 3.5 : 1.2;
-        
-        // 身體肉感
+        // 身體 (立體質感)
         for (let i = Math.floor(s.bodyLength * 3); i > 0; i--) {
             let index = Math.floor(i * (4 / speed) * 3);
             let pos = s.history[index];
             if (pos) {
-                ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.beginPath(); ctx.arc(pos.x, pos.y, snake.size * 0.9, 0, Math.PI * 2);
-                ctx.fillStyle = s.color; ctx.fill();
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = s.color;
+                ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.fill();
                 ctx.shadowBlur = 0;
             }
         }
-
-        // 頭與大眼睛
-        ctx.save();
-        ctx.translate(s.x, s.y); ctx.rotate(s.angle);
-        ctx.beginPath(); ctx.arc(0, 0, snake.size, 0, Math.PI * 2);
-        ctx.fillStyle = s.color; ctx.fill();
-        ctx.fillStyle = "white";
-        ctx.beginPath(); ctx.arc(5, -4, 4, 0, Math.PI * 2); ctx.arc(5, 4, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "black";
-        ctx.beginPath(); ctx.arc(6, -4, 2, 0, Math.PI * 2); ctx.arc(6, 4, 2, 0, Math.PI * 2); ctx.fill();
+        // 頭
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.angle);
+        ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fillStyle = s.color; ctx.fill();
+        ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(4, -3, 3.5, 0, Math.PI*2); ctx.arc(4, 3, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(5, -3, 1.8, 0, Math.PI*2); ctx.arc(5, 3, 1.8, 0, Math.PI*2); ctx.fill();
         ctx.restore();
     }
 
