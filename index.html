@@ -3,24 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 完美黏合版</title>
+    <title>JS Slither - PK 生死鬥版</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
-        #ui { 
-            position: absolute; 
-            top: 20px; 
-            left: 20px; 
-            color: rgba(0, 255, 100, 0.9); 
-            pointer-events: none; 
-            font-family: sans-serif;
-        }
+        #ui { position: absolute; top: 20px; left: 20px; color: #00FF41; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="ui">
         <h2 id="scoreDisplay">長度: 5</h2>
-        <p style="font-size: 0.8em;">加速不分離 | 實體質感進化</p>
+        <p id="status">PK 模式：別撞到電腦的身體！</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -28,6 +21,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('scoreDisplay');
+    const statusDisplay = document.getElementById('status');
 
     function resize() {
         canvas.width = window.innerWidth;
@@ -36,137 +30,163 @@
     window.addEventListener('resize', resize);
     resize();
 
-    let snake = {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-        angle: 0,
-        targetAngle: 0,
-        baseSpeed: 1.2,
-        boostSpeed: 3.5,
-        size: 7,
-        color: '#22ff00',
-        boostColor: '#00ffff',
-        history: [],      
-        bodyLength: 5,
-        isBoosting: false
+    // --- 基礎設定 ---
+    const BASE_SPEED = 1.2;
+    const BOOST_SPEED = 3.5;
+    const SNAKE_SIZE = 7;
+
+    // 1. 玩家蛇
+    let player = {
+        x: canvas.width * 0.3, y: canvas.height / 2,
+        angle: 0, targetAngle: 0,
+        history: [], bodyLength: 5, isBoosting: false,
+        color: '#22ff00', boostColor: '#00ffff', alive: true
+    };
+
+    // 2. 電腦蛇 (AI)
+    let aiSnake = {
+        x: canvas.width * 0.7, y: canvas.height / 2,
+        angle: Math.PI, targetAngle: Math.PI,
+        history: [], bodyLength: 8, isBoosting: false,
+        color: '#ff0055', alive: true,
+        turnTimer: 0 // 控制 AI 隨機轉向
     };
 
     // 預填路徑
-    for(let i=0; i<1000; i++) {
-        snake.history.push({x: snake.x, y: snake.y});
+    function initHistory(s) {
+        for(let i=0; i<500; i++) s.history.push({x: s.x, y: s.y});
     }
+    initHistory(player);
+    initHistory(aiSnake);
 
     let foods = [];
-    for(let i=0; i<80; i++) { createFood(); }
+    for(let i=0; i<60; i++) createFood();
 
-    function createFood() {
+    function createFood(x, y) {
         foods.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            size: Math.random() * 2 + 1,
+            x: x || Math.random() * canvas.width,
+            y: y || Math.random() * canvas.height,
+            size: Math.random() * 2 + 2,
             color: `hsl(${Math.random() * 360}, 100%, 70%)`
         });
     }
 
-    let mouse = { x: snake.x, y: snake.y };
-    window.addEventListener('mousemove', (e) => {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-    });
+    let mouse = { x: player.x, y: player.y };
+    window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    window.addEventListener('mousedown', (e) => { if(e.button === 0) player.isBoosting = true; });
+    window.addEventListener('mouseup', (e) => { if(e.button === 0) player.isBoosting = false; });
 
-    window.addEventListener('mousedown', (e) => { if(e.button === 0) snake.isBoosting = true; });
-    window.addEventListener('mouseup', (e) => { if(e.button === 0) snake.isBoosting = false; });
+    function updateSnake(s, isPlayer) {
+        if (!s.alive) return;
 
-    function gameLoop() {
-        ctx.fillStyle = '#050505';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 背景格線
-        ctx.strokeStyle = '#111';
-        ctx.lineWidth = 1;
-        for (let x = 0; x < canvas.width; x += 60) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-        }
-        for (let y = 0; y < canvas.height; y += 60) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-        }
-
-        let currentSpeed = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostSpeed : snake.baseSpeed;
-        let currentColor = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostColor : snake.color;
+        let speed = (s.isBoosting && s.bodyLength > 3) ? BOOST_SPEED : BASE_SPEED;
         
-        if (snake.isBoosting && snake.bodyLength > 3) {
-            snake.bodyLength -= 0.02;
-            scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
+        if (isPlayer) {
+            s.targetAngle = Math.atan2(mouse.y - s.y, mouse.x - s.x);
+        } else {
+            // AI 邏輯：隨機遊走
+            s.turnTimer--;
+            if (s.turnTimer <= 0) {
+                s.targetAngle += (Math.random() - 0.5) * 2;
+                s.turnTimer = Math.random() * 50 + 20;
+            }
         }
 
-        let dx = mouse.x - snake.x;
-        let dy = mouse.y - snake.y;
-        snake.targetAngle = Math.atan2(dy, dx);
-        let diff = snake.targetAngle - snake.angle;
+        let diff = s.targetAngle - s.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        snake.angle += diff * 0.08; 
+        s.angle += diff * 0.08;
 
-        snake.x += Math.cos(snake.angle) * currentSpeed;
-        snake.y += Math.sin(snake.angle) * currentSpeed;
-
-        snake.history.unshift({x: snake.x, y: snake.y});
-        if (snake.history.length > 3000) snake.history.pop();
-
-        foods.forEach((f, index) => {
-            ctx.beginPath();
-            ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
-            ctx.fillStyle = f.color;
-            ctx.fill();
-            let dist = Math.hypot(snake.x - f.x, snake.y - f.y);
-            if (dist < snake.size + f.size) {
-                snake.bodyLength += 0.2;
-                foods.splice(index, 1);
-                createFood();
-                scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
-            }
-        });
-
-        // --- 核心修改：動態間距補償 ---
-        // 關鍵在於：間距 / 目前速度 = 固定距離
-        let step = 4 / currentSpeed; 
+        s.x += Math.cos(s.angle) * speed;
+        s.y += Math.sin(s.angle) * speed;
         
-        for (let i = Math.floor(snake.bodyLength * 3); i > 0; i--) {
-            // 讓 index 隨著速度變動，跑越快，取得座標幀越近
-            let index = Math.floor(i * (4 / currentSpeed) * 3); 
-            
-            if (snake.history[index]) {
-                let pos = snake.history[index];
+        // 邊界反彈 (防止跑出去)
+        if (s.x < 0 || s.x > canvas.width) s.angle = Math.PI - s.angle;
+        if (s.y < 0 || s.y > canvas.height) s.angle = -s.angle;
+
+        s.history.unshift({x: s.x, y: s.y});
+        if (s.history.length > 2000) s.history.pop();
+    }
+
+    function checkCollision(head, targetSnake) {
+        // 檢查頭部是否碰到對方的身體座標
+        // 我們跳過對方的頭部(前10個座標)，檢查後面的身體
+        for (let i = 15; i < targetSnake.bodyLength * 10; i += 5) {
+            let bodyPart = targetSnake.history[i];
+            if (bodyPart) {
+                let dist = Math.hypot(head.x - bodyPart.x, head.y - bodyPart.y);
+                if (dist < SNAKE_SIZE * 1.5) return true;
+            }
+        }
+        return false;
+    }
+
+    function drawSnake(s) {
+        if (!s.alive) return;
+        let speed = (s.isBoosting && s.bodyLength > 3) ? BOOST_SPEED : BASE_SPEED;
+        let color = (s.isBoosting && s.bodyLength > 3 && s === player) ? player.boostColor : s.color;
+
+        // 畫身體
+        for (let i = Math.floor(s.bodyLength * 3); i > 0; i--) {
+            let index = Math.floor(i * (4 / speed) * 3);
+            let pos = s.history[index];
+            if (pos) {
                 ctx.beginPath();
-                ctx.arc(pos.x, pos.y, snake.size * 0.9, 0, Math.PI * 2);
-                ctx.fillStyle = snake.isBoosting ? '#00e5ff' : '#1fb500';
-                
-                // 實體描邊
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 0.5;
+                ctx.arc(pos.x, pos.y, SNAKE_SIZE * 0.9, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = 0.6;
                 ctx.fill();
-                ctx.stroke();
+                ctx.globalAlpha = 1.0;
             }
         }
 
         // 畫蛇頭
         ctx.save();
-        ctx.translate(snake.x, snake.y);
-        ctx.rotate(snake.angle);
-        ctx.beginPath();
-        ctx.arc(0, 0, snake.size, 0, Math.PI * 2);
-        ctx.fillStyle = currentColor;
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
+        ctx.translate(s.x, s.y); ctx.rotate(s.angle);
+        ctx.beginPath(); ctx.arc(0, 0, SNAKE_SIZE, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        ctx.strokeStyle = '#000'; ctx.stroke();
         // 眼睛
         ctx.fillStyle = "white";
-        ctx.beginPath(); ctx.arc(4, -3, 3.5, 0, Math.PI * 2); ctx.arc(4, 3, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4, -3, 3, 0, Math.PI * 2); ctx.arc(4, 3, 3, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "black";
-        ctx.beginPath(); ctx.arc(5, -3, 1.8, 0, Math.PI * 2); ctx.arc(5, 3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(5, -3, 1.5, 0, Math.PI * 2); ctx.arc(5, 3, 1.5, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
+    }
+
+    function gameLoop() {
+        ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. 更新位置
+        updateSnake(player, true);
+        updateSnake(aiSnake, false);
+
+        // 2. 碰撞判定：玩家撞電腦
+        if (player.alive && checkCollision(player, aiSnake)) {
+            player.alive = false;
+            statusDisplay.innerText = "💥 你輸了！撞到電腦的身體了！";
+            statusDisplay.style.color = "red";
+        }
+        // 3. 碰撞判定：電腦撞玩家
+        if (aiSnake.alive && checkCollision(aiSnake, player)) {
+            aiSnake.alive = false;
+            statusDisplay.innerText = "🏆 贏了！電腦撞到你了！";
+            statusDisplay.style.color = "gold";
+        }
+
+        // 4. 畫食物與吃食物
+        foods.forEach((f, index) => {
+            ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
+            ctx.fillStyle = f.color; ctx.fill();
+            if (player.alive && Math.hypot(player.x - f.x, player.y - f.y) < SNAKE_SIZE + f.size) {
+                player.bodyLength += 0.2; foods.splice(index, 1); createFood();
+                scoreDisplay.innerText = `長度: ${Math.floor(player.bodyLength)}`;
+            }
+        });
+
+        // 5. 繪製
+        drawSnake(player);
+        drawSnake(aiSnake);
 
         requestAnimationFrame(gameLoop);
     }
