@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither 實驗室</title>
+    <title>JS Slither - 身體進化版</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #111; font-family: sans-serif; }
-        canvas { display: block; cursor: crosshair; }
+        body { margin: 0; overflow: hidden; background-color: #111; }
+        canvas { display: block; }
         #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h1>🐍 JS 絲滑蛇控制演示</h1>
-        <p>滑鼠移動：控制轉向</p>
+        <h1>🐍 進化：長度系統已啟動</h1>
+        <p>蛇現在有了可以跟隨的路徑身體！</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -21,7 +21,6 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // 初始化畫布大小
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -29,67 +28,80 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // 蛇的初始數據
     let snake = {
         x: canvas.width / 2,
         y: canvas.height / 2,
-        angle: 0,        // 目前角度
-        targetAngle: 0,  // 目標角度 (滑鼠方向)
+        angle: 0,
+        targetAngle: 0,
         speed: 4,
         size: 20,
-        color: '#00FF41'
+        color: '#00FF41',
+        history: [], // 儲存走過的路徑
+        bodyLength: 20 // 身體的節數
     };
 
     let mouse = { x: snake.x, y: snake.y };
-
-    // 監聽滑鼠
     window.addEventListener('mousemove', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
     });
 
-    // 核心遊戲循環
     function gameLoop() {
-        // 1. 清除畫面
-        ctx.fillStyle = 'rgba(17, 17, 17, 0.2)'; // 留下一點殘影感
+        // 清除背景 (不留殘影，讓畫面更乾淨)
+        ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 2. 計算方向 (使用三角函數 atan2)
+        // 1. 計算角度
         let dx = mouse.x - snake.x;
         let dy = mouse.y - snake.y;
         snake.targetAngle = Math.atan2(dy, dx);
 
-        // 3. 平滑轉向邏輯 (讓轉彎看起來自然，不生硬)
+        // 2. 平滑轉向
         let diff = snake.targetAngle - snake.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        snake.angle += diff * 0.1; // 轉向靈敏度
+        snake.angle += diff * 0.1;
 
-        // 4. 更新位置 (cos 與 sin 是斜向移動的關鍵)
+        // 3. 更新頭部位置
         snake.x += Math.cos(snake.angle) * snake.speed;
         snake.y += Math.sin(snake.angle) * snake.speed;
 
-        // 5. 畫出蛇頭
+        // 4. 紀錄路徑 (每移動一幀就存一個座標)
+        snake.history.unshift({x: snake.x, y: snake.y});
+        
+        // 限制路徑長度 (路徑太長會耗效能)
+        if (snake.history.length > 500) snake.history.pop();
+
+        // 5. 畫出身體 (從後往前畫)
+        // 每隔幾幀取一個座標點來畫一節身體
+        for (let i = 1; i < snake.bodyLength; i++) {
+            let index = i * 5; // 身體節點的間隔
+            if (snake.history[index]) {
+                let pos = snake.history[index];
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, snake.size - (i * 0.5), 0, Math.PI * 2); // 越後面越細
+                ctx.fillStyle = `rgba(0, 255, 65, ${1 - i/snake.bodyLength})`; // 越後面越透明
+                ctx.fill();
+            }
+        }
+
+        // 6. 畫出蛇頭
         ctx.save();
         ctx.translate(snake.x, snake.y);
         ctx.rotate(snake.angle);
-        
-        // 畫一個有質感的蛇頭
         ctx.beginPath();
         ctx.arc(0, 0, snake.size, 0, Math.PI * 2);
         ctx.fillStyle = snake.color;
         ctx.fill();
-        
-        // 畫眼睛 (讓蛇看起來有方向感)
+        // 眼睛
         ctx.fillStyle = "white";
         ctx.beginPath();
         ctx.arc(10, -8, 5, 0, Math.PI * 2);
         ctx.arc(10, 8, 5, 0, Math.PI * 2);
         ctx.fill();
-        
         ctx.restore();
 
-        requestAnimationFrame(gameLoop); // 每秒 60 次更新
+        requestAnimationFrame(gameLoop);
     }
 
     gameLoop();
