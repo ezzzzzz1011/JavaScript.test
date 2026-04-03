@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Slither - 迷你慢速版</title>
+    <title>JS Slither - 真實質感版</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #040404; font-family: sans-serif; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #050505; }
         canvas { display: block; }
         #ui { 
             position: absolute; 
             top: 20px; 
             left: 20px; 
-            color: rgba(0, 255, 100, 0.8); 
+            color: rgba(0, 255, 100, 0.9); 
             pointer-events: none; 
+            font-family: sans-serif;
         }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h3 id="scoreDisplay">長度: 5.0</h3>
-        <p style="font-size: 0.7em;">極短開場 | 慢速模式</p>
+        <h2 id="scoreDisplay">長度: 5</h2>
+        <p style="font-size: 0.8em;">絲滑實體質感 | 慢速模式</p>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -35,24 +36,24 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // --- 核心修改：長度 5 & 速度 1.0 ---
+    // --- 核心參數：真正的小短蛇 ---
     let snake = {
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
         angle: 0,
         targetAngle: 0,
-        baseSpeed: 1.0,   // 再次調慢，非常有節奏感
-        boostSpeed: 3.0,  
-        size: 6,         
+        baseSpeed: 1.2,   // 慢速
+        boostSpeed: 3.5,  
+        size: 7,          // 稍微加大一點點，增加厚實感
         color: '#22ff00',
         boostColor: '#00ffff',
         history: [],      
-        bodyLength: 5,    // 初始長度改為 5
+        bodyLength: 5,    // 初始長度 5
         isBoosting: false
     };
 
-    // 預填路徑
-    for(let i=0; i<1000; i++) {
+    // 初始化極短的路徑，防止開場撐長
+    for(let i=0; i<100; i++) {
         snake.history.push({x: snake.x, y: snake.y});
     }
 
@@ -78,11 +79,11 @@
     window.addEventListener('mouseup', (e) => { if(e.button === 0) snake.isBoosting = false; });
 
     function gameLoop() {
-        ctx.fillStyle = '#040404';
+        ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 畫格線
-        ctx.strokeStyle = '#0d0d0d';
+        // 畫背景格線
+        ctx.strokeStyle = '#111';
         ctx.lineWidth = 1;
         for (let x = 0; x < canvas.width; x += 60) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
@@ -91,30 +92,29 @@
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.height, y); ctx.stroke();
         }
 
-        // 加速邏輯
         let currentSpeed = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostSpeed : snake.baseSpeed;
         let currentColor = (snake.isBoosting && snake.bodyLength > 3) ? snake.boostColor : snake.color;
         
         if (snake.isBoosting && snake.bodyLength > 3) {
-            snake.bodyLength -= 0.01; // 因為速度慢，消耗也調到極低
-            scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
+            snake.bodyLength -= 0.02;
+            scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
         }
 
-        // 轉向邏輯
+        // 轉向
         let dx = mouse.x - snake.x;
         let dy = mouse.y - snake.y;
         snake.targetAngle = Math.atan2(dy, dx);
         let diff = snake.targetAngle - snake.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        snake.angle += diff * 0.06; // 轉向變更慢，增加優雅弧度
+        snake.angle += diff * 0.08; 
 
-        // 位置更新
+        // 更新位置
         snake.x += Math.cos(snake.angle) * currentSpeed;
         snake.y += Math.sin(snake.angle) * currentSpeed;
 
         snake.history.unshift({x: snake.x, y: snake.y});
-        if (snake.history.length > 3000) snake.history.pop();
+        if (snake.history.length > 2000) snake.history.pop();
 
         // 畫食物
         foods.forEach((f, index) => {
@@ -125,25 +125,33 @@
 
             let dist = Math.hypot(snake.x - f.x, snake.y - f.y);
             if (dist < snake.size + f.size) {
-                snake.bodyLength += 0.3; 
+                snake.bodyLength += 0.2; // 成長極慢
                 foods.splice(index, 1);
                 createFood();
-                scoreDisplay.innerText = `長度: ${snake.bodyLength.toFixed(1)}`;
+                scoreDisplay.innerText = `長度: ${Math.floor(snake.bodyLength)}`;
             }
         });
 
-        // 畫身體
-        for (let i = Math.floor(snake.bodyLength); i > 0; i--) {
-            // 由於速度降到 1.0，座標點非常擁擠，間隔稍微調整到 10
-            let index = i * 10; 
+        // --- 核心修改：.io 質感身體 ---
+        for (let i = Math.floor(snake.bodyLength * 2); i > 0; i--) {
+            // 間距縮小到 3，讓圓圈高度重疊變成「一條實心的肉」
+            let index = i * 3; 
             if (snake.history[index]) {
                 let pos = snake.history[index];
                 ctx.beginPath();
-                ctx.arc(pos.x, pos.y, snake.size * 0.8, 0, Math.PI * 2);
-                ctx.fillStyle = (snake.isBoosting && snake.bodyLength > 3) ? 
-                    `rgba(0, 255, 255, ${0.6 - i/snake.bodyLength})` : 
-                    `rgba(34, 255, 0, ${0.6 - i/snake.bodyLength})`;
+                // 身體半徑隨長度微縮
+                let r = snake.size * 0.9;
+                ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+                
+                // 漸層色：加速時變青色，平時綠色
+                ctx.fillStyle = snake.isBoosting ? '#00e5ff' : '#1fb500';
+                
+                // 加一點深色描邊增加立體感
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 0.5;
+                
                 ctx.fill();
+                ctx.stroke();
             }
         }
 
@@ -155,8 +163,15 @@
         ctx.arc(0, 0, snake.size, 0, Math.PI * 2);
         ctx.fillStyle = currentColor;
         ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 經典大眼睛
         ctx.fillStyle = "white";
-        ctx.beginPath(); ctx.arc(3, -2, 2, 0, Math.PI * 2); ctx.arc(3, 2, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(4, -3, 3.5, 0, Math.PI * 2); ctx.arc(4, 3, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "black";
+        ctx.beginPath(); ctx.arc(5, -3, 1.8, 0, Math.PI * 2); ctx.arc(5, 3, 1.8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
 
         requestAnimationFrame(gameLoop);
