@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>GitHub 連線暗棋 v.1</title>
+    <title>GitHub 連線暗棋 v.1.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; margin-top: 20px;}
@@ -73,7 +73,7 @@
     <div id="toast">提示訊息</div>
 
     <div id="lobby">
-        <h3>♟️ P2P 連線暗棋 v.1</h3>
+        <h3>♟️ P2P 連線暗棋 v.1.1</h3>
         <p>你的連線代碼: <strong id="my-id" style="color: #1976d2; user-select: all;">載入中...</strong></p>
         <hr>
         <input type="text" id="friend-id" placeholder="貼上朋友的代碼">
@@ -103,7 +103,6 @@
         let selectedIndex = -1;
         let conn = null; 
 
-        // 提示訊息功能
         function showMessage(msg) {
             const toast = document.getElementById("toast");
             toast.innerText = msg;
@@ -176,7 +175,7 @@
             let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
             let colorStr = myAssignedColor === 'red' ? '🔴 紅方' : (myAssignedColor === 'black' ? '⚫ 黑方' : '⚪ 未定');
             const turnStr = currentTurn === myRole ? '🟢 你的回合' : '⏳ 等待對手';
-            document.getElementById('game-info').innerText = `[v.1] 陣營: ${colorStr} | 狀態: ${turnStr}`;
+            document.getElementById('game-info').innerText = `[v.1.1] 陣營: ${colorStr} | 狀態: ${turnStr}`;
         }
 
         function renderBoard() {
@@ -224,13 +223,13 @@
             if (selectedIndex !== -1) {
                 const attacker = boardData[selectedIndex];
                 
-                // 防呆：如果一般棋子想點擊暗棋，我們幫玩家判定為「放棄選取並翻開該暗棋」
-                if (!target.isOpen && attacker.rank !== 2) {
-                    selectedIndex = -1;
+                // 【修復的關鍵點】 確保目標「不是空地」且「未翻開」，才算點到暗棋
+                if (!target.isEmpty && !target.isOpen && attacker.rank !== 2) {
+                    selectedIndex = -1; // 自動取消選取
                 } else {
                     const success = tryMoveOrCapture(selectedIndex, index);
-                    if (success) return; // 成功移動或吃子就結束這回合
-                    else return; // 失敗的話保留選取狀態，讓玩家重選
+                    if (success) return; 
+                    else return; 
                 }
             }
 
@@ -257,7 +256,6 @@
             const attacker = boardData[fromIdx];
             const target = boardData[toIdx];
 
-            // 將一維陣列轉換為 8x4 網格的 X,Y 座標來精確判斷是否相鄰
             const r1 = Math.floor(fromIdx / 8), c1 = fromIdx % 8;
             const r2 = Math.floor(toIdx / 8), c2 = toIdx % 8;
             const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
@@ -283,7 +281,7 @@
                     showMessage("⚠️ 只能移動一格"); return false;
                 }
                 if (target.isEmpty) {
-                    doMove(fromIdx, toIdx); return true;
+                    doMove(fromIdx, toIdx); return true; // 修復後，空地移動會在這邊順利執行
                 } else if (!target.isOpen) {
                     showMessage("⚠️ 一般棋子不能吃暗棋"); return false;
                 } else {
@@ -306,7 +304,7 @@
             const r1 = Math.floor(fromIdx / 8), c1 = fromIdx % 8;
             const r2 = Math.floor(toIdx / 8), c2 = toIdx % 8;
             
-            if (r1 !== r2 && c1 !== c2) return false; // 必須在同一直線
+            if (r1 !== r2 && c1 !== c2) return false; 
 
             let piecesBetween = 0;
             if (r1 === r2) { 
@@ -320,12 +318,12 @@
                     if (!boardData[i * 8 + c1].isEmpty) piecesBetween++;
                 }
             }
-            return piecesBetween === 1; // 中間剛好只有一顆棋子 (不論敵我明暗)
+            return piecesBetween === 1; 
         }
 
         function doMove(fromIdx, toIdx) {
-            boardData[toIdx] = boardData[fromIdx]; // 覆蓋目標
-            boardData[fromIdx] = { isEmpty: true }; // 原地清空
+            boardData[toIdx] = boardData[fromIdx]; 
+            boardData[fromIdx] = { isEmpty: true }; 
             endTurn();
         }
 
