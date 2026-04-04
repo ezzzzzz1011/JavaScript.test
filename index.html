@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v1.6</title>
+    <title>暗棋 Online v1.7</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
@@ -16,6 +16,10 @@
         .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; }
         .id-text { color: #3498db; font-size: 14px; font-weight: bold; word-break: break-all; }
         #net-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff4757; margin-right: 10px; }
+        /* 勝利閃爍效果 */
+        .win-text { color: #2ecc71 !important; font-size: 24px !important; animation: blink 1s infinite; }
+        .lose-text { color: #e74c3c !important; font-size: 24px !important; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -33,15 +37,18 @@
             <button onclick="joinRoom()" style="background:#27ae60;">加入對手房間</button>
         </div>
     </div>
-    <div class="version-tag">v1.6</div>
+    <div class="version-tag">v1.7</div>
 </div>
 
 <div id="game-ui" style="display: none; text-align: center;">
-    <div class="status-bar"><div style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">連線成功</span></div>
+    <div class="status-bar">
+        <div id="game-dot" style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div>
+        <span id="statusText">連線成功</span>
+    </div>
     <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color:#aaa;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
     <br>
-    <button onclick="confirmExit()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">主動退出</button>
+    <button id="exitBtn" onclick="confirmExit()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">回到大廳</button>
 </div>
 
 <script>
@@ -52,7 +59,7 @@
     const myIdDisplay = document.getElementById('my-id-display');
 
     const COLS = 4, ROWS = 8, PADDING = 15;
-    let cellSize, board = [], selected = null, myColor = 0, turn = 1, peer, conn, isHost = false;
+    let cellSize, board = [], selected = null, myColor = 0, turn = 1, peer, conn, isHost = false, gameEnded = false;
 
     peer = new Peer();
     peer.on('open', (id) => {
@@ -83,7 +90,7 @@
     }
 
     function confirmExit() {
-        if(confirm("確定要退出嗎？這將會直接判定你輸棋。")) {
+        if(gameEnded || confirm("確定要退出嗎？這將會判定你輸棋。")) {
             location.reload();
         }
     }
@@ -114,8 +121,13 @@
         });
 
         conn.on('close', () => {
-            alert("⚠️ 對方已退出遊戲！恭喜你獲勝！");
-            location.reload();
+            if(!gameEnded) {
+                gameEnded = true;
+                statusText.innerText = "🏆 對方逃跑，你贏了！";
+                statusText.classList.add('win-text');
+                document.getElementById('game-dot').style.background = "gold";
+                alert("對方已退出遊戲！");
+            }
         });
     }
 
@@ -141,6 +153,7 @@
     }
 
     canvas.addEventListener('mousedown', e => {
+        if(gameEnded) return; // 遊戲結束不能動
         if(myColor !== 0 && turn !== myColor) return;
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX-rect.left-PADDING)/cellSize), r = Math.floor((e.clientY-rect.top-PADDING)/cellSize);
@@ -198,6 +211,7 @@
     }
 
     function updateUI() {
+        if(gameEnded) return;
         const isMyTurn = (myColor === 0 || turn === myColor);
         statusText.innerText = isMyTurn ? "你的回合" : "對手回合";
         turnDisplay.innerText = "身分：" + (myColor === 0 ? "未定" : (myColor === 1 ? "紅方" : "黑方"));
@@ -230,19 +244,22 @@
         let r=0, b=0;
         board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
         
-        // 判定勝負
         if(r === 0 || b === 0) {
-            let winner = (r === 0) ? "黑方" : "紅方";
-            let resultMsg = "";
+            gameEnded = true;
+            let iWon = (myColor === 1 && r > 0) || (myColor === 2 && b > 0);
             
-            if((myColor === 1 && r > 0) || (myColor === 2 && b > 0)) {
-                resultMsg = "🏆 恭喜！你獲勝了！";
+            if(iWon) {
+                statusText.innerText = "🏆 恭喜！你獲勝了！";
+                statusText.classList.add('win-text');
             } else {
-                resultMsg = "💀 很遺憾，你輸了。";
+                statusText.innerText = "💀 遺憾！你輸了。";
+                statusText.classList.add('lose-text');
             }
             
-            alert(winner + " 棋子已被吃光！\n" + resultMsg);
-            location.reload();
+            document.getElementById('exitBtn').innerText = "再玩一局";
+            document.getElementById('exitBtn').style.background = "#e67e22";
+            
+            alert(iWon ? "你贏了！" : "你輸了！");
             return true;
         }
         return false;
