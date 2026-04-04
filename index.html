@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 - 人機大戰版</title>
+    <title>快手暗棋 - AI 對戰</title>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
-        #ui { margin-bottom: 15px; text-align: center; }
-        .status { font-size: 22px; color: #f1c40f; font-weight: bold; margin-bottom: 5px; }
-        canvas { background-color: #dcb35c; box-shadow: 0 0 30px rgba(0,0,0,0.5); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; }
-        .controls { margin-top: 10px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; }
+        #ui { margin-bottom: 10px; text-align: center; }
+        .status { font-size: 20px; color: #f1c40f; font-weight: bold; margin-bottom: 5px; }
+        canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 3px solid #5d4037; border-radius: 5px; }
+        button { margin-top: 10px; padding: 8px 20px; font-size: 16px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="status" id="statusDisplay">請翻牌決定顏色</div>
-    <div id="turnDisplay">輪到：玩家 (紅/黑待定)</div>
-    <div class="controls"><button onclick="initGame()">重新開局</button></div>
+    <div class="status" id="statusDisplay">點擊翻牌</div>
+    <div id="turnDisplay" style="font-size: 14px;">輪到：你</div>
+    <button onclick="initGame()">重新開局</button>
 </div>
 
 <canvas id="chessBoard"></canvas>
@@ -30,10 +29,9 @@
     const turnDisplay = document.getElementById('turnDisplay');
 
     const COLS = 4, ROWS = 8;
-    const PADDING = 20;
-    let cellSize, board = [], selected = null, playerColor = 0; // 0:未定, 1:紅, 2:黑
-    let turn = 1; // 1紅 2黑
-    let isAiThinking = false;
+    const PADDING = 15;
+    let cellSize, board = [], selected = null, playerColor = 0;
+    let turn = 1, isAiThinking = false;
 
     const PIECES_DATA = [
         { name: '帥', level: 7, count: 1, color: 1 }, { name: '仕', level: 6, count: 2, color: 1 },
@@ -47,14 +45,12 @@
     ];
 
     function initGame() {
-        const sizeW = Math.min(window.innerWidth * 0.9, 360);
+        const sizeW = Math.min(window.innerWidth * 0.9, 320);
         canvas.width = sizeW; canvas.height = sizeW * 2;
         cellSize = (canvas.width - PADDING * 2) / COLS;
-        
         let pool = [];
         PIECES_DATA.forEach(p => { for(let i=0; i<p.count; i++) pool.push({...p, revealed: false}); });
         pool.sort(() => Math.random() - 0.5);
-
         board = [];
         for(let r=0; r<ROWS; r++) {
             board[r] = [];
@@ -67,7 +63,7 @@
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 2;
+        ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 1;
         for(let r=0; r<=ROWS; r++) { ctx.beginPath(); ctx.moveTo(PADDING, PADDING + r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING + r*cellSize); ctx.stroke(); }
         for(let c=0; c<=COLS; c++) { ctx.beginPath(); ctx.moveTo(PADDING + c*cellSize, PADDING); ctx.lineTo(PADDING + c*cellSize, canvas.height-PADDING); ctx.stroke(); }
 
@@ -76,12 +72,12 @@
                 const p = board[r][c]; if(!p) continue;
                 const x = PADDING + c*cellSize + cellSize/2;
                 const y = PADDING + r*cellSize + cellSize/2;
-                if(selected && selected.r === r && selected.c === c) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); }
-                ctx.beginPath(); ctx.arc(x, y, cellSize*0.4, 0, Math.PI*2);
-                ctx.fillStyle = p.revealed ? "#f5f5dc" : "#8d6e63";
-                ctx.fill(); ctx.strokeStyle = "#3e2723"; ctx.stroke();
+                if(selected && selected.r === r && selected.c === c) { ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); }
+                ctx.beginPath(); ctx.arc(x, y, cellSize*0.42, 0, Math.PI*2);
+                ctx.fillStyle = p.revealed ? "#fdf5e6" : "#a0522d";
+                ctx.fill(); ctx.stroke();
                 if(p.revealed) {
-                    ctx.fillStyle = p.color === 1 ? "#d32f2f" : "#212121";
+                    ctx.fillStyle = p.color === 1 ? "#b22222" : "#2f4f4f";
                     ctx.font = `bold ${cellSize*0.5}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                     ctx.fillText(p.name, x, y);
                 }
@@ -95,21 +91,13 @@
         const c = Math.floor((e.clientX - rect.left - PADDING) / cellSize);
         const r = Math.floor((e.clientY - rect.top - PADDING) / cellSize);
         if(r<0 || r>=ROWS || c<0 || c>=COLS) return;
-
-        handleAction(r, c);
-    });
-
-    function handleAction(r, c) {
+        
         const clicked = board[r][c];
-
-        // 1. 翻牌
         if(clicked && !clicked.revealed) {
             clicked.revealed = true;
             if(playerColor === 0) playerColor = clicked.color; 
             endTurn(); return;
         }
-
-        // 2. 移動/吃子
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
                 board[r][c] = board[selected.r][selected.c];
@@ -122,7 +110,7 @@
         } else if(clicked && clicked.revealed && clicked.color === turn) {
             selected = {r, c}; draw();
         }
-    }
+    });
 
     function canMove(r1, c1, r2, c2) {
         const p1 = board[r1][c1], p2 = board[r2][c2];
@@ -147,65 +135,53 @@
     function endTurn() {
         selected = null; draw();
         if(checkWin()) return;
-        turn = turn === 1 ? 2 : 1;
+        turn = (turn === 1) ? 2 : 1;
         updateUI();
         if(playerColor !== 0 && turn !== playerColor) {
             isAiThinking = true;
-            setTimeout(aiMove, 800);
+            setTimeout(aiQuickAction, 300); // 縮短電腦等待時間
         }
     }
 
-    function aiMove() {
-        let moves = [];
-        // 找所有可能的動作：吃子 > 翻牌 > 隨機走
+    function aiQuickAction() {
+        let options = [];
         for(let r=0; r<ROWS; r++) {
             for(let c=0; c<COLS; c++) {
                 let p = board[r][c];
                 if(p && p.revealed && p.color === turn) {
-                    // 檢查移動
                     [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
                         let nr = r+dr, nc = c+dc;
-                        if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS) {
-                            if(canMove(r, c, nr, nc)) {
-                                let weight = board[nr][nc] ? board[nr][nc].level * 10 : 1;
-                                moves.push({type:'move', r1:r, c1:c, r2:nr, c2:nc, w: weight});
-                            }
+                        if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && canMove(r, c, nr, nc)) {
+                            let score = board[nr][nc] ? board[nr][nc].level * 20 : 1;
+                            options.push({type:'move', r1:r, c1:c, r2:nr, c2:nc, w: score});
                         }
                     });
-                    // 炮特殊檢查
                     if(p.name === '炮' || p.name === '包') {
-                        for(let nr=0; nr<ROWS; nr++) { if(canMove(r,c,nr,c)) moves.push({type:'move',r1:r,c1:c,r2:nr,c2:c, w: board[nr][c].level*15}); }
-                        for(let nc=0; nc<COLS; nc++) { if(canMove(r,c,r,nc)) moves.push({type:'move',r1:r,c1:c,r2:r,c2:nc, w: board[r][nc].level*15}); }
+                        for(let nr=0; nr<ROWS; nr++) if(canMove(r,c,nr,c)) options.push({type:'move',r1:r,c1:c,r2:nr,c2:c, w: board[nr][c].level*25});
+                        for(let nc=0; nc<COLS; nc++) if(canMove(r,c,r,nc)) options.push({type:'move',r1:r,c1:c,r2:r,c2:nc, w: board[r][nc].level*25});
                     }
-                }
-                if(p && !p.revealed) moves.push({type:'flip', r, c, w: 2});
+                } else if(p && !p.revealed) options.push({type:'flip', r, c, w: 2});
             }
         }
-        moves.sort((a,b) => b.w - a.w);
-        let best = moves.filter(m => m.w === moves[0].w);
-        let m = best[Math.floor(Math.random()*best.length)];
-        
-        if(m.type === 'flip') { board[m.r][m.c].revealed = true; }
-        else { board[m.r2][m.c2] = board[m.r1][m.c1]; board[m.r1][m.c1] = null; }
-        
-        isAiThinking = false;
-        endTurn();
+        options.sort((a,b) => b.w - a.w);
+        let m = options[0] ? options[0] : null;
+        if(m) {
+            if(m.type === 'flip') board[m.r][m.c].revealed = true;
+            else { board[m.r2][m.c2] = board[m.r1][m.c1]; board[m.r1][m.c1] = null; }
+        }
+        isAiThinking = false; endTurn();
     }
 
     function updateUI() {
-        const isPlayerTurn = (playerColor === 0 || turn === playerColor);
-        turnDisplay.innerText = isPlayerTurn ? "輪到：你" : "輪到：電腦思考中...";
-        turnDisplay.style.color = turn === 1 ? "#ff5252" : "#aaa";
-        if(playerColor !== 0) statusDisplay.innerText = "你玩的是：" + (playerColor === 1 ? "紅方" : "黑方");
+        const isPlayer = (playerColor === 0 || turn === playerColor);
+        turnDisplay.innerText = isPlayer ? "輪到：你" : "輪到：電腦";
+        if(playerColor !== 0) statusDisplay.innerText = "你是：" + (playerColor === 1 ? "紅方" : "黑方");
     }
 
     function checkWin() {
         let r=0, b=0;
         board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r===0 || b===0) {
-            alert((r===0 ? "黑方" : "紅方") + " 獲勝！");
-            initGame(); return true;
-        }
+        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); initGame(); return true; }
         return false;
     }
     initGame();
