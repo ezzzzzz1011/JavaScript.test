@@ -3,37 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋聯機 - 穩定終極版</title>
+    <title>暗棋 Online - 自動跳轉版</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
-        #connection-panel { background: #333; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 2px solid #3498db; width: 300px; }
-        .status { font-size: 20px; color: #f1c40f; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; }
-        canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 3px solid #5d4037; border-radius: 5px; display: none; }
-        input { padding: 10px; border-radius: 5px; border: none; width: 100%; box-sizing: border-box; margin: 10px 0; background: #eee; color: #333; }
-        button { padding: 10px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 5px; font-weight: bold; width: 100%; margin-bottom: 5px; }
-        .my-id-box { background: #000; padding: 10px; border-radius: 5px; margin: 10px 0; border: 1px dashed #3498db; }
-        .my-id { color: #3498db; font-size: 14px; cursor: pointer; font-family: monospace; word-break: break-all; }
-        #net-light { width: 12px; height: 12px; border-radius: 50%; background: red; margin-right: 10px; }
+        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; }
+        canvas { background-color: #dcb35c; box-shadow: 0 0 25px rgba(0,0,0,0.6); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; display: none; }
+        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 10px; font-size: 16px; }
+        #net-dot { width: 12px; height: 12px; border-radius: 50%; background: #999; margin-right: 10px; }
+        .room-info { font-size: 12px; color: #aaa; margin-top: 15px; background: #000; padding: 10px; border-radius: 5px; word-break: break-all; }
     </style>
 </head>
 <body>
 
-<div id="connection-panel">
-    <h2 style="margin:0 0 10px 0">🧩 暗棋對戰</h2>
-    <p style="font-size:12px; color:#bbb; margin:0">點擊下方 ID 複製給朋友：</p>
-    <div class="my-id-box"><span id="my-peer-id" class="my-id">連線中...</span></div>
-    <input type="text" id="join-id" placeholder="貼上朋友的 ID">
-    <button onclick="connectToPeer()">加入房間</button>
-    <p id="conn-status" style="font-size:12px; color: #aaa; margin-top:10px;">等待伺服器回傳 ID...</p>
+<div id="lobby">
+    <h2 style="margin:0 0 20px 0;">♟️ 暗棋對戰室</h2>
+    <div id="init-ui">
+        <button onclick="createRoom()" style="background: #e67e22;">建立新房間</button>
+        <p style="font-size: 13px; color: #888;">或是點擊朋友給你的連結進入</p>
+    </div>
+    <div id="wait-ui" style="display:none;">
+        <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">正在啟連線...</span></div>
+        <p style="font-size: 13px;">請複製網址給朋友：</p>
+        <div class="room-info" id="room-link" onclick="copyLink()" style="cursor:pointer;">載入中...</div>
+    </div>
 </div>
 
 <div id="game-ui" style="display: none; text-align: center;">
-    <div class="status"><div id="net-light"></div><span id="statusText">正在載入棋盤...</span></div>
-    <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px;">身分：未定</div>
+    <div class="status-bar"><div id="game-dot" style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">等待對手...</span></div>
+    <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color: #ddd;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
-    <br>
-    <button onclick="location.reload()" style="width:auto; background:#555; padding:5px 15px;">退出重連</button>
+    <button onclick="location.href=location.pathname" style="width:auto; background:#555; margin-top:20px;">回大廳</button>
 </div>
 
 <script>
@@ -41,76 +42,89 @@
     const ctx = canvas.getContext('2d');
     const statusText = document.getElementById('statusText');
     const turnDisplay = document.getElementById('turnDisplay');
-    const myIdDisplay = document.getElementById('my-peer-id');
-    const netLight = document.getElementById('net-light');
-
+    const lobbyMsg = document.getElementById('lobby-msg');
+    
     const COLS = 4, ROWS = 8, PADDING = 15;
     let cellSize, board = [], myColor = 0, turn = 1, peer, conn, isHost = false;
 
-    // 初始化 Peer
-    peer = new Peer();
-    peer.on('open', id => { 
-        myIdDisplay.innerText = id; 
-        document.getElementById('conn-status').innerText = "連線就緒，請傳送 ID。";
-    });
+    // 解析網址參數
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room');
 
-    peer.on('connection', c => {
-        conn = c; isHost = true;
-        initBoard(); 
-        handleConn();
-    });
+    if (roomId) {
+        // 如果有房間號，顯示等待介面並啟動連線
+        document.getElementById('init-ui').style.display = 'none';
+        document.getElementById('wait-ui').style.display = 'block';
+        document.getElementById('room-link').innerText = window.location.href;
+        startPeer(false);
+    }
 
-    function connectToPeer() {
-        const tid = document.getElementById('join-id').value.trim();
-        if(!tid) return alert("請輸入 ID");
-        conn = peer.connect(tid);
-        isHost = false;
-        handleConn();
+    function createRoom() {
+        const randId = 'room-' + Math.random().toString(36).substr(2, 9);
+        window.history.pushState({}, '', '?room=' + randId);
+        location.reload(); // 重新整理以觸發連線邏輯
+    }
+
+    function copyLink() {
+        navigator.clipboard.writeText(window.location.href);
+        alert("房間連結已複製！傳給朋友即可對戰。");
+    }
+
+    function startPeer(shouldBeHost) {
+        // 使用房間 ID 作為 Peer ID (如果是加入者則隨機)
+        peer = roomId && !shouldBeHost ? new Peer() : new Peer(roomId);
+
+        peer.on('open', id => {
+            lobbyMsg.innerText = "連線就緒，等待對手...";
+            document.getElementById('net-dot').style.background = "#2ecc71";
+            if(roomId && id !== roomId) {
+                // 如果我是加入者 (ID 不等於 RoomID)，主動連線房主
+                conn = peer.connect(roomId);
+                isHost = false;
+                handleConn();
+            }
+        });
+
+        peer.on('connection', c => {
+            conn = c; isHost = true;
+            initBoard(); 
+            handleConn();
+        });
+
+        peer.on('error', err => {
+            if(err.type === 'unavailable-id') {
+                // 如果房間 ID 被佔用了，代表你是加入者
+                startPeer(false);
+            } else {
+                console.error(err);
+            }
+        });
     }
 
     function handleConn() {
         conn.on('open', () => {
-            netLight.style.background = "lime";
             showGameUI();
-            // 如果是加入者，主動發送「我進來了」
             if(!isHost) sendData({ type: 'HELLO' });
         });
 
         conn.on('data', data => {
             if(data.type === 'HELLO' && isHost) {
-                // 房主收到 Hello，回傳完整棋盤
                 sendData({ type: 'SYNC', board: board, turn: turn });
             } else if(data.type === 'SYNC') {
                 board = data.board;
                 turn = data.turn;
-                statusText.innerText = "連線成功";
-                draw();
-                updateUI();
+                statusText.innerText = "對戰開始";
+                draw(); updateUI();
             } else if(data.type === 'ACTION') {
                 applyAction(data);
             }
         });
-
-        conn.on('close', () => { alert("連線已中斷"); location.reload(); });
     }
 
-    function initBoard() {
-        const pieces = [
-            {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'車',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
-            {n:'將',l:7,c:2},{n:'士',l:6,c:2,t:2},{n:'象',l:5,c:2,t:2},{n:'車',l:4,c:2,t:2},{n:'馬',l:3,c:2,t:2},{n:'包',l:2,c:2,t:2},{n:'卒',l:1,c:2,t:5}
-        ];
-        let pool = [];
-        pieces.forEach(p => { 
-            let count = p.t || 1;
-            for(let i=0; i<count; i++) pool.push({name:p.n, level:p.l, color:p.c, revealed:false});
-        });
-        pool.sort(() => Math.random() - 0.5);
-        board = [];
-        for(let r=0; r<ROWS; r++) { board[r] = []; for(let c=0; c<COLS; c++) board[r][c] = pool.shift(); }
-    }
+    function sendData(d) { if(conn && conn.open) conn.send(d); }
 
     function showGameUI() {
-        document.getElementById('connection-panel').style.display = 'none';
+        document.getElementById('lobby').style.display = 'none';
         document.getElementById('game-ui').style.display = 'block';
         const sw = Math.min(window.innerWidth * 0.9, 320);
         canvas.style.display = "block";
@@ -119,7 +133,18 @@
         draw();
     }
 
-    function sendData(d) { if(conn && conn.open) conn.send(d); }
+    // --- 遊戲核心邏輯 ---
+    function initBoard() {
+        const pieces = [
+            {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'車',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
+            {n:'將',l:7,c:2},{n:'士',l:6,c:2,t:2},{n:'象',l:5,c:2,t:2},{n:'車',l:4,c:2,t:2},{n:'馬',l:3,c:2,t:2},{n:'包',l:2,c:2,t:2},{n:'卒',l:1,c:2,t:5}
+        ];
+        let pool = [];
+        pieces.forEach(p => { for(let i=0; i<(p.t||1); i++) pool.push({name:p.n, level:p.l, color:p.c, revealed:false}); });
+        pool.sort(() => Math.random() - 0.5);
+        board = [];
+        for(let r=0; r<ROWS; r++) { board[r] = []; for(let c=0; c<COLS; c++) board[r][c] = pool.shift(); }
+    }
 
     function applyAction(d) {
         const { r1, c1, r2, c2, flip, colorSet } = d;
@@ -131,7 +156,7 @@
     }
 
     function draw() {
-        if(!board || board.length === 0) return;
+        if(!board.length) return;
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.strokeStyle = "#5d4037";
         for(let r=0; r<=ROWS; r++) { ctx.beginPath(); ctx.moveTo(PADDING, PADDING+r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING+r*cellSize); ctx.stroke(); }
@@ -140,8 +165,7 @@
             for(let c=0; c<COLS; c++) {
                 const p = board[r][c]; if(!p) continue;
                 const x = PADDING+c*cellSize+cellSize/2, y = PADDING+r*cellSize+cellSize/2;
-                let isSelected = selected && selected.r === r && selected.c === c;
-                if(isSelected) { ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); }
+                if(selected && selected.r === r && selected.c === c) { ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); }
                 ctx.beginPath(); ctx.arc(x,y,cellSize*0.42,0,Math.PI*2);
                 ctx.fillStyle = p.revealed ? "#fdf5e6" : "#a0522d";
                 ctx.fill(); ctx.stroke();
@@ -161,9 +185,9 @@
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
         if(clicked && !clicked.revealed) {
-            let sc = 0; clicked.revealed = true;
-            if(myColor === 0) { myColor = clicked.color; sc = myColor; }
-            const act = { type: 'ACTION', r2:r, c2:c, flip:true, colorSet:sc };
+            let cs = 0; clicked.revealed = true;
+            if(myColor === 0) { myColor = clicked.color; cs = myColor; }
+            const act = { type: 'ACTION', r2:r, c2:c, flip:true, colorSet:cs };
             sendData(act); applyAction(act); return;
         }
         if(selected) {
@@ -196,19 +220,14 @@
 
     function updateUI() {
         const isMyTurn = (myColor === 0 || turn === myColor);
-        statusText.innerText = isMyTurn ? "你的回合" : "對方回合";
+        statusText.innerText = isMyTurn ? "你的回合" : "對手回合";
         turnDisplay.innerText = "身分：" + (myColor === 0 ? "未定" : (myColor === 1 ? "紅方" : "黑方"));
     }
 
     function checkWin() {
         let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); location.reload(); }
+        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); location.href = location.pathname; }
     }
-
-    myIdDisplay.onclick = () => {
-        navigator.clipboard.writeText(myIdDisplay.innerText);
-        alert("ID已複製！");
-    };
 </script>
 </body>
 </html>
