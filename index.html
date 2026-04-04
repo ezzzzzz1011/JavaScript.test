@@ -2,43 +2,20 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>GitHub 連線暗棋 v.1.1</title>
+    <title>GitHub 連線暗棋 v.1.1 (視覺升級版)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; margin-top: 20px;}
-        #lobby { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-bottom: 20px; text-align: center; }
-        #lobby input { padding: 5px; font-size: 16px; }
-        #lobby button { padding: 5px 10px; font-size: 16px; cursor: pointer; }
-        #game-info { margin: 10px 0; font-size: 18px; font-weight: bold; background: #fff; padding: 10px 20px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
-        
-        #board {
-            display: grid;
-            grid-template-columns: repeat(8, 60px);
-            grid-template-rows: repeat(4, 60px);
-            gap: 4px;
-            background-color: #8b4513;
-            padding: 8px;
-            border-radius: 8px;
-            pointer-events: none;
-            opacity: 0.5;
-            transition: opacity 0.3s;
+        /* 全域樣式：深色背景 */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #121212; /* 深黑色背景 */
+            color: #f0f0f0;
+            margin: 0;
+            padding-top: 30px;
         }
-        #board.active { pointer-events: auto; opacity: 1; }
-        .cell {
-            width: 60px; height: 60px;
-            background-color: #f5d7a6;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 32px; font-weight: bold; cursor: pointer;
-            border-radius: 50%; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.2), 2px 2px 4px rgba(0,0,0,0.4);
-            user-select: none; transition: transform 0.1s;
-        }
-        .cell:active { transform: scale(0.95); }
-        .cell.hidden { background-color: #c97e3e; color: transparent; box-shadow: 2px 2px 4px rgba(0,0,0,0.4); }
-        .cell.hidden::after { content: "？"; color: #fff; font-size: 24px; opacity: 0.6; }
-        .cell.empty { background-color: transparent; box-shadow: none; cursor: default; }
-        .cell.red { color: #d32f2f; }
-        .cell.black { color: #1e1e1e; }
-        .cell.selected { border: 4px solid #4caf50; box-sizing: border-box; background-color: #ffeb3b; }
 
         /* 浮動提示訊息樣式 */
         #toast {
@@ -66,6 +43,183 @@
             opacity: 1;
             top: 40px;
         }
+
+        /* 連線大廳 */
+        #lobby {
+            background: #212121;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            margin-bottom: 20px;
+            text-align: center;
+            color: white;
+        }
+        #lobby input {
+            padding: 8px;
+            font-size: 16px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+        }
+        #lobby button {
+            padding: 8px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        /* 整個遊戲包裝 */
+        #game-wrapper {
+            display: none; /* 預設隱藏 */
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* 遊戲資訊區域（頂部） */
+        #top-info-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #star-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px #fdd835;
+        }
+        #turn-info {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff00; /* 發光綠色文字 */
+            text-shadow: 0 0 10px #00ff00;
+            margin-bottom: 5px;
+        }
+        #role-info {
+            font-size: 16px;
+            color: #888; /* 淺灰色身份文字 */
+        }
+
+        /* 主遊戲區域包含側邊欄和棋盤 */
+        #game-main-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* 陣亡棋子側邊欄（靜態預填充） */
+        .killed-sidebar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+            height: 100%;
+            color: #888;
+            font-size: 14px;
+        }
+        .sidebar-title { margin-bottom: 10px; }
+        .killed-pieces { display: flex; flex-direction: column; gap: 5px; }
+
+        /* 棋盤容器 */
+        #board-container {
+            display: flex;
+            justify-content: center;
+            margin: 0 30px;
+        }
+        #board-outer {
+            background-color: #a17f2d; /* 外部黃色邊框 */
+            border: 8px solid #a17f2d;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px); /* 調整格線寬度 */
+            grid-template-rows: repeat(4, 50px);
+            gap: 2px;
+            background-color: #5d4037; /* 格線顏色 */
+            padding: 3px;
+        }
+        #board.active { pointer-events: auto; }
+
+        /* 棋子樣式：圓形、米白底、深棕框 */
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: #f1d382; /* 棋盤格淺黃色背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+        .cell:active { transform: scale(0.95); }
+
+        .cell.open {
+            border-radius: 50%;
+            background-color: #eae4d1; /* 棋子圓形背景 */
+            border: 2px solid #3e2723; /* 深棕色圓環邊框 */
+            color: #3e2723;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .cell.hidden {
+            background-color: #ccc;
+            border: 2px solid #3e2723;
+            border-radius: 50%;
+            color: transparent;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .cell.hidden::after { content: "？"; color: #333; font-size: 20px; opacity: 0.6; }
+
+        .cell.empty { background-color: transparent; border: 1px solid rgba(255,255,255,0.1); cursor: default; }
+
+        /* 棋子文字顏色：紅方紅色，黑方墨綠色 */
+        .cell.red { color: #bf2121; } /* 紅方紅色 */
+        .cell.black { color: #004d40; } /* 黑方墨綠色 */
+
+        /* 選中棋子樣式：黃色發光 */
+        .cell.selected {
+            background-color: #fff176; /* 選中黃色 */
+            border-color: #fff176;
+            box-shadow: 0 0 15px #fff176;
+        }
+
+        /* 靜態顯示的陣亡棋子樣式 */
+        .killed-piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #eae4d1;
+            border: 1px solid #3e2723;
+            color: #3e2723;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 底部控制區域 */
+        #controls { margin-top: 30px; }
+        #end-btn {
+            background-color: #424242; /* 灰色按鈕 */
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 25px;
+            font-size: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -73,15 +227,46 @@
     <div id="toast">提示訊息</div>
 
     <div id="lobby">
-        <h3>♟️ P2P 連線暗棋 v.1.1</h3>
+        <h3>♟️ P2P 連線暗棋 v.1.1 (視覺升級版)</h3>
         <p>你的連線代碼: <strong id="my-id" style="color: #1976d2; user-select: all;">載入中...</strong></p>
-        <hr>
+        <hr style="border: 0; border-top: 1px solid #444;">
         <input type="text" id="friend-id" placeholder="貼上朋友的代碼">
         <button onclick="connectToFriend()">加入遊戲</button>
     </div>
 
-    <div id="game-info">等待連線中...</div>
-    <div id="board"></div>
+    <div id="game-wrapper">
+        <div id="top-info-container">
+            <div id="star-icon">⭐</div>
+            <div id="turn-info">你的回合</div>
+            <div id="role-info">身份：黑方</div>
+        </div>
+
+        <div id="game-main-area">
+            <div id="red-killed" class="killed-sidebar">
+                <div class="sidebar-title">紅方陣亡</div>
+                <div class="killed-pieces">
+                    <div class="cell open red killed-piece piece-circle">帥</div>
+                </div>
+            </div>
+
+            <div id="board-container">
+                <div id="board-outer">
+                    <div id="board"></div>
+                </div>
+            </div>
+
+            <div id="black-killed" class="killed-sidebar">
+                <div class="sidebar-title">黑方陣亡</div>
+                <div class="killed-pieces">
+                    <div class="cell open black killed-piece piece-circle">卒</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <button id="end-btn">結束遊戲</button>
+        </div>
+    </div>
 
     <script>
         const PIECES = [
@@ -136,6 +321,7 @@
         function setupConnection() {
             conn.on('open', () => {
                 document.getElementById('lobby').style.display = 'none';
+                document.getElementById('game-wrapper').style.display = 'flex'; // 顯示遊戲
                 document.getElementById('board').classList.add('active');
                 updateInfo();
                 showMessage("✅ 連線成功！遊戲開始");
@@ -173,9 +359,10 @@
 
         function updateInfo() {
             let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-            let colorStr = myAssignedColor === 'red' ? '🔴 紅方' : (myAssignedColor === 'black' ? '⚫ 黑方' : '⚪ 未定');
-            const turnStr = currentTurn === myRole ? '🟢 你的回合' : '⏳ 等待對手';
-            document.getElementById('game-info').innerText = `[v.1.1] 陣營: ${colorStr} | 狀態: ${turnStr}`;
+            let colorStr = myAssignedColor === 'red' ? '紅方' : (myAssignedColor === 'black' ? '黑方' : '未定');
+            const turnStr = currentTurn === myRole ? '你的回合' : '等待對手';
+            document.getElementById('turn-info').innerText = turnStr;
+            document.getElementById('role-info').innerText = `身份：${colorStr}`;
         }
 
         function renderBoard() {
@@ -190,6 +377,7 @@
                 } else if (!piece.isOpen) {
                     cell.classList.add('hidden');
                 } else {
+                    cell.classList.add('open'); // 加入 open 樣式
                     cell.classList.add(piece.color);
                     cell.innerText = piece.name;
                 }
