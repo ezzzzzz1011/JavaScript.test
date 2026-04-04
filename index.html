@@ -2,128 +2,84 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>GitHub 連線暗棋 v.1.6</title>
+    <title>GitHub 連線暗棋 v.1.7</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #121212;
-            color: #f0f0f0;
-            margin: 0;
-            padding-top: 20px;
-        }
-
-        #toast {
-            visibility: hidden; min-width: 250px; background-color: rgba(50, 50, 50, 0.95);
-            color: #fff; text-align: center; border-radius: 8px; padding: 12px 20px;
-            position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%);
-            font-size: 16px; font-weight: bold; opacity: 0; transition: opacity 0.3s, top 0.3s;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3); pointer-events: none;
-        }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #121212; color: #f0f0f0; margin: 0; padding-top: 20px; }
+        
+        /* 提示訊息 */
+        #toast { visibility: hidden; min-width: 250px; background-color: rgba(50, 50, 50, 0.95); color: #fff; text-align: center; border-radius: 8px; padding: 12px 20px; position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: bold; opacity: 0; transition: opacity 0.3s, top 0.3s; box-shadow: 0 4px 8px rgba(0,0,0,0.3); pointer-events: none; }
         #toast.show { visibility: visible; opacity: 1; top: 40px; }
 
-        #lobby {
-            background: #212121; padding: 30px; border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px;
-            text-align: center; color: white; min-width: 350px;
-        }
-        #lobby input {
-            padding: 10px; font-size: 16px; background: #333; border: 1px solid #555;
-            color: white; border-radius: 4px; width: 200px; text-align: center;
-        }
-        .btn-primary {
-            padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #1976d2;
-            color: white; border: none; border-radius: 4px; transition: 0.2s;
-        }
+        /* 勝利結算彈出視窗 */
+        #victory-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-content { background: #212121; padding: 40px 60px; border-radius: 15px; text-align: center; border: 3px solid #a17f2d; box-shadow: 0 10px 30px rgba(0,0,0,0.8); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-content h1 { margin-top: 0; font-size: 40px; }
+        .modal-content p { font-size: 20px; color: #ccc; margin-bottom: 30px; }
+        .modal-content button { padding: 12px 30px; font-size: 20px; cursor: pointer; background-color: #4caf50; color: white; border: none; border-radius: 8px; transition: 0.2s; font-weight: bold; }
+        .modal-content button:hover { background-color: #388e3c; transform: scale(1.05); }
+
+        /* 連線大廳 */
+        #lobby { background: #212121; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px; text-align: center; color: white; min-width: 350px; }
+        #lobby input { padding: 10px; font-size: 16px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; width: 200px; text-align: center; }
+        .btn-primary { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #1976d2; color: white; border: none; border-radius: 4px; transition: 0.2s; }
         .btn-primary:hover { background-color: #1565c0; }
-        .btn-success {
-            padding: 8px 15px; font-size: 14px; cursor: pointer; background-color: #2e7d32;
-            color: white; border: none; border-radius: 4px; margin-bottom: 20px; transition: 0.2s;
-        }
+        .btn-success { padding: 8px 15px; font-size: 14px; cursor: pointer; background-color: #2e7d32; color: white; border: none; border-radius: 4px; margin-bottom: 20px; transition: 0.2s; }
         .btn-success:hover { background-color: #1b5e20; }
 
-        #game-wrapper {
-            display: none; flex-direction: column; align-items: center;
-            width: 100%; max-width: 1200px;
-        }
-
+        /* 遊戲區域 */
+        #game-wrapper { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1200px; }
         #top-info-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
         #star-icon { font-size: 28px; margin-bottom: 5px; text-shadow: 0 0 10px #fdd835; }
         #turn-info { font-size: 24px; font-weight: bold; color: #00ff00; text-shadow: 0 0 10px #00ff00; margin-bottom: 5px; }
         #role-info { font-size: 18px; color: #aaa; }
+        #game-main-area { display: flex; align-items: flex-start; justify-content: center; width: 100%; }
 
-        #game-main-area {
-            display: flex; align-items: flex-start; justify-content: center; width: 100%;
-        }
-
-        .killed-sidebar {
-            display: flex; flex-direction: column; align-items: center; width: 140px; color: #aaa; font-size: 16px;
-        }
+        /* 陣亡區 */
+        .killed-sidebar { display: flex; flex-direction: column; align-items: center; width: 140px; color: #aaa; font-size: 16px; }
         .sidebar-title { margin-bottom: 15px; font-weight: bold; }
-        .killed-pieces { 
-            display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-content: flex-start; width: 100%;
-        }
+        .killed-pieces { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-content: flex-start; width: 100%; }
+        .killed-piece { width: 50px; height: 50px; border-radius: 50%; background-color: #eae4d1; border: 2px solid #3e2723; font-size: 24px; font-weight: bold; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
+        /* 棋盤 */
         #board-container { display: flex; justify-content: center; margin: 0 30px; }
-        #board-outer {
-            background-color: #a17f2d; border: 10px solid #a17f2d; border-radius: 8px;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
-        }
-        #board {
-            display: grid;
-            /* 變成直向 4格寬 x 8格高 */
-            grid-template-columns: repeat(4, 85px);
-            grid-template-rows: repeat(8, 85px);
-            gap: 2px; background-color: #5d4037; padding: 4px;
-        }
+        #board-outer { background-color: #a17f2d; border: 10px solid #a17f2d; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.6); }
+        #board { display: grid; grid-template-columns: repeat(4, 85px); grid-template-rows: repeat(8, 85px); gap: 2px; background-color: #5d4037; padding: 4px; }
         #board.active { pointer-events: auto; }
-
-        .cell {
-            /* 棋子放大到 85px */
-            width: 85px; height: 85px; background-color: #f1d382;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; user-select: none; transition: transform 0.1s;
-        }
+        .cell { width: 85px; height: 85px; background-color: #f1d382; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; transition: transform 0.1s; }
         .cell:active { transform: scale(0.95); }
-        .cell.open {
-            border-radius: 50%; background-color: #eae4d1; border: 3px solid #3e2723; color: #3e2723;
-            font-size: 42px; /* 字體放大 */
-            font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-        }
-        .cell.hidden {
-            background-color: #ccc; border: 3px solid #3e2723; border-radius: 50%;
-            color: transparent; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-        }
+        .cell.open { border-radius: 50%; background-color: #eae4d1; border: 3px solid #3e2723; font-size: 42px; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
+        .cell.hidden { background-color: #ccc; border: 3px solid #3e2723; border-radius: 50%; color: transparent; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
         .cell.hidden::after { content: "？"; color: #333; font-size: 36px; opacity: 0.6; }
         .cell.empty { background-color: transparent; border: 1px solid rgba(255,255,255,0.1); cursor: default; }
         .cell.selected { background-color: #fff176; border-color: #fff176; box-shadow: 0 0 20px #fff176; }
-
         .cell.red, .killed-piece.red { color: #bf2121; } 
         .cell.black, .killed-piece.black { color: #004d40; } 
 
-        .killed-piece {
-            width: 50px; height: 50px; border-radius: 50%; background-color: #eae4d1;
-            border: 2px solid #3e2723; font-size: 24px; font-weight: bold;
-            display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        #controls { margin-top: 30px; margin-bottom: 40px;}
-        #end-btn {
-            background-color: #424242; color: white; border: none; border-radius: 20px;
-            padding: 12px 35px; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s;
-        }
-        #end-btn:hover { background-color: #f44336; }
+        /* 控制按鈕 */
+        #controls { margin-top: 30px; margin-bottom: 40px; display: flex; gap: 15px; }
+        .game-btn { color: white; border: none; border-radius: 20px; padding: 12px 30px; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; font-weight: bold; }
+        #surrender-btn { background-color: #d32f2f; }
+        #surrender-btn:hover { background-color: #b71c1c; transform: scale(1.05); }
+        #end-btn { background-color: #424242; }
+        #end-btn:hover { background-color: #616161; transform: scale(1.05); }
     </style>
 </head>
 <body>
 
     <div id="toast">提示訊息</div>
 
+    <div id="victory-modal">
+        <div class="modal-content">
+            <h1 id="victory-title">🏆 恭喜獲勝！</h1>
+            <p id="victory-msg">你殲滅了對手</p>
+            <button onclick="location.reload()">再來一局</button>
+        </div>
+    </div>
+
     <div id="lobby">
-        <h2 style="margin-top: 0;">♟️ P2P 連線暗棋 v.1.6</h2>
+        <h2 style="margin-top: 0;">♟️ P2P 連線暗棋 v.1.7</h2>
         <p style="font-size: 18px;">你的連線代碼</p>
         <p><strong id="my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
         <button class="btn-success" onclick="copyInviteLink()">🔗 複製邀請連結傳給朋友</button>
@@ -159,7 +115,8 @@
         </div>
 
         <div id="controls">
-            <button id="end-btn" onclick="location.reload()">結束遊戲</button>
+            <button id="surrender-btn" class="game-btn" onclick="surrenderGame()">🏳️ 投降</button>
+            <button id="end-btn" class="game-btn" onclick="location.reload()">重新開始</button>
         </div>
     </div>
 
@@ -175,87 +132,60 @@
             { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }
         ];
 
-        let boardData = [];
-        let redKilled = [];   
-        let blackKilled = []; 
-        let myRole = null; 
-        let currentTurn = 'host';
-        let hostColor = null;  
-        let guestColor = null; 
-        let selectedIndex = -1;
-        let conn = null; 
-        let myShortId = "";
+        let boardData = []; let redKilled = []; let blackKilled = []; 
+        let myRole = null; let currentTurn = 'host'; let hostColor = null; let guestColor = null; 
+        let selectedIndex = -1; let conn = null; let myShortId = ""; let gameOver = false;
 
         function generateShortCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
-            let result = '';
-            for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let result = '';
+            for (let i=0; i<6; i++) result += chars.charAt(Math.floor(Math.random()*chars.length));
             return result;
         }
 
         function showMessage(msg) {
-            const toast = document.getElementById("toast");
-            toast.innerText = msg;
-            toast.classList.add("show");
-            setTimeout(() => toast.classList.remove("show"), 2000);
+            const t = document.getElementById("toast"); t.innerText = msg; t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 2000);
         }
 
         myShortId = generateShortCode();
         const peer = new Peer(myShortId);
 
-        peer.on('open', id => {
-            document.getElementById('my-id').innerText = id;
-            checkUrlForInvite(); 
-        });
-
-        peer.on('connection', (connection) => {
-            conn = connection; myRole = 'host';
-            setupConnection(); initGameAsHost();
-        });
+        peer.on('open', id => { document.getElementById('my-id').innerText = id; checkUrlForInvite(); });
+        peer.on('connection', (c) => { conn = c; myRole = 'host'; setupConnection(); initGameAsHost(); });
 
         function checkUrlForInvite() {
             const roomCode = new URLSearchParams(window.location.search).get('room');
-            if (roomCode) {
-                document.getElementById('friend-id').value = roomCode.toUpperCase();
-                showMessage("✨ 已帶入好友代碼，請點擊加入遊戲！");
-            }
+            if (roomCode) { document.getElementById('friend-id').value = roomCode.toUpperCase(); showMessage("✨ 已帶入好友代碼，請加入！"); }
         }
 
         function copyInviteLink() {
             const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${myShortId}`;
-            navigator.clipboard.writeText(inviteUrl)
-                .then(() => showMessage("✅ 邀請連結已複製！傳給朋友吧"))
-                .catch(() => showMessage("❌ 複製失敗，請手動框取代碼"));
+            navigator.clipboard.writeText(inviteUrl).then(() => showMessage("✅ 邀請連結已複製！")).catch(() => showMessage("❌ 複製失敗"));
         }
 
         function connectToFriend() {
             let rawInput = document.getElementById('friend-id').value.trim();
             if (!rawInput) return showMessage('請輸入代碼或貼上連結');
             let friendId = rawInput;
-            if (rawInput.includes('room=')) {
-                const match = rawInput.match(/room=([a-zA-Z0-9]{6})/i);
-                if (match) friendId = match[1];
-            }
-            conn = peer.connect(friendId.toUpperCase().slice(0, 6));
-            myRole = 'guest';
-            setupConnection();
+            if (rawInput.includes('room=')) { const match = rawInput.match(/room=([a-zA-Z0-9]{6})/i); if(match) friendId = match[1]; }
+            conn = peer.connect(friendId.toUpperCase().slice(0, 6)); myRole = 'guest'; setupConnection();
         }
 
         function setupConnection() {
             conn.on('open', () => {
-                document.getElementById('lobby').style.display = 'none';
-                document.getElementById('game-wrapper').style.display = 'flex';
-                document.getElementById('board').classList.add('active');
-                updateInfo(); showMessage("✅ 連線成功！遊戲開始");
+                document.getElementById('lobby').style.display = 'none'; document.getElementById('game-wrapper').style.display = 'flex';
+                document.getElementById('board').classList.add('active'); updateInfo(); showMessage("✅ 連線成功！");
             });
 
             conn.on('data', (data) => {
                 if (data.type === 'sync') {
-                    boardData = data.board; currentTurn = data.turn;
-                    hostColor = data.hostColor; guestColor = data.guestColor;
-                    redKilled = data.redKilled || []; blackKilled = data.blackKilled || []; 
-                    selectedIndex = -1;
-                    renderBoard(); renderKilledPieces(); updateInfo();
+                    boardData = data.board; currentTurn = data.turn; hostColor = data.hostColor; guestColor = data.guestColor;
+                    redKilled = data.redKilled || []; blackKilled = data.blackKilled || []; selectedIndex = -1;
+                    renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
+                } else if (data.type === 'surrender') {
+                    // 對手投降，判定我方勝利
+                    let winnerColor = data.loserColor === 'red' ? 'black' : 'red';
+                    showVictoryModal(winnerColor, true);
                 }
             });
         }
@@ -263,38 +193,26 @@
         function initGameAsHost() {
             let shuffled = [...PIECES].sort(() => Math.random() - 0.5);
             boardData = shuffled.map(p => ({ ...p, isOpen: false, isEmpty: false }));
-            currentTurn = 'host'; hostColor = null; guestColor = null;
-            redKilled = []; blackKilled = [];
+            currentTurn = 'host'; hostColor = null; guestColor = null; redKilled = []; blackKilled = []; gameOver = false;
             syncGame(); renderBoard(); renderKilledPieces(); updateInfo();
         }
 
-        function syncGame() {
-            if (conn && conn.open) conn.send({ type: 'sync', board: boardData, turn: currentTurn, hostColor, guestColor, redKilled, blackKilled });
-        }
+        function syncGame() { if (conn && conn.open) conn.send({ type: 'sync', board: boardData, turn: currentTurn, hostColor, guestColor, redKilled, blackKilled }); }
 
         function updateInfo() {
             let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
             let colorStr = myAssignedColor === 'red' ? '🔴 紅方' : (myAssignedColor === 'black' ? '⚫ 黑方' : '⚪ 未定');
             const turnInfoEl = document.getElementById('turn-info');
-            if (currentTurn === myRole) {
-                turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00';
-            } else {
-                turnInfoEl.innerText = '等待對手'; turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252';
-            }
+            if (currentTurn === myRole) { turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00'; } 
+            else { turnInfoEl.innerText = '等待對手'; turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252'; }
             document.getElementById('role-info').innerText = `身份：${colorStr}`;
         }
 
         function renderKilledPieces() {
-            const redContainer = document.querySelector('#red-killed .killed-pieces');
-            const blackContainer = document.querySelector('#black-killed .killed-pieces');
+            const redContainer = document.querySelector('#red-killed .killed-pieces'); const blackContainer = document.querySelector('#black-killed .killed-pieces');
             redContainer.innerHTML = ''; blackContainer.innerHTML = '';
-            
-            redKilled.forEach(p => {
-                const div = document.createElement('div'); div.className = 'killed-piece red'; div.innerText = p.name; redContainer.appendChild(div);
-            });
-            blackKilled.forEach(p => {
-                const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.name; blackContainer.appendChild(div);
-            });
+            redKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece red'; div.innerText = p.name; redContainer.appendChild(div); });
+            blackKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.name; blackContainer.appendChild(div); });
         }
 
         function renderBoard() {
@@ -303,19 +221,16 @@
                 const cell = document.createElement('div'); cell.className = 'cell';
                 if (piece.isEmpty) cell.classList.add('empty');
                 else if (!piece.isOpen) cell.classList.add('hidden');
-                else {
-                    cell.classList.add('open'); cell.classList.add(piece.color); cell.innerText = piece.name;
-                }
+                else { cell.classList.add('open'); cell.classList.add(piece.color); cell.innerText = piece.name; }
                 if (index === selectedIndex) cell.classList.add('selected');
-                cell.onclick = () => handleCellClick(index);
-                boardEl.appendChild(cell);
+                cell.onclick = () => handleCellClick(index); boardEl.appendChild(cell);
             });
         }
 
         function handleCellClick(index) {
+            if (gameOver) return;
             if (currentTurn !== myRole) return showMessage("⚠️ 現在是對手的回合");
-            const target = boardData[index];
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
+            const target = boardData[index]; let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
 
             if (!target.isEmpty && target.isOpen && target.color === myAssignedColor) {
                 selectedIndex = selectedIndex === index ? -1 : index; renderBoard(); return;
@@ -343,28 +258,17 @@
 
         function tryMoveOrCapture(fromIdx, toIdx) {
             const attacker = boardData[fromIdx]; const target = boardData[toIdx];
-
-            // 改為 4x8 的座標計算方式 (每列 4 格)
-            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4;
-            const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
+            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
             const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
 
             if (attacker.rank === 2) { 
-                if (target.isEmpty) {
-                    if (isAdjacent) { doMove(fromIdx, toIdx); return true; } 
-                    else { showMessage("⚠️ 炮移動空地只能走一步"); return false; }
-                } else {
-                    if (isValidCannonJump(fromIdx, toIdx)) { doMove(fromIdx, toIdx); return true; } 
-                    else { showMessage("⚠️ 炮必須剛好隔一顆棋子才能跳吃"); return false; }
-                }
+                if (target.isEmpty) { if (isAdjacent) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 炮移動空地只能走一步"); return false; } } 
+                else { if (isValidCannonJump(fromIdx, toIdx)) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 炮必須剛好隔一顆棋子"); return false; } }
             } else {
                 if (!isAdjacent) { showMessage("⚠️ 只能移動一格"); return false; }
                 if (target.isEmpty) { doMove(fromIdx, toIdx); return true; } 
                 else if (!target.isOpen) { showMessage("⚠️ 一般棋子不能吃暗棋"); return false; } 
-                else {
-                    if (canCapture(attacker, target)) { doMove(fromIdx, toIdx); return true; } 
-                    else { showMessage("⚠️ 階級不足，無法吃子"); return false; }
-                }
+                else { if (canCapture(attacker, target)) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 階級不足，無法吃子"); return false; } }
             }
         }
 
@@ -375,19 +279,14 @@
         }
 
         function isValidCannonJump(fromIdx, toIdx) {
-            // 改為 4x8 的座標計算方式
-            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4;
-            const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
+            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
             if (r1 !== r2 && c1 !== c2) return false; 
-            
             let piecesBetween = 0;
             if (r1 === r2) { 
                 const min = Math.min(c1, c2), max = Math.max(c1, c2);
-                // 乘上 4 (因為每列 4 格)
                 for (let i = min + 1; i < max; i++) if (!boardData[r1 * 4 + i].isEmpty) piecesBetween++;
             } else { 
                 const min = Math.min(r1, r2), max = Math.max(r1, r2);
-                // 乘上 4 (因為每列 4 格)
                 for (let i = min + 1; i < max; i++) if (!boardData[i * 4 + c1].isEmpty) piecesBetween++;
             }
             return piecesBetween === 1; 
@@ -405,8 +304,49 @@
 
         function endTurn() {
             currentTurn = currentTurn === 'host' ? 'guest' : 'host'; selectedIndex = -1;
-            syncGame(); renderBoard(); renderKilledPieces(); updateInfo();
+            syncGame(); renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
         }
+
+        /* 勝利判定與投降邏輯 */
+        function checkWinCondition() {
+            if (gameOver) return;
+            if (redKilled.length === 16) { showVictoryModal('black', false); } 
+            else if (blackKilled.length === 16) { showVictoryModal('red', false); }
+        }
+
+        function surrenderGame() {
+            if (gameOver) return;
+            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
+            if (!myAssignedColor) return showMessage("遊戲還沒決定陣營，無法投降！");
+            
+            if (confirm("確定要舉白旗投降嗎？")) {
+                if (conn && conn.open) conn.send({ type: 'surrender', loserColor: myAssignedColor });
+                let winnerColor = myAssignedColor === 'red' ? 'black' : 'red';
+                showVictoryModal(winnerColor, true);
+            }
+        }
+
+        function showVictoryModal(winnerColor, bySurrender) {
+            gameOver = true;
+            const modal = document.getElementById('victory-modal');
+            const title = document.getElementById('victory-title');
+            const msg = document.getElementById('victory-msg');
+            
+            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
+            let iWon = (winnerColor === myAssignedColor);
+            
+            if (iWon) {
+                title.innerText = "🏆 恭喜獲勝！";
+                msg.innerText = bySurrender ? "對手舉白旗投降了！" : "你成功殲滅了對手所有棋子！";
+                title.style.color = "#4caf50";
+            } else {
+                title.innerText = "💀 挑戰失敗...";
+                msg.innerText = bySurrender ? "你選擇了投降。" : "你的棋子被全數殲滅了...";
+                title.style.color = "#f44336";
+            }
+            modal.style.display = 'flex';
+        }
+
     </script>
 </body>
 </html>
