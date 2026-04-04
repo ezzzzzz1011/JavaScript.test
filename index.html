@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 - 絕殺判定版</title>
+    <title>暗棋 - AI 積極版</title>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
         #ui { margin-bottom: 10px; text-align: center; }
@@ -139,7 +139,7 @@
         updateUI();
         if(playerColor !== 0 && turn !== playerColor) {
             isAiThinking = true;
-            setTimeout(aiQuickAction, 300);
+            setTimeout(aiQuickAction, 400);
         }
     }
 
@@ -152,31 +152,44 @@
                     [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
                         let nr = r+dr, nc = c+dc;
                         if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && canMove(r, c, nr, nc)) {
-                            let score = board[nr][nc] ? board[nr][nc].level * 20 : 1;
+                            // 吃子權重極高，單純移動權重極低(0.1)
+                            let score = board[nr][nc] ? board[nr][nc].level * 50 : 0.1;
                             options.push({type:'move', r1:r, c1:c, r2:nr, c2:nc, w: score});
                         }
                     });
                     if(p.name === '炮' || p.name === '包') {
-                        for(let nr=0; nr<ROWS; nr++) if(canMove(r,c,nr,c)) options.push({type:'move',r1:r,c1:c,r2:nr,c2:c, w: board[nr][c].level*25});
-                        for(let nc=0; nc<COLS; nc++) if(canMove(r,c,r,nc)) options.push({type:'move',r1:r,c1:c,r2:r,c2:nc, w: board[r][nc].level*25});
+                        for(let nr=0; nr<ROWS; nr++) if(canMove(r,c,nr,c)) options.push({type:'move',r1:r,c1:c,r2:nr,c2:c, w: board[nr][c].level*60});
+                        for(let nc=0; nc<COLS; nc++) if(canMove(r,c,r,nc)) options.push({type:'move',r1:r,c1:c,r2:r,c2:nc, w: board[r][nc].level*60});
                     }
-                } else if(p && !p.revealed) options.push({type:'flip', r, c, w: 2});
+                } else if(p && !p.revealed) {
+                    // 翻牌權重設為 5，確保它比無意義的亂走(0.1)更優先
+                    options.push({type:'flip', r, c, w: 5});
+                }
             }
         }
 
-        // --- 🏆 新增：電腦死局判定 ---
         if (options.length === 0) {
-            alert("電腦無棋可走，判定輸棋！玩家獲勝。");
+            isAiThinking = false;
+            alert("電腦無棋可走！玩家獲勝。");
             initGame();
             return;
         }
 
+        // 排序權重，取最高分的動作
         options.sort((a,b) => b.w - a.w);
-        let m = options[0];
-        if(m.type === 'flip') board[m.r][m.c].revealed = true;
-        else { board[m.r2][m.c2] = board[m.r1][m.c1]; board[m.r1][m.c1] = null; }
+        let bestScore = options[0].w;
+        let bestOptions = options.filter(o => o.w === bestScore);
+        let m = bestOptions[Math.floor(Math.random() * bestOptions.length)];
+
+        if(m.type === 'flip') {
+            board[m.r][m.c].revealed = true;
+        } else {
+            board[m.r2][m.c2] = board[m.r1][m.c1];
+            board[m.r1][m.c1] = null;
+        }
         
-        isAiThinking = false; endTurn();
+        isAiThinking = false; 
+        endTurn();
     }
 
     function updateUI() {
@@ -188,7 +201,12 @@
     function checkWin() {
         let r=0, b=0;
         board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); initGame(); return true; }
+        if(r===0 || b===0) {
+            const winner = (r===0 ? "黑方" : "紅方");
+            alert(winner + " 獲勝！");
+            initGame();
+            return true;
+        }
         return false;
     }
     initGame();
