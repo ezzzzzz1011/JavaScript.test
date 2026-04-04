@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v1.5</title>
+    <title>暗棋 Online v1.6</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
@@ -33,7 +33,7 @@
             <button onclick="joinRoom()" style="background:#27ae60;">加入對手房間</button>
         </div>
     </div>
-    <div class="version-tag">v1.5</div>
+    <div class="version-tag">v1.6</div>
 </div>
 
 <div id="game-ui" style="display: none; text-align: center;">
@@ -41,7 +41,7 @@
     <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color:#aaa;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
     <br>
-    <button onclick="location.reload()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">主動退出</button>
+    <button onclick="confirmExit()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">主動退出</button>
 </div>
 
 <script>
@@ -82,6 +82,12 @@
         bindEvents();
     }
 
+    function confirmExit() {
+        if(confirm("確定要退出嗎？這將會直接判定你輸棋。")) {
+            location.reload();
+        }
+    }
+
     function bindEvents() {
         conn.on('open', () => {
             document.getElementById('lobby').style.display = 'none';
@@ -107,15 +113,8 @@
             }
         });
 
-        // --- 核心更新：監聽對手退出 ---
         conn.on('close', () => {
-            alert("對方已退出，您贏了！");
-            location.reload();
-        });
-        
-        // 額外保險：如果連線發生錯誤也視為斷線
-        conn.on('error', () => {
-            alert("連線發生異常，遊戲結束。");
+            alert("⚠️ 對方已退出遊戲！恭喜你獲勝！");
             location.reload();
         });
     }
@@ -228,8 +227,25 @@
     }
 
     function checkWin() {
-        let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); location.reload(); }
+        let r=0, b=0;
+        board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
+        
+        // 判定勝負
+        if(r === 0 || b === 0) {
+            let winner = (r === 0) ? "黑方" : "紅方";
+            let resultMsg = "";
+            
+            if((myColor === 1 && r > 0) || (myColor === 2 && b > 0)) {
+                resultMsg = "🏆 恭喜！你獲勝了！";
+            } else {
+                resultMsg = "💀 很遺憾，你輸了。";
+            }
+            
+            alert(winner + " 棋子已被吃光！\n" + resultMsg);
+            location.reload();
+            return true;
+        }
+        return false;
     }
 </script>
 </body>
