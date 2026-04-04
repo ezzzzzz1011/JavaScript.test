@@ -3,106 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v1.2</title>
+    <title>暗棋 Online v1.3</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
-        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; position: relative; }
+        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .version-tag { position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #666; }
-        .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; }
+        .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; }
         canvas { background-color: #dcb35c; box-shadow: 0 0 25px rgba(0,0,0,0.6); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; display: none; }
-        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 10px; font-size: 16px; transition: 0.2s; }
+        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #fff; text-align: center; font-size: 16px; font-family: monospace; }
+        input:focus { border-color: #3498db; outline: none; }
+        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; font-size: 16px; transition: 0.2s; }
         button:hover { filter: brightness(1.1); }
+        .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; }
+        .id-text { color: #3498db; font-size: 18px; font-weight: bold; letter-spacing: 1px; }
         #net-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff4757; margin-right: 10px; }
-        .room-info { font-size: 11px; color: #3498db; margin-top: 15px; background: #000; padding: 12px; border-radius: 8px; word-break: break-all; border: 1px solid #444; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="lobby">
-    <h2 style="margin:0 0 20px 0;">♟️ 暗棋對戰室</h2>
+    <h2 style="margin:0 0 10px 0;">♟️ 暗棋對戰室</h2>
     <div id="main-ui">
         <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">連線中...</span></div>
-        <div id="action-area">
-            <p id="instruction" style="font-size: 13px; color:#bbb;">正在啟動伺服器...</p>
-            
-            <button id="create-btn" onclick="startAsHost()" style="display:none; background:#e67e22;">建立新房間</button>
-            <div id="host-link-area" style="display:none;">
-                <p style="font-size: 12px;">複製下方連結給朋友：</p>
-                <div class="room-info" id="room-link" onclick="copyLink()">取得網址中...</div>
-            </div>
-
-            <div id="join-area" style="display:none;">
-                <button onclick="startAsGuest()" style="background:#27ae60;">進入朋友的房間</button>
-                <p style="font-size: 11px; color:#888; margin-top:10px;">請確認朋友已經在房間內等候</p>
+        
+        <div id="host-area">
+            <p style="font-size: 13px; color:#bbb; margin:0;">你的房間 ID (點擊複製)：</p>
+            <div class="id-box" onclick="copyMyId()">
+                <span id="my-id-display" class="id-text">取得中...</span>
             </div>
         </div>
+
+        <hr style="border:0; border-top:1px solid #444; margin:20px 0;">
+
+        <div id="join-area">
+            <input type="text" id="input-id" placeholder="貼上對手的 ID">
+            <button onclick="joinRoom()" style="background:#27ae60;">加入房間</button>
+        </div>
     </div>
-    <div class="version-tag">v1.2</div>
+    <div class="version-tag">v1.3</div>
 </div>
 
 <div id="game-ui" style="display: none; text-align: center;">
-    <div class="status-bar"><div style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">連線成功</span></div>
-    <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px;">身分：未定</div>
+    <div class="status-bar"><div style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">對戰中</span></div>
+    <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color:#aaa;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
     <br>
-    <button onclick="location.href=location.pathname" style="width:auto; background:#555; margin-top:15px; padding:8px 20px;">回大廳</button>
+    <button onclick="location.reload()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">退出遊戲</button>
 </div>
 
 <script>
     const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
     const lobbyMsg = document.getElementById('lobby-msg');
-    const instruction = document.getElementById('instruction');
+    const myIdDisplay = document.getElementById('my-id-display');
+    const inputId = document.getElementById('input-id');
 
     const COLS = 4, ROWS = 8, PADDING = 15;
     let cellSize, board = [], myColor = 0, turn = 1, peer, conn, isHost = false;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetRoom = urlParams.get('room');
-
-    // 初始化 Peer
-    peer = new Peer({ debug: 1 });
+    // 初始化 Peer (隨機生成 ID)
+    peer = new Peer();
 
     peer.on('open', (id) => {
         document.getElementById('net-dot').style.background = "#2ecc71";
-        lobbyMsg.innerText = "連線就緒";
-        
-        if (!targetRoom) {
-            instruction.innerText = "點擊按鈕建立房間：";
-            document.getElementById('create-btn').style.display = "block";
-        } else {
-            instruction.innerText = "偵測到朋友的房間 ID：" + targetRoom;
-            document.getElementById('join-area').style.display = "block";
-        }
+        lobbyMsg.innerText = "伺服器已就緒";
+        myIdDisplay.innerText = id;
     });
 
-    // 房主邏輯
-    function startAsHost() {
+    peer.on('connection', (c) => {
+        conn = c;
         isHost = true;
-        document.getElementById('create-btn').style.display = "none";
-        document.getElementById('host-link-area').style.display = "block";
-        document.getElementById('room-link').innerText = window.location.origin + window.location.pathname + "?room=" + peer.id;
-        initBoard();
-        lobbyMsg.innerText = "等待對手中...";
-        
-        peer.on('connection', (c) => {
-            conn = c;
-            bindConnEvents();
-        });
+        initBoard(); 
+        bindConnEvents();
+    });
+
+    function copyMyId() {
+        const id = myIdDisplay.innerText;
+        if(id.includes('取得中')) return;
+        navigator.clipboard.writeText(id);
+        alert("ID 已複製！請傳給朋友。");
     }
 
-    // 加入者邏輯
-    function startAsGuest() {
+    function joinRoom() {
+        const tid = inputId.value.trim();
+        if(!tid) return alert("請輸入對手 ID");
         isHost = false;
         lobbyMsg.innerText = "正在連線...";
-        conn = peer.connect(targetRoom);
+        conn = peer.connect(tid);
         bindConnEvents();
-    }
-
-    function copyLink() {
-        navigator.clipboard.writeText(document.getElementById('room-link').innerText);
-        alert("網址已複製！請傳給朋友。");
     }
 
     function bindConnEvents() {
@@ -127,8 +116,8 @@
         });
 
         conn.on('error', (err) => {
-            alert("連線失敗：對手可能已離開或房間無效。");
-            location.href = location.pathname;
+            alert("連線出錯，請確認 ID 是否正確。");
+            location.reload();
         });
     }
 
@@ -141,7 +130,7 @@
         draw();
     }
 
-    // --- 遊戲邏輯與棋盤畫法 (保持不變) ---
+    // --- 遊戲邏輯與棋盤畫法 ---
     function initBoard() {
         const pConf = [
             {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'車',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
@@ -234,7 +223,7 @@
 
     function checkWin() {
         let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); location.href = location.pathname; }
+        if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); location.reload(); }
     }
 </script>
 </body>
