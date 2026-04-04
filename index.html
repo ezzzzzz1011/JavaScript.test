@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>快手暗棋 - AI 對戰</title>
+    <title>暗棋 - 絕殺判定版</title>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
         #ui { margin-bottom: 10px; text-align: center; }
@@ -139,7 +139,7 @@
         updateUI();
         if(playerColor !== 0 && turn !== playerColor) {
             isAiThinking = true;
-            setTimeout(aiQuickAction, 300); // 縮短電腦等待時間
+            setTimeout(aiQuickAction, 300);
         }
     }
 
@@ -163,12 +163,19 @@
                 } else if(p && !p.revealed) options.push({type:'flip', r, c, w: 2});
             }
         }
-        options.sort((a,b) => b.w - a.w);
-        let m = options[0] ? options[0] : null;
-        if(m) {
-            if(m.type === 'flip') board[m.r][m.c].revealed = true;
-            else { board[m.r2][m.c2] = board[m.r1][m.c1]; board[m.r1][m.c1] = null; }
+
+        // --- 🏆 新增：電腦死局判定 ---
+        if (options.length === 0) {
+            alert("電腦無棋可走，判定輸棋！玩家獲勝。");
+            initGame();
+            return;
         }
+
+        options.sort((a,b) => b.w - a.w);
+        let m = options[0];
+        if(m.type === 'flip') board[m.r][m.c].revealed = true;
+        else { board[m.r2][m.c2] = board[m.r1][m.c1]; board[m.r1][m.c1] = null; }
+        
         isAiThinking = false; endTurn();
     }
 
