@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v1.9</title>
+    <title>暗棋 Online v2.0</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; min-height: 100vh; justify-content: center; color: white; overflow-x: hidden; }
@@ -12,20 +12,19 @@
         .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; }
         
         #game-container { display: flex; flex-direction: row; align-items: flex-start; gap: 15px; display: none; }
-        .captured-box { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid #444; width: 60px; min-height: 300px; display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
-        .captured-box h4 { margin: 0 0 5px 0; font-size: 10px; color: #888; text-align: center; }
-        .dead-piece { width: 25px; height: 25px; border-radius: 50%; background: #eee; color: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto; border: 1px solid #000; }
-        .dead-red { color: #b22222; border-color: #b22222; }
-        .dead-black { color: #2f4f4f; border-color: #2f4f4f; }
+        .captured-box { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; border: 1px solid #444; width: 70px; min-height: 380px; display: flex; flex-direction: column; gap: 5px; }
+        .captured-box h4 { margin: 0 0 5px 0; font-size: 11px; color: #aaa; text-align: center; }
+        .dead-piece { width: 30px; height: 30px; border-radius: 50%; background: #fdf5e6; color: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto; border: 1px solid #000; font-size: 14px; }
+        .dead-red { color: #b22222; } .dead-black { color: #2f4f4f; }
 
         canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; }
-        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #fff; text-align: center; }
-        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; }
+        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #fff; text-align: center; font-size: 16px; }
+        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; font-size: 16px; }
         .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; font-size: 13px; color: #3498db; word-break: break-all; }
         
-        @media (max-width: 500px) {
+        @media (max-width: 600px) {
             #game-container { flex-direction: column; align-items: center; }
-            .captured-box { flex-direction: row; width: 90%; min-height: auto; flex-wrap: wrap; }
+            .captured-box { flex-direction: row; width: 90%; min-height: auto; flex-wrap: wrap; justify-content: center; }
         }
     </style>
 </head>
@@ -34,22 +33,22 @@
 <div id="lobby">
     <h2 style="margin:0 0 10px 0;">♟️ 暗棋對戰室</h2>
     <div id="main-ui">
-        <div class="status-bar"><span id="lobby-msg">連線中...</span></div>
+        <div class="status-bar"><span id="lobby-msg">連線伺服器中...</span></div>
         <div class="id-box" onclick="copyMyId()"><span id="my-id-display">取得中...</span></div>
         <input type="text" id="input-id" placeholder="貼上對手的 ID">
-        <button onclick="joinRoom()" style="background:#27ae60;">加入對手房間</button>
+        <button onclick="joinRoom()" style="background:#27ae60;">連線對手</button>
     </div>
-    <div class="version-tag">v1.9</div>
+    <div class="version-tag">v2.0</div>
 </div>
 
 <div id="game-container">
     <div class="captured-box" id="red-graveyard"><h4>紅方損亡</h4></div>
     
     <div id="game-ui" style="text-align: center;">
-        <div class="status-bar"><span id="statusText">等待同步...</span></div>
+        <div class="status-bar"><span id="statusText">等待同步中...</span></div>
         <div id="turnDisplay" style="margin-bottom: 10px; font-size:13px; color:#aaa;">身分：未定</div>
         <canvas id="chessBoard"></canvas>
-        <button id="exitBtn" onclick="confirmExit()" style="width:auto; background:#555; margin-top:15px; padding:6px 15px; font-size:12px;">退出</button>
+        <button onclick="location.reload()" style="width:auto; background:#555; margin-top:15px; padding:6px 15px; font-size:12px;">中斷並結束</button>
     </div>
 
     <div class="captured-box" id="black-graveyard"><h4>黑方損亡</h4></div>
@@ -61,60 +60,62 @@
     const statusText = document.getElementById('statusText');
     const turnDisplay = document.getElementById('turnDisplay');
     const myIdDisplay = document.getElementById('my-id-display');
-    const redGrave = document.getElementById('red-graveyard');
-    const blackGrave = document.getElementById('black-graveyard');
-
+    
     const COLS = 4, ROWS = 8, PADDING = 15;
     let cellSize, board = [], selected = null, myColor = 0, turn = 1, peer, conn, isHost = false, gameEnded = false;
     let capturedPieces = [];
+    let isProcessing = false; // 防止雙重開牌
 
     peer = new Peer();
     peer.on('open', id => { myIdDisplay.innerText = id; document.getElementById('lobby-msg').innerText = "伺服器就緒"; });
     peer.on('connection', c => { conn = c; isHost = true; initBoard(); bindEvents(); });
 
     function copyMyId() { navigator.clipboard.writeText(myIdDisplay.innerText); alert("ID 已複製"); }
-    function joinRoom() { const tid = document.getElementById('input-id').value.trim(); if(!tid) return; isHost = false; conn = peer.connect(tid); bindEvents(); }
-    function confirmExit() { if(gameEnded || confirm("確定要退出嗎？")) location.reload(); }
+    function joinRoom() { 
+        const tid = document.getElementById('input-id').value.trim(); 
+        if(!tid) return; isHost = false; 
+        conn = peer.connect(tid); bindEvents(); 
+    }
 
     function bindEvents() {
         conn.on('open', () => {
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex';
             resize();
-            if(!isHost) sendData({ type: 'GREET' });
+            if(!isHost) sendData({ type: 'READY_TO_SYNC' }); // 加入者主動請求同步
         });
 
         conn.on('data', (data) => {
-            if(data.type === 'GREET' && isHost) {
-                sendData({ type: 'SYNC', board: board, turn: turn, captured: capturedPieces });
-            } else if(data.type === 'SYNC') {
+            if(data.type === 'READY_TO_SYNC' && isHost) {
+                sendData({ type: 'FULL_SYNC', board: board, turn: turn, captured: capturedPieces });
+            } else if(data.type === 'FULL_SYNC') {
                 board = data.board; turn = data.turn; capturedPieces = data.captured || [];
-                draw(); updateUI(); updateGraveyard();
+                statusText.innerText = "對局開始"; draw(); updateUI(); updateGraveyard();
             } else if(data.type === 'ACTION') {
                 handleAction(data);
             }
         });
-        conn.on('close', () => { if(!gameEnded){ gameEnded = true; statusText.innerText = "🏆 對手逃跑，你贏了！"; alert("對手已斷線"); }});
+        conn.on('close', () => { if(!gameEnded){ gameEnded = true; statusText.innerText = "🏆 對手斷線，你贏了！"; alert("對方已離開"); }});
     }
 
     function handleAction(data) {
+        isProcessing = true;
         const { r1, c1, r2, c2, flip, colorSet } = data;
         if (colorSet) myColor = (colorSet === 1) ? 2 : 1;
         if (flip) {
             board[r2][c2].revealed = true;
         } else {
             if (board[r2][c2]) capturedPieces.push(board[r2][c2]);
-            board[r2][c2] = board[r1][c1];
-            board[r1][c1] = null;
+            board[r2][c2] = board[r1][c1]; board[r1][c1] = null;
         }
         turn = (turn === 1) ? 2 : 1;
         updateUI(); draw(); updateGraveyard(); checkWin();
+        isProcessing = false;
     }
 
     function sendData(d) { if(conn && conn.open) conn.send(d); }
-    
     function resize() {
-        const sw = Math.min(window.innerWidth * 0.7, 280);
+        const sw = Math.min(window.innerWidth * 0.75, 280);
         canvas.width = sw; canvas.height = sw*2;
         cellSize = (sw-PADDING*2)/COLS;
         draw();
@@ -133,25 +134,26 @@
     }
 
     function updateGraveyard() {
-        redGrave.innerHTML = "<h4>紅方損亡</h4>";
-        blackGrave.innerHTML = "<h4>黑方損亡</h4>";
+        document.getElementById('red-graveyard').innerHTML = "<h4>紅方損亡</h4>";
+        document.getElementById('black-graveyard').innerHTML = "<h4>黑方損亡</h4>";
         capturedPieces.sort((a,b) => b.level - a.level).forEach(p => {
             const el = document.createElement('div');
             el.className = `dead-piece ${p.color === 1 ? 'dead-red' : 'dead-black'}`;
             el.innerText = p.name;
-            if(p.color === 1) redGrave.appendChild(el);
-            else blackGrave.appendChild(el);
+            if(p.color === 1) document.getElementById('red-graveyard').appendChild(el);
+            else document.getElementById('black-graveyard').appendChild(el);
         });
     }
 
     canvas.addEventListener('mousedown', e => {
-        if(gameEnded || (myColor !== 0 && turn !== myColor)) return;
+        if(gameEnded || isProcessing || (myColor !== 0 && turn !== myColor)) return;
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX-rect.left-PADDING)/cellSize), r = Math.floor((e.clientY-rect.top-PADDING)/cellSize);
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
 
         if(clicked && !clicked.revealed) {
+            isProcessing = true; // 立即鎖定，防止連點或對手同時開牌
             let cs = 0; clicked.revealed = true;
             if(myColor === 0) { myColor = clicked.color; cs = myColor; }
             const act = { type: 'ACTION', r2:r, c2:c, flip:true, colorSet:cs };
@@ -160,11 +162,11 @@
 
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
+                isProcessing = true;
                 const act = { type: 'ACTION', r1:selected.r, c1:selected.c, r2:r, c2:c, flip:false };
                 sendData(act); handleAction(act); selected = null;
             } else {
-                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null;
-                draw();
+                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null; draw();
             }
         } else if(clicked && clicked.revealed && clicked.color === myColor) {
             selected = {r,c}; draw();
@@ -221,7 +223,7 @@
 
     function checkWin() {
         let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r === 0 || b === 0) {
+        if(r === 0 || b === 0 && myColor !== 0) {
             gameEnded = true;
             let iWon = (myColor === 1 && r > 0) || (myColor === 2 && b > 0);
             statusText.innerText = iWon ? "🏆 恭喜獲勝！" : "💀 遺憾戰敗";
