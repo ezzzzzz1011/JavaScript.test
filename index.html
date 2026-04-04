@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>經典暗棋 - 雙人對弈版</title>
+    <title>暗棋 - 人機大戰版</title>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
         #ui { margin-bottom: 15px; text-align: center; }
-        .status { font-size: 24px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; }
+        .status { font-size: 22px; color: #f1c40f; font-weight: bold; margin-bottom: 5px; }
         canvas { background-color: #dcb35c; box-shadow: 0 0 30px rgba(0,0,0,0.5); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; }
-        .controls { margin-top: 15px; }
-        button { padding: 10px 25px; font-size: 18px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; font-weight: bold; }
+        .controls { margin-top: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="status" id="statusDisplay">點擊棋子開始翻牌</div>
-    <div id="turnDisplay">輪到：紅/黑 (待定)</div>
+    <div class="status" id="statusDisplay">請翻牌決定顏色</div>
+    <div id="turnDisplay">輪到：玩家 (紅/黑待定)</div>
     <div class="controls"><button onclick="initGame()">重新開局</button></div>
 </div>
 
@@ -31,11 +31,11 @@
 
     const COLS = 4, ROWS = 8;
     const PADDING = 20;
-    let cellSize, board = [], selected = null, currentPlayer = 0; // 0: 未定, 1: 紅, 2: 黑
-    let turn = 1; // 1或2輪流
+    let cellSize, board = [], selected = null, playerColor = 0; // 0:未定, 1:紅, 2:黑
+    let turn = 1; // 1紅 2黑
+    let isAiThinking = false;
 
-    // 棋子定義 (等級由大到小)
-    const PIECES = [
+    const PIECES_DATA = [
         { name: '帥', level: 7, count: 1, color: 1 }, { name: '仕', level: 6, count: 2, color: 1 },
         { name: '相', level: 5, count: 2, color: 1 }, { name: '車', level: 4, count: 2, color: 1 },
         { name: '傌', level: 3, count: 2, color: 1 }, { name: '炮', level: 2, count: 2, color: 1 },
@@ -47,14 +47,12 @@
     ];
 
     function initGame() {
-        const sizeW = Math.min(window.innerWidth * 0.9, 400);
-        canvas.width = sizeW;
-        canvas.height = sizeW * 2;
+        const sizeW = Math.min(window.innerWidth * 0.9, 360);
+        canvas.width = sizeW; canvas.height = sizeW * 2;
         cellSize = (canvas.width - PADDING * 2) / COLS;
         
-        // 生成棋池
         let pool = [];
-        PIECES.forEach(p => { for(let i=0; i<p.count; i++) pool.push({...p, revealed: false}); });
+        PIECES_DATA.forEach(p => { for(let i=0; i<p.count; i++) pool.push({...p, revealed: false}); });
         pool.sort(() => Math.random() - 0.5);
 
         board = [];
@@ -62,51 +60,29 @@
             board[r] = [];
             for(let c=0; c<COLS; c++) board[r][c] = pool.shift();
         }
-        currentPlayer = 0; turn = 1; selected = null;
+        playerColor = 0; turn = 1; selected = null; isAiThinking = false;
         statusDisplay.innerText = "請翻牌決定顏色";
-        updateTurnUI();
-        draw();
+        updateUI(); draw();
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // 畫網格
-        ctx.strokeStyle = "#5d4037";
-        ctx.lineWidth = 2;
-        for(let r=0; r<=ROWS; r++) {
-            ctx.beginPath(); ctx.moveTo(PADDING, PADDING + r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING + r*cellSize); ctx.stroke();
-        }
-        for(let c=0; c<=COLS; c++) {
-            ctx.beginPath(); ctx.moveTo(PADDING + c*cellSize, PADDING); ctx.lineTo(PADDING + c*cellSize, canvas.height-PADDING); ctx.stroke();
-        }
+        ctx.strokeStyle = "#5d4037"; ctx.lineWidth = 2;
+        for(let r=0; r<=ROWS; r++) { ctx.beginPath(); ctx.moveTo(PADDING, PADDING + r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING + r*cellSize); ctx.stroke(); }
+        for(let c=0; c<=COLS; c++) { ctx.beginPath(); ctx.moveTo(PADDING + c*cellSize, PADDING); ctx.lineTo(PADDING + c*cellSize, canvas.height-PADDING); ctx.stroke(); }
 
-        // 畫棋子
         for(let r=0; r<ROWS; r++) {
             for(let c=0; c<COLS; c++) {
-                const p = board[r][c];
-                if(!p) continue;
+                const p = board[r][c]; if(!p) continue;
                 const x = PADDING + c*cellSize + cellSize/2;
                 const y = PADDING + r*cellSize + cellSize/2;
-
-                if(selected && selected.r === r && selected.c === c) {
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-                    ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize);
-                }
-
-                ctx.beginPath();
-                ctx.arc(x, y, cellSize*0.4, 0, Math.PI*2);
-                if(!p.revealed) {
-                    ctx.fillStyle = "#8d6e63"; // 蓋著的顏色
-                } else {
-                    ctx.fillStyle = "#f5f5dc"; // 翻開的底色
-                }
-                ctx.fill();
-                ctx.strokeStyle = "#3e2723"; ctx.lineWidth = 2; ctx.stroke();
-
+                if(selected && selected.r === r && selected.c === c) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); }
+                ctx.beginPath(); ctx.arc(x, y, cellSize*0.4, 0, Math.PI*2);
+                ctx.fillStyle = p.revealed ? "#f5f5dc" : "#8d6e63";
+                ctx.fill(); ctx.strokeStyle = "#3e2723"; ctx.stroke();
                 if(p.revealed) {
                     ctx.fillStyle = p.color === 1 ? "#d32f2f" : "#212121";
-                    ctx.font = `bold ${cellSize*0.5}px sans-serif`;
-                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.font = `bold ${cellSize*0.5}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                     ctx.fillText(p.name, x, y);
                 }
             }
@@ -114,98 +90,125 @@
     }
 
     canvas.addEventListener('mousedown', e => {
+        if(isAiThinking) return;
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX - rect.left - PADDING) / cellSize);
         const r = Math.floor((e.clientY - rect.top - PADDING) / cellSize);
         if(r<0 || r>=ROWS || c<0 || c>=COLS) return;
 
+        handleAction(r, c);
+    });
+
+    function handleAction(r, c) {
         const clicked = board[r][c];
 
-        // 1. 翻牌邏輯
+        // 1. 翻牌
         if(clicked && !clicked.revealed) {
             clicked.revealed = true;
-            if(currentPlayer === 0) {
-                currentPlayer = clicked.color; // 第一個翻牌的人拿到該顏色
-                turn = currentPlayer; 
-            }
-            nextTurn();
-            return;
+            if(playerColor === 0) playerColor = clicked.color; 
+            endTurn(); return;
         }
 
-        // 2. 選取/移動邏輯
+        // 2. 移動/吃子
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
                 board[r][c] = board[selected.r][selected.c];
                 board[selected.r][selected.c] = null;
-                selected = null;
-                nextTurn();
+                endTurn();
             } else {
-                selected = (clicked && clicked.color === turn) ? {r, c} : null;
+                selected = (clicked && clicked.revealed && clicked.color === turn) ? {r, c} : null;
                 draw();
             }
         } else if(clicked && clicked.revealed && clicked.color === turn) {
-            selected = {r, c};
-            draw();
+            selected = {r, c}; draw();
         }
-    });
+    }
 
     function canMove(r1, c1, r2, c2) {
         const p1 = board[r1][c1], p2 = board[r2][c2];
         const dist = Math.abs(r1-r2) + Math.abs(c1-c2);
-        
-        // 炮(level 2)的特殊吃法
         if(p1.name === '炮' || p1.name === '包') {
-            if(p2) { // 吃子：必須隔一個棋子
+            if(p2) {
                 if(r1 !== r2 && c1 !== c2) return false;
                 let count = 0;
-                if(r1 === r2) {
-                    for(let i = Math.min(c1,c2)+1; i < Math.max(c1,c2); i++) if(board[r1][i]) count++;
-                } else {
-                    for(let i = Math.min(r1,r2)+1; i < Math.max(r1,r2); i++) if(board[i][c1]) count++;
-                }
-                return count === 1 && p1.color !== p2.color;
+                if(r1 === r2) { for(let i=Math.min(c1,c2)+1; i<Math.max(c1,c2); i++) if(board[r1][i]) count++; }
+                else { for(let i=Math.min(r1,r2)+1; i<Math.max(r1,r2); i++) if(board[i][c1]) count++; }
+                return count === 1 && p1.color !== p2.color && p2.revealed;
             }
         }
-
-        // 一般移動：只能走一格
         if(dist !== 1) return false;
-        if(!p2) return true; // 空地直接走
-
-        // 吃子判定
+        if(!p2) return true;
         if(p1.color === p2.color || !p2.revealed) return false;
-        if(p1.level === 1 && p2.level === 7) return true; // 兵吃帥
-        if(p1.level === 7 && p2.level === 1) return false; // 帥不吃兵
-        return p1.level >= p2.level; // 大吃小
+        if(p1.level === 1 && p2.level === 7) return true;
+        if(p1.level === 7 && p2.level === 1) return false;
+        return p1.level >= p2.level;
     }
 
-    function nextTurn() {
+    function endTurn() {
+        selected = null; draw();
+        if(checkWin()) return;
         turn = turn === 1 ? 2 : 1;
-        selected = null;
-        updateTurnUI();
-        draw();
-        checkGameOver();
-    }
-
-    function updateTurnUI() {
-        if(currentPlayer === 0) {
-            turnDisplay.innerText = "輪到：紅/黑 (待定)";
-        } else {
-            const colorName = turn === 1 ? "紅方" : "黑方";
-            turnDisplay.innerText = "輪到：" + colorName;
-            turnDisplay.style.color = turn === 1 ? "#ff5252" : "#444";
+        updateUI();
+        if(playerColor !== 0 && turn !== playerColor) {
+            isAiThinking = true;
+            setTimeout(aiMove, 800);
         }
     }
 
-    function checkGameOver() {
-        let red = 0, black = 0;
-        board.forEach(row => row.forEach(p => { if(p) { if(p.color === 1) red++; else black++; } }));
-        if(red === 0) alert("黑方獲勝！");
-        if(black === 0) alert("紅方獲勝！");
-        if(red === 0 || black === 0) initGame();
+    function aiMove() {
+        let moves = [];
+        // 找所有可能的動作：吃子 > 翻牌 > 隨機走
+        for(let r=0; r<ROWS; r++) {
+            for(let c=0; c<COLS; c++) {
+                let p = board[r][c];
+                if(p && p.revealed && p.color === turn) {
+                    // 檢查移動
+                    [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                        let nr = r+dr, nc = c+dc;
+                        if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS) {
+                            if(canMove(r, c, nr, nc)) {
+                                let weight = board[nr][nc] ? board[nr][nc].level * 10 : 1;
+                                moves.push({type:'move', r1:r, c1:c, r2:nr, c2:nc, w: weight});
+                            }
+                        }
+                    });
+                    // 炮特殊檢查
+                    if(p.name === '炮' || p.name === '包') {
+                        for(let nr=0; nr<ROWS; nr++) { if(canMove(r,c,nr,c)) moves.push({type:'move',r1:r,c1:c,r2:nr,c2:c, w: board[nr][c].level*15}); }
+                        for(let nc=0; nc<COLS; nc++) { if(canMove(r,c,r,nc)) moves.push({type:'move',r1:r,c1:c,r2:r,c2:nc, w: board[r][nc].level*15}); }
+                    }
+                }
+                if(p && !p.revealed) moves.push({type:'flip', r, c, w: 2});
+            }
+        }
+        moves.sort((a,b) => b.w - a.w);
+        let best = moves.filter(m => m.w === moves[0].w);
+        let m = best[Math.floor(Math.random()*best.length)];
+        
+        if(m.type === 'flip') { board[m.r][m.c].revealed = true; }
+        else { board[m.r2][m.c2] = board[m.r1][m.c1]; board[m.r1][m.c1] = null; }
+        
+        isAiThinking = false;
+        endTurn();
     }
 
+    function updateUI() {
+        const isPlayerTurn = (playerColor === 0 || turn === playerColor);
+        turnDisplay.innerText = isPlayerTurn ? "輪到：你" : "輪到：電腦思考中...";
+        turnDisplay.style.color = turn === 1 ? "#ff5252" : "#aaa";
+        if(playerColor !== 0) statusDisplay.innerText = "你玩的是：" + (playerColor === 1 ? "紅方" : "黑方");
+    }
+
+    function checkWin() {
+        let r=0, b=0;
+        board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
+        if(r===0 || b===0) {
+            alert((r===0 ? "黑方" : "紅方") + " 獲勝！");
+            initGame(); return true;
+        }
+        return false;
+    }
     initGame();
 </script>
-
 </body>
 </html>
