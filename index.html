@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v1.4</title>
+    <title>暗棋 Online v1.5</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
-        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
+        .version-tag { position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #666; }
         .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; }
         canvas { background-color: #dcb35c; box-shadow: 0 0 25px rgba(0,0,0,0.6); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; display: none; }
         input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #fff; text-align: center; font-size: 16px; }
         button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; font-size: 16px; }
         .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; }
-        .id-text { color: #3498db; font-size: 16px; font-weight: bold; word-break: break-all; }
+        .id-text { color: #3498db; font-size: 14px; font-weight: bold; word-break: break-all; }
         #net-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff4757; margin-right: 10px; }
     </style>
 </head>
@@ -24,7 +25,7 @@
     <div id="main-ui">
         <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">伺服器連線中...</span></div>
         <div id="host-area">
-            <p style="font-size: 12px; color:#bbb; margin:0;">傳送此 ID 給朋友：</p>
+            <p style="font-size: 12px; color:#bbb; margin:0;">你的 ID (點擊複製)：</p>
             <div class="id-box" onclick="copyMyId()"><span id="my-id-display" class="id-text">取得中...</span></div>
         </div>
         <div id="join-area">
@@ -32,14 +33,15 @@
             <button onclick="joinRoom()" style="background:#27ae60;">加入對手房間</button>
         </div>
     </div>
-    <p style="font-size: 10px; color: #555; margin-top: 10px;">v1.4 修正版</p>
+    <div class="version-tag">v1.5</div>
 </div>
 
 <div id="game-ui" style="display: none; text-align: center;">
     <div class="status-bar"><div style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">連線成功</span></div>
     <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color:#aaa;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
-    <button onclick="location.reload()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">退出</button>
+    <br>
+    <button onclick="location.reload()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">主動退出</button>
 </div>
 
 <script>
@@ -69,7 +71,7 @@
         const id = myIdDisplay.innerText;
         if(id.includes('取得中')) return;
         navigator.clipboard.writeText(id);
-        alert("ID 已複製");
+        alert("ID 已複製！");
     }
 
     function joinRoom() {
@@ -97,19 +99,24 @@
                 draw(); updateUI();
             } else if(data.type === 'ACTION') {
                 const { r1, c1, r2, c2, flip, colorSet } = data;
-                // 核心修復：如果對方確定了顏色，我強迫變成另一色
-                if (colorSet) {
-                    myColor = (colorSet === 1) ? 2 : 1;
-                }
-                if (flip) {
-                    board[r2][c2].revealed = true;
-                } else {
-                    board[r2][c2] = board[r1][c1];
-                    board[r1][c1] = null;
-                }
+                if (colorSet) myColor = (colorSet === 1) ? 2 : 1;
+                if (flip) { board[r2][c2].revealed = true; }
+                else { board[r2][c2] = board[r1][c1]; board[r1][c1] = null; }
                 turn = (turn === 1) ? 2 : 1;
                 updateUI(); draw(); checkWin();
             }
+        });
+
+        // --- 核心更新：監聽對手退出 ---
+        conn.on('close', () => {
+            alert("對方已退出，您贏了！");
+            location.reload();
+        });
+        
+        // 額外保險：如果連線發生錯誤也視為斷線
+        conn.on('error', () => {
+            alert("連線發生異常，遊戲結束。");
+            location.reload();
         });
     }
 
@@ -135,31 +142,23 @@
     }
 
     canvas.addEventListener('mousedown', e => {
-        // 如果不是我的回合，且身分已定，不能點擊
         if(myColor !== 0 && turn !== myColor) return;
-        
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX-rect.left-PADDING)/cellSize), r = Math.floor((e.clientY-rect.top-PADDING)/cellSize);
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
 
-        // 翻牌
         if(clicked && !clicked.revealed) {
             let cs = 0;
             clicked.revealed = true;
-            if(myColor === 0) { 
-                myColor = clicked.color; // 決定自己的顏色
-                cs = myColor; 
-            }
+            if(myColor === 0) { myColor = clicked.color; cs = myColor; }
             const act = { type: 'ACTION', r2:r, c2:c, flip:true, colorSet:cs };
             sendData(act);
-            // 自己也執行變更
             turn = (turn === 1) ? 2 : 1;
             updateUI(); draw(); checkWin();
             return;
         }
 
-        // 移動/吃子
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
                 const act = { type: 'ACTION', r1:selected.r, c1:selected.c, r2:r, c2:c, flip:false };
