@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online - 穩定聯機版</title>
+    <title>暗棋 Online - 終極穩定版</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
@@ -20,12 +20,15 @@
 <div id="lobby">
     <h2 style="margin:0 0 20px 0;">♟️ 暗棋對戰室</h2>
     <div id="init-ui">
-        <button onclick="createRoom()" style="background: #e67e22;">建立新房間 (房主)</button>
-    </div>
-    <div id="wait-ui" style="display:none;">
-        <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">初始化連線...</span></div>
-        <p id="instruction" style="font-size: 13px;">請複製下方連結給朋友：</p>
-        <div class="room-info" id="room-link" onclick="copyLink()" style="cursor:pointer;">取得連結中...</div>
+        <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">正在啟動伺服器...</span></div>
+        <div id="host-controls" style="display:none;">
+            <p style="font-size: 13px;">複製網址傳給朋友：</p>
+            <div class="room-info" id="room-link" onclick="copyLink()" style="cursor:pointer;">取得網址中...</div>
+            <p style="font-size: 11px; color:#888;">(點擊上方黑色區塊即可複製)</p>
+        </div>
+        <div id="join-controls" style="display:none;">
+            <p id="join-msg">正在加入朋友的房間...</p>
+        </div>
     </div>
 </div>
 
@@ -33,7 +36,7 @@
     <div class="status-bar"><div style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">連線成功</span></div>
     <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color: #ddd;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
-    <button onclick="location.href=location.pathname" style="width:auto; background:#555; margin-top:20px; font-size:14px; padding:8px 15px;">回大廳</button>
+    <button onclick="location.href=location.pathname" style="width:auto; background:#555; margin-top:20px; font-size:14px; padding:8px 15px;">結束並回大廳</button>
 </div>
 
 <script>
@@ -49,77 +52,52 @@
 
     // 1. 取得房間參數
     const urlParams = new URLSearchParams(window.location.search);
-    const roomId = urlParams.get('room');
+    const targetPeerId = urlParams.get('room');
 
-    if (roomId) {
-        document.getElementById('init-ui').style.display = 'none';
-        document.getElementById('wait-ui').style.display = 'block';
-        document.getElementById('instruction').innerText = "正在進入房間，請稍候...";
-        document.getElementById('room-link').innerText = "房間代碼: " + roomId;
-        initPeer(false); // 作為加入者
-    }
+    // 初始化 Peer (讓伺服器自動配發 ID)
+    peer = new Peer();
 
-    function createRoom() {
-        const randId = 'room-' + Math.random().toString(36).substr(2, 7);
-        window.location.href = window.location.pathname + '?room=' + randId;
-    }
+    peer.on('open', (myId) => {
+        netDot.style.background = "#2ecc71";
+        
+        if (!targetPeerId) {
+            // 我是房主
+            isHost = true;
+            lobbyMsg.innerText = "連線就緒";
+            document.getElementById('host-controls').style.display = 'block';
+            document.getElementById('room-link').innerText = window.location.href + "?room=" + myId;
+            initBoard(); 
+        } else {
+            // 我是加入者
+            isHost = false;
+            document.getElementById('join-controls').style.display = 'block';
+            lobbyMsg.innerText = "正在進入房間...";
+            // 嘗試連線到網址上的 ID
+            conn = peer.connect(targetPeerId);
+            bindConnEvents();
+        }
+    });
+
+    peer.on('connection', (c) => {
+        if (isHost) {
+            conn = c;
+            bindConnEvents();
+        }
+    });
 
     function copyLink() {
-        navigator.clipboard.writeText(window.location.href);
+        navigator.clipboard.writeText(document.getElementById('room-link').innerText);
         alert("連結已複製！傳給朋友即可對戰。");
-    }
-
-    // 2. 初始化 PeerJS
-    function initPeer(asHost) {
-        // 如果是房主，ID 設為 roomId；如果是加入者，隨機產生 ID
-        const peerId = (roomId && asHost) ? roomId : null;
-        peer = new Peer(peerId, { debug: 1 });
-
-        peer.on('open', (id) => {
-            console.log("My peer ID:", id);
-            netDot.style.background = "#2ecc71";
-            
-            if (roomId && id === roomId) {
-                isHost = true;
-                lobbyMsg.innerText = "連線就緒，等待對手...";
-                document.getElementById('instruction').innerText = "請複製網址給朋友：";
-                document.getElementById('room-link').innerText = window.location.href;
-            } else if (roomId) {
-                // 如果我是加入者，嘗試連線到 roomId
-                lobbyMsg.innerText = "嘗試連線到房主...";
-                setTimeout(() => {
-                    conn = peer.connect(roomId, { reliable: true });
-                    bindConnEvents();
-                }, 1000);
-            }
-        });
-
-        peer.on('connection', (c) => {
-            conn = c;
-            isHost = true;
-            initBoard(); 
-            bindConnEvents();
-        });
-
-        peer.on('error', (err) => {
-            if (err.type === 'unavailable-id') {
-                // 如果 ID 被佔用，代表房主已經在那了，我應該改當加入者
-                initPeer(false);
-            } else {
-                lobbyMsg.innerText = "連線出錯，請重新整理";
-                console.error(err);
-            }
-        });
     }
 
     function bindConnEvents() {
         conn.on('open', () => {
             showGameUI();
-            if(!isHost) sendData({ type: 'READY' });
+            if(!isHost) sendData({ type: 'HELLO' });
         });
 
         conn.on('data', (data) => {
-            if(data.type === 'READY' && isHost) {
+            if(data.type === 'HELLO' && isHost) {
                 sendData({ type: 'SYNC', board: board, turn: turn });
             } else if(data.type === 'SYNC') {
                 board = data.board;
@@ -131,7 +109,7 @@
             }
         });
 
-        conn.on('close', () => { alert("對手已離開"); location.reload(); });
+        conn.on('close', () => { alert("對手斷線了"); location.reload(); });
     }
 
     function sendData(d) { if(conn && conn.open) conn.send(d); }
@@ -241,8 +219,6 @@
         let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
         if(r===0 || b===0) { alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); location.href = location.pathname; }
     }
-
-    // 如果沒有 roomId，代表是剛進大廳，不啟動 Peer
 </script>
 </body>
 </html>
