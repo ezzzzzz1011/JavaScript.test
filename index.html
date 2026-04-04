@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v2.0</title>
+    <title>暗棋 Online v2.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; min-height: 100vh; justify-content: center; color: white; overflow-x: hidden; }
@@ -38,14 +38,14 @@
         <input type="text" id="input-id" placeholder="貼上對手的 ID">
         <button onclick="joinRoom()" style="background:#27ae60;">連線對手</button>
     </div>
-    <div class="version-tag">v2.0</div>
+    <div class="version-tag">v2.1</div>
 </div>
 
 <div id="game-container">
     <div class="captured-box" id="red-graveyard"><h4>紅方損亡</h4></div>
     
     <div id="game-ui" style="text-align: center;">
-        <div class="status-bar"><span id="statusText">等待同步中...</span></div>
+        <div class="status-bar"><span id="statusText">正在同步棋盤...</span></div>
         <div id="turnDisplay" style="margin-bottom: 10px; font-size:13px; color:#aaa;">身分：未定</div>
         <canvas id="chessBoard"></canvas>
         <button onclick="location.reload()" style="width:auto; background:#555; margin-top:15px; padding:6px 15px; font-size:12px;">中斷並結束</button>
@@ -64,17 +64,35 @@
     const COLS = 4, ROWS = 8, PADDING = 15;
     let cellSize, board = [], selected = null, myColor = 0, turn = 1, peer, conn, isHost = false, gameEnded = false;
     let capturedPieces = [];
-    let isProcessing = false; // 防止雙重開牌
+    let syncInterval = null; // 用來死纏爛打要資料的計時器
 
-    peer = new Peer();
-    peer.on('open', id => { myIdDisplay.innerText = id; document.getElementById('lobby-msg').innerText = "伺服器就緒"; });
-    peer.on('connection', c => { conn = c; isHost = true; initBoard(); bindEvents(); });
+    peer = new Peer({ debug: 1 }); // 開啟 debug 模式穩定連線
+    
+    peer.on('open', id => { 
+        myIdDisplay.innerText = id; 
+        document.getElementById('lobby-msg').innerText = "伺服器就緒"; 
+        isHost = true; // 預設大家都是房主
+        initBoard();   // 房主在開啟時就把棋盤洗好，不要等連線才洗
+    });
 
-    function copyMyId() { navigator.clipboard.writeText(myIdDisplay.innerText); alert("ID 已複製"); }
+    peer.on('connection', c => { 
+        // 房主接收到別人的連線
+        conn = c; 
+        isHost = true; 
+        bindEvents(); 
+    });
+
+    function copyMyId() { 
+        navigator.clipboard.writeText(myIdDisplay.innerText); 
+        alert("ID 已複製！請傳給朋友。"); 
+    }
+
     function joinRoom() { 
         const tid = document.getElementById('input-id').value.trim(); 
-        if(!tid) return; isHost = false; 
-        conn = peer.connect(tid); bindEvents(); 
+        if(!tid) return; 
+        isHost = false; // 按下加入鍵，轉為加入者
+        conn = peer.connect(tid, { reliable: true }); 
+        bindEvents(); 
     }
 
     function bindEvents() {
@@ -82,38 +100,77 @@
             document.getElementById('lobby').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex';
             resize();
-            if(!isHost) sendData({ type: 'READY_TO_SYNC' }); // 加入者主動請求同步
+            
+            if(!isHost) {
+                // 【核心修正】：加入者每 0.5 秒瘋狂向房主要資料，直到收到為止
+                syncInterval = setInterval(() => {
+                    sendData({ type: 'REQ_SYNC' });
+                }, 500);
+            }
         });
 
         conn.on('data', (data) => {
-            if(data.type === 'READY_TO_SYNC' && isHost) {
-                sendData({ type: 'FULL_SYNC', board: board, turn: turn, captured: capturedPieces });
-            } else if(data.type === 'FULL_SYNC') {
-                board = data.board; turn = data.turn; capturedPieces = data.captured || [];
-                statusText.innerText = "對局開始"; draw(); updateUI(); updateGraveyard();
-            } else if(data.type === 'ACTION') {
+            if(data.type === 'REQ_SYNC' && isHost) {
+                // 房主收到請求，回傳完整狀態
+                sendData({ type: 'FULL_SYNC', board: board, turn: turn, captured: capturedPieces, colorInfo: myColor });
+            } 
+            else if(data.type === 'FULL_SYNC' && !isHost) {
+                // 加入者終於收到資料了！關閉死纏爛打計時器
+                if (syncInterval) {
+                    clearInterval(syncInterval);
+                    syncInterval = null;
+                }
+                board = data.board; 
+                turn = data.turn; 
+                capturedPieces = data.captured || [];
+                
+                // 同步房主的顏色設定
+                if (data.colorInfo !== 0) {
+                    myColor = (data.colorInfo === 1) ? 2 : 1;
+                }
+
+                statusText.innerText = "對局開始，請翻牌"; 
+                draw(); updateUI(); updateGraveyard();
+            } 
+            else if(data.type === 'ACTION') {
+                // 收到對方的動作
                 handleAction(data);
             }
         });
-        conn.on('close', () => { if(!gameEnded){ gameEnded = true; statusText.innerText = "🏆 對手斷線，你贏了！"; alert("對方已離開"); }});
+
+        conn.on('close', () => { 
+            if(!gameEnded){ 
+                gameEnded = true; 
+                statusText.innerText = "🏆 對手斷線，你贏了！"; 
+                alert("對方已離開"); 
+            }
+        });
     }
 
     function handleAction(data) {
-        isProcessing = true;
         const { r1, c1, r2, c2, flip, colorSet } = data;
-        if (colorSet) myColor = (colorSet === 1) ? 2 : 1;
+        
         if (flip) {
+            // 防呆：如果這張牌已經被翻開了，直接忽略 (防止雙重開牌)
+            if (board[r2][c2].revealed) return;
             board[r2][c2].revealed = true;
+            
+            // 同步第一手顏色
+            if (colorSet && myColor === 0) {
+                myColor = (colorSet === 1) ? 2 : 1;
+            }
         } else {
             if (board[r2][c2]) capturedPieces.push(board[r2][c2]);
-            board[r2][c2] = board[r1][c1]; board[r1][c1] = null;
+            board[r2][c2] = board[r1][c1]; 
+            board[r1][c1] = null;
         }
+        
         turn = (turn === 1) ? 2 : 1;
         updateUI(); draw(); updateGraveyard(); checkWin();
-        isProcessing = false;
     }
 
     function sendData(d) { if(conn && conn.open) conn.send(d); }
+    
     function resize() {
         const sw = Math.min(window.innerWidth * 0.75, 280);
         canvas.width = sw; canvas.height = sw*2;
@@ -146,30 +203,54 @@
     }
 
     canvas.addEventListener('mousedown', e => {
-        if(gameEnded || isProcessing || (myColor !== 0 && turn !== myColor)) return;
+        if(gameEnded) return;
+        // 嚴格阻擋：如果我的身分已確認，且不是我的回合，滑鼠點擊無效
+        if(myColor !== 0 && turn !== myColor) return;
+        
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX-rect.left-PADDING)/cellSize), r = Math.floor((e.clientY-rect.top-PADDING)/cellSize);
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
 
         if(clicked && !clicked.revealed) {
-            isProcessing = true; // 立即鎖定，防止連點或對手同時開牌
-            let cs = 0; clicked.revealed = true;
-            if(myColor === 0) { myColor = clicked.color; cs = myColor; }
+            let cs = 0; 
+            
+            // 設定自己為這個顏色，並立刻把回合交給對手
+            if(myColor === 0) { 
+                myColor = clicked.color; 
+                cs = myColor; 
+            }
+            
+            // 樂觀更新：自己畫面先變
+            clicked.revealed = true;
+            turn = (turn === 1) ? 2 : 1;
+            
             const act = { type: 'ACTION', r2:r, c2:c, flip:true, colorSet:cs };
-            sendData(act); handleAction(act); return;
+            sendData(act); 
+            
+            updateUI(); draw(); checkWin();
+            return;
         }
 
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
-                isProcessing = true;
                 const act = { type: 'ACTION', r1:selected.r, c1:selected.c, r2:r, c2:c, flip:false };
-                sendData(act); handleAction(act); selected = null;
+                sendData(act); 
+                
+                if (board[r][c]) capturedPieces.push(board[r][c]);
+                board[r][c] = board[selected.r][selected.c];
+                board[selected.r][selected.c] = null;
+                selected = null;
+                turn = (turn === 1) ? 2 : 1;
+                
+                updateUI(); draw(); updateGraveyard(); checkWin();
             } else {
-                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null; draw();
+                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null; 
+                draw();
             }
         } else if(clicked && clicked.revealed && clicked.color === myColor) {
-            selected = {r,c}; draw();
+            selected = {r,c}; 
+            draw();
         }
     });
 
@@ -200,6 +281,7 @@
     }
 
     function draw() {
+        if(!board.length) return;
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.strokeStyle = "#5d4037";
         for(let r=0; r<=ROWS; r++) { ctx.beginPath(); ctx.moveTo(PADDING, PADDING+r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING+r*cellSize); ctx.stroke(); }
@@ -227,7 +309,7 @@
             gameEnded = true;
             let iWon = (myColor === 1 && r > 0) || (myColor === 2 && b > 0);
             statusText.innerText = iWon ? "🏆 恭喜獲勝！" : "💀 遺憾戰敗";
-            alert(iWon ? "你贏了！對方全軍覆沒" : "你輸了！棋子被吃光了");
+            alert(iWon ? "你贏了！" : "你輸了！");
             return true;
         }
         return false;
