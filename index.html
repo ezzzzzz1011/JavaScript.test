@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>GitHub 連線暗棋 v.1.1 (視覺升級版)</title>
+    <title>GitHub 連線暗棋 v.1.2</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         /* 全域樣式：深色背景 */
@@ -11,7 +11,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #121212; /* 深黑色背景 */
+            background-color: #121212;
             color: #f0f0f0;
             margin: 0;
             padding-top: 30px;
@@ -38,11 +38,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             pointer-events: none;
         }
-        #toast.show {
-            visibility: visible;
-            opacity: 1;
-            top: 40px;
-        }
+        #toast.show { visibility: visible; opacity: 1; top: 40px; }
 
         /* 連線大廳 */
         #lobby {
@@ -74,11 +70,11 @@
 
         /* 整個遊戲包裝 */
         #game-wrapper {
-            display: none; /* 預設隱藏 */
+            display: none;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            max-width: 800px;
+            max-width: 900px;
         }
 
         /* 遊戲資訊區域（頂部） */
@@ -88,43 +84,39 @@
             align-items: center;
             margin-bottom: 20px;
         }
-        #star-icon {
-            font-size: 24px;
-            margin-bottom: 5px;
-            text-shadow: 0 0 10px #fdd835;
-        }
+        #star-icon { font-size: 24px; margin-bottom: 5px; text-shadow: 0 0 10px #fdd835; }
         #turn-info {
-            font-size: 20px;
-            font-weight: bold;
-            color: #00ff00; /* 發光綠色文字 */
-            text-shadow: 0 0 10px #00ff00;
-            margin-bottom: 5px;
+            font-size: 20px; font-weight: bold; color: #00ff00;
+            text-shadow: 0 0 10px #00ff00; margin-bottom: 5px;
         }
-        #role-info {
-            font-size: 16px;
-            color: #888; /* 淺灰色身份文字 */
-        }
+        #role-info { font-size: 16px; color: #888; }
 
         /* 主遊戲區域包含側邊欄和棋盤 */
         #game-main-area {
             display: flex;
-            align-items: center;
+            align-items: flex-start; /* 讓兩邊的陣亡區跟棋盤頂端對齊 */
             justify-content: center;
             width: 100%;
         }
 
-        /* 陣亡棋子側邊欄（靜態預填充） */
+        /* 陣亡棋子側邊欄 */
         .killed-sidebar {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100px;
-            height: 100%;
+            width: 120px; /* 加寬一點容納雙排 */
             color: #888;
             font-size: 14px;
         }
-        .sidebar-title { margin-bottom: 10px; }
-        .killed-pieces { display: flex; flex-direction: column; gap: 5px; }
+        .sidebar-title { margin-bottom: 15px; font-weight: bold; }
+        .killed-pieces { 
+            display: flex; 
+            flex-wrap: wrap; /* 允許換行，形成雙排效果 */
+            gap: 6px; 
+            justify-content: center;
+            align-content: flex-start;
+            width: 100%;
+        }
 
         /* 棋盤容器 */
         #board-container {
@@ -133,93 +125,63 @@
             margin: 0 30px;
         }
         #board-outer {
-            background-color: #a17f2d; /* 外部黃色邊框 */
+            background-color: #a17f2d;
             border: 8px solid #a17f2d;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         #board {
             display: grid;
-            grid-template-columns: repeat(8, 50px); /* 調整格線寬度 */
+            grid-template-columns: repeat(8, 50px);
             grid-template-rows: repeat(4, 50px);
             gap: 2px;
-            background-color: #5d4037; /* 格線顏色 */
+            background-color: #5d4037;
             padding: 3px;
         }
         #board.active { pointer-events: auto; }
 
-        /* 棋子樣式：圓形、米白底、深棕框 */
+        /* 棋盤上的棋子 */
         .cell {
-            width: 50px;
-            height: 50px;
-            background-color: #f1d382; /* 棋盤格淺黃色背景 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-            transition: transform 0.1s;
+            width: 50px; height: 50px;
+            background-color: #f1d382;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; user-select: none; transition: transform 0.1s;
         }
         .cell:active { transform: scale(0.95); }
-
         .cell.open {
-            border-radius: 50%;
-            background-color: #eae4d1; /* 棋子圓形背景 */
-            border: 2px solid #3e2723; /* 深棕色圓環邊框 */
-            color: #3e2723;
-            font-size: 24px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border-radius: 50%; background-color: #eae4d1;
+            border: 2px solid #3e2723; color: #3e2723;
+            font-size: 24px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-
         .cell.hidden {
-            background-color: #ccc;
-            border: 2px solid #3e2723;
-            border-radius: 50%;
-            color: transparent;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            background-color: #ccc; border: 2px solid #3e2723; border-radius: 50%;
+            color: transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .cell.hidden::after { content: "？"; color: #333; font-size: 20px; opacity: 0.6; }
-
         .cell.empty { background-color: transparent; border: 1px solid rgba(255,255,255,0.1); cursor: default; }
+        .cell.selected { background-color: #fff176; border-color: #fff176; box-shadow: 0 0 15px #fff176; }
 
-        /* 棋子文字顏色：紅方紅色，黑方墨綠色 */
-        .cell.red { color: #bf2121; } /* 紅方紅色 */
-        .cell.black { color: #004d40; } /* 黑方墨綠色 */
+        /* 棋子文字顏色 */
+        .cell.red, .killed-piece.red { color: #bf2121; } 
+        .cell.black, .killed-piece.black { color: #004d40; } 
 
-        /* 選中棋子樣式：黃色發光 */
-        .cell.selected {
-            background-color: #fff176; /* 選中黃色 */
-            border-color: #fff176;
-            box-shadow: 0 0 15px #fff176;
-        }
-
-        /* 靜態顯示的陣亡棋子樣式 */
+        /* 陣亡的棋子 (不可點擊，略小一點) */
         .killed-piece {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #eae4d1;
-            border: 1px solid #3e2723;
-            color: #3e2723;
-            font-size: 18px;
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 40px; height: 40px;
+            border-radius: 50%; background-color: #eae4d1;
+            border: 2px solid #3e2723; font-size: 20px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         /* 底部控制區域 */
         #controls { margin-top: 30px; }
         #end-btn {
-            background-color: #424242; /* 灰色按鈕 */
-            color: white;
-            border: none;
-            border-radius: 20px;
-            padding: 8px 25px;
-            font-size: 16px;
-            cursor: pointer;
+            background-color: #424242; color: white; border: none;
+            border-radius: 20px; padding: 10px 30px; font-size: 16px; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s;
         }
+        #end-btn:hover { background-color: #555; }
     </style>
 </head>
 <body>
@@ -227,8 +189,8 @@
     <div id="toast">提示訊息</div>
 
     <div id="lobby">
-        <h3>♟️ P2P 連線暗棋 v.1.1 (視覺升級版)</h3>
-        <p>你的連線代碼: <strong id="my-id" style="color: #1976d2; user-select: all;">載入中...</strong></p>
+        <h3>♟️ P2P 連線暗棋 v.1.2 (新增陣亡區)</h3>
+        <p>你的連線代碼: <strong id="my-id" style="color: #4fc3f7; user-select: all;">載入中...</strong></p>
         <hr style="border: 0; border-top: 1px solid #444;">
         <input type="text" id="friend-id" placeholder="貼上朋友的代碼">
         <button onclick="connectToFriend()">加入遊戲</button>
@@ -237,17 +199,14 @@
     <div id="game-wrapper">
         <div id="top-info-container">
             <div id="star-icon">⭐</div>
-            <div id="turn-info">你的回合</div>
-            <div id="role-info">身份：黑方</div>
+            <div id="turn-info">等待連線...</div>
+            <div id="role-info">身份：未定</div>
         </div>
 
         <div id="game-main-area">
             <div id="red-killed" class="killed-sidebar">
                 <div class="sidebar-title">紅方陣亡</div>
-                <div class="killed-pieces">
-                    <div class="cell open red killed-piece piece-circle">帥</div>
-                </div>
-            </div>
+                <div class="killed-pieces"></div> </div>
 
             <div id="board-container">
                 <div id="board-outer">
@@ -257,14 +216,11 @@
 
             <div id="black-killed" class="killed-sidebar">
                 <div class="sidebar-title">黑方陣亡</div>
-                <div class="killed-pieces">
-                    <div class="cell open black killed-piece piece-circle">卒</div>
-                </div>
-            </div>
+                <div class="killed-pieces"></div> </div>
         </div>
 
         <div id="controls">
-            <button id="end-btn">結束遊戲</button>
+            <button id="end-btn" onclick="location.reload()">結束遊戲</button>
         </div>
     </div>
 
@@ -281,6 +237,9 @@
         ];
 
         let boardData = [];
+        let redKilled = [];   // 紀錄被吃掉的紅棋
+        let blackKilled = []; // 紀錄被吃掉的黑棋
+        
         let myRole = null; 
         let currentTurn = 'host';
         let hostColor = null;  
@@ -292,16 +251,11 @@
             const toast = document.getElementById("toast");
             toast.innerText = msg;
             toast.classList.add("show");
-            setTimeout(() => {
-                toast.classList.remove("show");
-            }, 2000);
+            setTimeout(() => toast.classList.remove("show"), 2000);
         }
 
         const peer = new Peer();
-        
-        peer.on('open', (id) => {
-            document.getElementById('my-id').innerText = id;
-        });
+        peer.on('open', id => document.getElementById('my-id').innerText = id);
 
         peer.on('connection', (connection) => {
             conn = connection;
@@ -321,7 +275,7 @@
         function setupConnection() {
             conn.on('open', () => {
                 document.getElementById('lobby').style.display = 'none';
-                document.getElementById('game-wrapper').style.display = 'flex'; // 顯示遊戲
+                document.getElementById('game-wrapper').style.display = 'flex';
                 document.getElementById('board').classList.add('active');
                 updateInfo();
                 showMessage("✅ 連線成功！遊戲開始");
@@ -333,8 +287,11 @@
                     currentTurn = data.turn;
                     hostColor = data.hostColor;
                     guestColor = data.guestColor;
+                    redKilled = data.redKilled || [];     // 接收陣亡名單
+                    blackKilled = data.blackKilled || []; // 接收陣亡名單
                     selectedIndex = -1;
                     renderBoard();
+                    renderKilledPieces(); // 渲染陣亡區
                     updateInfo();
                 }
             });
@@ -346,23 +303,59 @@
             currentTurn = 'host';
             hostColor = null;
             guestColor = null;
+            redKilled = [];
+            blackKilled = [];
             syncGame();
             renderBoard();
+            renderKilledPieces();
             updateInfo();
         }
 
         function syncGame() {
             if (conn && conn.open) {
-                conn.send({ type: 'sync', board: boardData, turn: currentTurn, hostColor, guestColor });
+                // 將陣亡名單一起打包發送給對手
+                conn.send({ type: 'sync', board: boardData, turn: currentTurn, hostColor, guestColor, redKilled, blackKilled });
             }
         }
 
         function updateInfo() {
             let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
             let colorStr = myAssignedColor === 'red' ? '紅方' : (myAssignedColor === 'black' ? '黑方' : '未定');
-            const turnStr = currentTurn === myRole ? '你的回合' : '等待對手';
-            document.getElementById('turn-info').innerText = turnStr;
+            
+            const turnInfoEl = document.getElementById('turn-info');
+            if (currentTurn === myRole) {
+                turnInfoEl.innerText = '你的回合';
+                turnInfoEl.style.color = '#00ff00';
+                turnInfoEl.style.textShadow = '0 0 10px #00ff00';
+            } else {
+                turnInfoEl.innerText = '等待對手';
+                turnInfoEl.style.color = '#ff5252';
+                turnInfoEl.style.textShadow = '0 0 10px #ff5252';
+            }
+            
             document.getElementById('role-info').innerText = `身份：${colorStr}`;
+        }
+
+        // 渲染陣亡棋子
+        function renderKilledPieces() {
+            const redContainer = document.querySelector('#red-killed .killed-pieces');
+            const blackContainer = document.querySelector('#black-killed .killed-pieces');
+            
+            redContainer.innerHTML = '';
+            redKilled.forEach(piece => {
+                const div = document.createElement('div');
+                div.className = 'killed-piece red';
+                div.innerText = piece.name;
+                redContainer.appendChild(div);
+            });
+
+            blackContainer.innerHTML = '';
+            blackKilled.forEach(piece => {
+                const div = document.createElement('div');
+                div.className = 'killed-piece black';
+                div.innerText = piece.name;
+                blackContainer.appendChild(div);
+            });
         }
 
         function renderBoard() {
@@ -377,7 +370,7 @@
                 } else if (!piece.isOpen) {
                     cell.classList.add('hidden');
                 } else {
-                    cell.classList.add('open'); // 加入 open 樣式
+                    cell.classList.add('open');
                     cell.classList.add(piece.color);
                     cell.innerText = piece.name;
                 }
@@ -400,32 +393,24 @@
             const target = boardData[index];
             let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
 
-            // 1. 點擊自己的棋子 -> 選取 / 取消選取
             if (!target.isEmpty && target.isOpen && target.color === myAssignedColor) {
                 selectedIndex = selectedIndex === index ? -1 : index;
                 renderBoard();
                 return;
             }
 
-            // 2. 如果已經有選取自己的棋子，嘗試進行移動或吃子
             if (selectedIndex !== -1) {
                 const attacker = boardData[selectedIndex];
-                
-                // 【修復的關鍵點】 確保目標「不是空地」且「未翻開」，才算點到暗棋
                 if (!target.isEmpty && !target.isOpen && attacker.rank !== 2) {
-                    selectedIndex = -1; // 自動取消選取
+                    selectedIndex = -1; 
                 } else {
-                    const success = tryMoveOrCapture(selectedIndex, index);
-                    if (success) return; 
+                    if (tryMoveOrCapture(selectedIndex, index)) return; 
                     else return; 
                 }
             }
 
-            // 3. 翻開暗棋 (在沒有選取任何棋子的狀態下)
             if (!target.isEmpty && !target.isOpen) {
                 boardData[index].isOpen = true;
-                
-                // 首翻決定顏色
                 if (!hostColor && !guestColor) {
                     if (myRole === 'host') {
                         hostColor = target.color;
@@ -449,67 +434,59 @@
             const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
 
             if (attacker.rank === 2) { 
-                // 【炮/包】
                 if (target.isEmpty) {
-                    if (isAdjacent) {
-                        doMove(fromIdx, toIdx); return true;
-                    } else {
-                        showMessage("⚠️ 炮移動空地只能走一步"); return false;
-                    }
+                    if (isAdjacent) { doMove(fromIdx, toIdx); return true; } 
+                    else { showMessage("⚠️ 炮移動空地只能走一步"); return false; }
                 } else {
-                    if (isValidCannonJump(fromIdx, toIdx)) {
-                        doMove(fromIdx, toIdx); return true;
-                    } else {
-                        showMessage("⚠️ 炮必須剛好隔一顆棋子才能跳吃"); return false;
-                    }
+                    if (isValidCannonJump(fromIdx, toIdx)) { doMove(fromIdx, toIdx); return true; } 
+                    else { showMessage("⚠️ 炮必須剛好隔一顆棋子才能跳吃"); return false; }
                 }
             } else {
-                // 【一般棋子】
-                if (!isAdjacent) {
-                    showMessage("⚠️ 只能移動一格"); return false;
-                }
+                if (!isAdjacent) { showMessage("⚠️ 只能移動一格"); return false; }
                 if (target.isEmpty) {
-                    doMove(fromIdx, toIdx); return true; // 修復後，空地移動會在這邊順利執行
+                    doMove(fromIdx, toIdx); return true;
                 } else if (!target.isOpen) {
                     showMessage("⚠️ 一般棋子不能吃暗棋"); return false;
                 } else {
-                    if (canCapture(attacker, target)) {
-                        doMove(fromIdx, toIdx); return true;
-                    } else {
-                        showMessage("⚠️ 階級不足，無法吃子"); return false;
-                    }
+                    if (canCapture(attacker, target)) { doMove(fromIdx, toIdx); return true; } 
+                    else { showMessage("⚠️ 階級不足，無法吃子"); return false; }
                 }
             }
         }
 
         function canCapture(attacker, target) {
-            if (attacker.rank === 1 && target.rank === 7) return true; // 兵吃帥
-            if (attacker.rank === 7 && target.rank === 1) return false; // 帥不能吃兵
+            if (attacker.rank === 1 && target.rank === 7) return true; 
+            if (attacker.rank === 7 && target.rank === 1) return false; 
             return attacker.rank >= target.rank;
         }
 
         function isValidCannonJump(fromIdx, toIdx) {
             const r1 = Math.floor(fromIdx / 8), c1 = fromIdx % 8;
             const r2 = Math.floor(toIdx / 8), c2 = toIdx % 8;
-            
             if (r1 !== r2 && c1 !== c2) return false; 
-
             let piecesBetween = 0;
             if (r1 === r2) { 
                 const min = Math.min(c1, c2), max = Math.max(c1, c2);
-                for (let i = min + 1; i < max; i++) {
-                    if (!boardData[r1 * 8 + i].isEmpty) piecesBetween++;
-                }
+                for (let i = min + 1; i < max; i++) if (!boardData[r1 * 8 + i].isEmpty) piecesBetween++;
             } else { 
                 const min = Math.min(r1, r2), max = Math.max(r1, r2);
-                for (let i = min + 1; i < max; i++) {
-                    if (!boardData[i * 8 + c1].isEmpty) piecesBetween++;
-                }
+                for (let i = min + 1; i < max; i++) if (!boardData[i * 8 + c1].isEmpty) piecesBetween++;
             }
             return piecesBetween === 1; 
         }
 
         function doMove(fromIdx, toIdx) {
+            const target = boardData[toIdx];
+            
+            // 【新增邏輯】如果目標不是空地，代表吃子，將其加入陣亡名單
+            if (!target.isEmpty) {
+                if (target.color === 'red') {
+                    redKilled.push(target);
+                } else if (target.color === 'black') {
+                    blackKilled.push(target);
+                }
+            }
+
             boardData[toIdx] = boardData[fromIdx]; 
             boardData[fromIdx] = { isEmpty: true }; 
             endTurn();
@@ -520,6 +497,7 @@
             selectedIndex = -1;
             syncGame(); 
             renderBoard();
+            renderKilledPieces(); // 換回合時也要重新渲染陣亡名單
             updateInfo();
         }
     </script>
