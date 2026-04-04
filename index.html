@@ -3,35 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 - AI 積極版</title>
+    <title>暗棋聯機版 - PeerJS</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
-        #ui { margin-bottom: 10px; text-align: center; }
+        #connection-panel { background: #333; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 1px solid #555; }
         .status { font-size: 20px; color: #f1c40f; font-weight: bold; margin-bottom: 5px; }
-        canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 3px solid #5d4037; border-radius: 5px; }
-        button { margin-top: 10px; padding: 8px 20px; font-size: 16px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; }
+        canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 3px solid #5d4037; border-radius: 5px; display: none; }
+        input { padding: 10px; border-radius: 5px; border: none; width: 180px; margin: 10px 0; }
+        button { padding: 10px 20px; cursor: pointer; background: #e67e22; border: none; color: white; border-radius: 5px; font-weight: bold; margin: 5px; }
+        .my-id { color: #3498db; font-weight: bold; cursor: pointer; text-decoration: underline; }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <div class="status" id="statusDisplay">點擊翻牌</div>
-    <div id="turnDisplay" style="font-size: 14px;">輪到：你</div>
-    <button onclick="initGame()">重新開局</button>
+<div id="connection-panel">
+    <h2>🧩 暗棋聯機對戰</h2>
+    <p>你的 ID (點擊複製): <span id="my-peer-id" class="my-id">正在取得...</span></p>
+    <div>
+        <input type="text" id="join-id" placeholder="輸入對手的 ID">
+        <button onclick="connectToPeer()">加入房間</button>
+    </div>
+    <p id="conn-status" style="color: #bbb;">等待連線中...</p>
 </div>
 
-<canvas id="chessBoard"></canvas>
+<div id="game-ui" style="display: none; text-align: center;">
+    <div class="status" id="statusDisplay">等待開局</div>
+    <div id="turnDisplay" style="margin-bottom: 10px;">身分：未定</div>
+    <canvas id="chessBoard"></canvas>
+</div>
 
 <script>
     const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
     const statusDisplay = document.getElementById('statusDisplay');
     const turnDisplay = document.getElementById('turnDisplay');
+    const myIdDisplay = document.getElementById('my-peer-id');
+    const connStatus = document.getElementById('conn-status');
 
     const COLS = 4, ROWS = 8;
     const PADDING = 15;
-    let cellSize, board = [], selected = null, playerColor = 0;
-    let turn = 1, isAiThinking = false;
+    let cellSize, board = [], selected = null;
+    let myColor = 0; // 0:未定, 1:紅, 2:黑
+    let turn = 1; 
+    let peer, conn;
 
     const PIECES_DATA = [
         { name: '帥', level: 7, count: 1, color: 1 }, { name: '仕', level: 6, count: 2, color: 1 },
@@ -44,10 +59,56 @@
         { name: '卒', level: 1, count: 5, color: 2 }
     ];
 
-    function initGame() {
-        const sizeW = Math.min(window.innerWidth * 0.9, 320);
-        canvas.width = sizeW; canvas.height = sizeW * 2;
-        cellSize = (canvas.width - PADDING * 2) / COLS;
+    // --- 連線邏輯 ---
+    peer = new Peer();
+
+    peer.on('open', (id) => {
+        myIdDisplay.innerText = id;
+        myIdDisplay.onclick = () => {
+            navigator.clipboard.writeText(id);
+            alert("ID 已複製！請傳給你的朋友。");
+        };
+    });
+
+    peer.on('connection', (connection) => {
+        conn = connection;
+        setupConn();
+        // 房主初始化棋盤並發送給挑戰者
+        initBoard();
+        sendData({ type: 'INIT_GAME', board: board });
+        showGame();
+    });
+
+    function connectToPeer() {
+        const targetId = document.getElementById('join-id').value;
+        if (!targetId) return;
+        connStatus.innerText = "連線中...";
+        conn = peer.connect(targetId);
+        setupConn();
+    }
+
+    function setupConn() {
+        conn.on('open', () => {
+            connStatus.innerText = "連線成功！";
+            showGame();
+        });
+        conn.on('data', (data) => {
+            handleReceivedData(data);
+        });
+    }
+
+    function sendData(data) {
+        if (conn && conn.open) conn.send(data);
+    }
+
+    function showGame() {
+        document.getElementById('connection-panel').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        resizeCanvas();
+    }
+
+    // --- 遊戲邏輯 ---
+    function initBoard() {
         let pool = [];
         PIECES_DATA.forEach(p => { for(let i=0; i<p.count; i++) pool.push({...p, revealed: false}); });
         pool.sort(() => Math.random() - 0.5);
@@ -56,9 +117,31 @@
             board[r] = [];
             for(let c=0; c<COLS; c++) board[r][c] = pool.shift();
         }
-        playerColor = 0; turn = 1; selected = null; isAiThinking = false;
-        statusDisplay.innerText = "請翻牌決定顏色";
-        updateUI(); draw();
+        draw();
+    }
+
+    function handleReceivedData(data) {
+        if (data.type === 'INIT_GAME') {
+            board = data.board;
+        } else if (data.type === 'ACTION') {
+            const { r1, c1, r2, c2, flip, colorSet } = data;
+            if (colorSet) myColor = (colorSet === 1) ? 2 : 1; // 對方翻了什麼，我就是另一色
+            if (flip) {
+                board[r2][c2].revealed = true;
+            } else {
+                board[r2][c2] = board[r1][c1];
+                board[r1][c1] = null;
+            }
+            turn = (turn === 1) ? 2 : 1;
+        }
+        updateUI(); draw(); checkWin();
+    }
+
+    function resizeCanvas() {
+        const sizeW = Math.min(window.innerWidth * 0.9, 320);
+        canvas.width = sizeW; canvas.height = sizeW * 2;
+        cellSize = (canvas.width - PADDING * 2) / COLS;
+        draw();
     }
 
     function draw() {
@@ -86,28 +169,39 @@
     }
 
     canvas.addEventListener('mousedown', e => {
-        if(isAiThinking) return;
+        if (turn !== myColor && myColor !== 0) return; // 不是我的回合
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX - rect.left - PADDING) / cellSize);
         const r = Math.floor((e.clientY - rect.top - PADDING) / cellSize);
         if(r<0 || r>=ROWS || c<0 || c>=COLS) return;
         
         const clicked = board[r][c];
+        
+        // 翻牌
         if(clicked && !clicked.revealed) {
+            let colorSet = 0;
             clicked.revealed = true;
-            if(playerColor === 0) playerColor = clicked.color; 
-            endTurn(); return;
+            if(myColor === 0) {
+                myColor = clicked.color;
+                colorSet = myColor;
+            }
+            sendData({ type: 'ACTION', r2: r, c2: c, flip: true, colorSet: colorSet });
+            finishTurn();
+            return;
         }
+
+        // 移動
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
                 board[r][c] = board[selected.r][selected.c];
                 board[selected.r][selected.c] = null;
-                endTurn();
+                sendData({ type: 'ACTION', r1: selected.r, c1: selected.c, r2: r, c2: c, flip: false });
+                finishTurn();
             } else {
-                selected = (clicked && clicked.revealed && clicked.color === turn) ? {r, c} : null;
+                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r, c} : null;
                 draw();
             }
-        } else if(clicked && clicked.revealed && clicked.color === turn) {
+        } else if(clicked && clicked.revealed && clicked.color === myColor) {
             selected = {r, c}; draw();
         }
     });
@@ -132,84 +226,26 @@
         return p1.level >= p2.level;
     }
 
-    function endTurn() {
-        selected = null; draw();
-        if(checkWin()) return;
+    function finishTurn() {
+        selected = null; 
         turn = (turn === 1) ? 2 : 1;
-        updateUI();
-        if(playerColor !== 0 && turn !== playerColor) {
-            isAiThinking = true;
-            setTimeout(aiQuickAction, 400);
-        }
-    }
-
-    function aiQuickAction() {
-        let options = [];
-        for(let r=0; r<ROWS; r++) {
-            for(let c=0; c<COLS; c++) {
-                let p = board[r][c];
-                if(p && p.revealed && p.color === turn) {
-                    [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
-                        let nr = r+dr, nc = c+dc;
-                        if(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && canMove(r, c, nr, nc)) {
-                            // 吃子權重極高，單純移動權重極低(0.1)
-                            let score = board[nr][nc] ? board[nr][nc].level * 50 : 0.1;
-                            options.push({type:'move', r1:r, c1:c, r2:nr, c2:nc, w: score});
-                        }
-                    });
-                    if(p.name === '炮' || p.name === '包') {
-                        for(let nr=0; nr<ROWS; nr++) if(canMove(r,c,nr,c)) options.push({type:'move',r1:r,c1:c,r2:nr,c2:c, w: board[nr][c].level*60});
-                        for(let nc=0; nc<COLS; nc++) if(canMove(r,c,r,nc)) options.push({type:'move',r1:r,c1:c,r2:r,c2:nc, w: board[r][nc].level*60});
-                    }
-                } else if(p && !p.revealed) {
-                    // 翻牌權重設為 5，確保它比無意義的亂走(0.1)更優先
-                    options.push({type:'flip', r, c, w: 5});
-                }
-            }
-        }
-
-        if (options.length === 0) {
-            isAiThinking = false;
-            alert("電腦無棋可走！玩家獲勝。");
-            initGame();
-            return;
-        }
-
-        // 排序權重，取最高分的動作
-        options.sort((a,b) => b.w - a.w);
-        let bestScore = options[0].w;
-        let bestOptions = options.filter(o => o.w === bestScore);
-        let m = bestOptions[Math.floor(Math.random() * bestOptions.length)];
-
-        if(m.type === 'flip') {
-            board[m.r][m.c].revealed = true;
-        } else {
-            board[m.r2][m.c2] = board[m.r1][m.c1];
-            board[m.r1][m.c1] = null;
-        }
-        
-        isAiThinking = false; 
-        endTurn();
+        updateUI(); draw(); checkWin();
     }
 
     function updateUI() {
-        const isPlayer = (playerColor === 0 || turn === playerColor);
-        turnDisplay.innerText = isPlayer ? "輪到：你" : "輪到：電腦";
-        if(playerColor !== 0) statusDisplay.innerText = "你是：" + (playerColor === 1 ? "紅方" : "黑方");
+        const isMyTurn = (myColor === 0 || turn === myColor);
+        statusDisplay.innerText = isMyTurn ? "輪到你下棋" : "等待對方下棋...";
+        turnDisplay.innerText = "身分：" + (myColor === 0 ? "未定" : (myColor === 1 ? "紅方" : "黑方"));
     }
 
     function checkWin() {
         let r=0, b=0;
         board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r===0 || b===0) {
-            const winner = (r===0 ? "黑方" : "紅方");
-            alert(winner + " 獲勝！");
-            initGame();
-            return true;
+        if(r===0 || b===0) { 
+            alert((r===0 ? "黑方" : "紅方") + " 獲勝！"); 
+            location.reload(); 
         }
-        return false;
     }
-    initGame();
 </script>
 </body>
 </html>
