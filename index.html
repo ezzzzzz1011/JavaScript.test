@@ -3,30 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v3.2</title>
+    <title>暗棋 Online v1.7</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; min-height: 100vh; justify-content: center; color: white; overflow-x: hidden; }
-        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
+        #lobby { background: #333; padding: 30px; border-radius: 15px; text-align: center; border: 2px solid #3498db; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
         .version-tag { position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #666; }
-        .status-bar { font-size: 20px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
-        
-        #game-container { display: flex; flex-direction: row; align-items: flex-start; gap: 15px; display: none; }
-        .captured-box { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; border: 1px solid #444; width: 70px; min-height: 380px; display: flex; flex-direction: column; gap: 5px; }
-        .captured-box h4 { margin: 0 0 5px 0; font-size: 12px; color: #aaa; text-align: center; }
-        .dead-piece { width: 32px; height: 32px; border-radius: 50%; background: #fdf5e6; color: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; margin: 0 auto; border: 2px solid #5d4037; font-size: 16px; }
-        .dead-red { color: #b22222; } .dead-black { color: #2f4f4f; }
-
-        canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; }
-        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #f1c40f; text-align: center; font-size: 20px; font-weight: bold; text-transform: uppercase; }
-        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; font-size: 16px; transition: 0.2s; }
-        button:hover { filter: brightness(1.1); }
-        .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; font-size: 24px; color: #2ecc71; letter-spacing: 3px; font-weight: bold; }
-        
-        @media (max-width: 600px) {
-            #game-container { flex-direction: column; align-items: center; }
-            .captured-box { flex-direction: row; width: 90%; min-height: auto; flex-wrap: wrap; justify-content: center; }
-        }
+        .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; }
+        canvas { background-color: #dcb35c; box-shadow: 0 0 25px rgba(0,0,0,0.6); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; display: none; }
+        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #fff; text-align: center; font-size: 16px; }
+        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; font-size: 16px; }
+        .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; }
+        .id-text { color: #3498db; font-size: 14px; font-weight: bold; word-break: break-all; }
+        #net-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff4757; margin-right: 10px; }
+        /* 勝利閃爍效果 */
+        .win-text { color: #2ecc71 !important; font-size: 24px !important; animation: blink 1s infinite; }
+        .lose-text { color: #e74c3c !important; font-size: 24px !important; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -34,29 +27,28 @@
 <div id="lobby">
     <h2 style="margin:0 0 10px 0;">♟️ 暗棋對戰室</h2>
     <div id="main-ui">
-        <div class="status-bar" id="lobby-msg" style="color: #f1c40f;">正在生成邀請碼...</div>
-        <p style="font-size: 12px; color:#bbb; margin:0;">你的邀請碼 (點擊複製)：</p>
-        <div class="id-box" onclick="copyMyId()"><span id="my-id-display">...</span></div>
-        
-        <hr style="border:0; border-top:1px solid #444; margin:20px 0;">
-        
-        <input type="text" id="input-id" placeholder="輸入朋友的 6 碼代號">
-        <button onclick="joinRoom()" style="background:#27ae60;">連線進入對局</button>
+        <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">伺服器連線中...</span></div>
+        <div id="host-area">
+            <p style="font-size: 12px; color:#bbb; margin:0;">你的 ID (點擊複製)：</p>
+            <div class="id-box" onclick="copyMyId()"><span id="my-id-display" class="id-text">取得中...</span></div>
+        </div>
+        <div id="join-area">
+            <input type="text" id="input-id" placeholder="貼上對手的 ID">
+            <button onclick="joinRoom()" style="background:#27ae60;">加入對手房間</button>
+        </div>
     </div>
-    <div class="version-tag">v3.2</div>
+    <div class="version-tag">v1.7</div>
 </div>
 
-<div id="game-container">
-    <div class="captured-box" id="red-graveyard"><h4>紅方陣亡</h4></div>
-    
-    <div id="game-ui" style="text-align: center;">
-        <div class="status-bar" id="statusText">等待同步中...</div>
-        <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color:#aaa;">身分：未定</div>
-        <canvas id="chessBoard"></canvas>
-        <button onclick="location.reload()" style="width:auto; background:#555; margin-top:15px; padding:8px 20px; font-size:14px;">結束遊戲</button>
+<div id="game-ui" style="display: none; text-align: center;">
+    <div class="status-bar">
+        <div id="game-dot" style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div>
+        <span id="statusText">連線成功</span>
     </div>
-
-    <div class="captured-box" id="black-graveyard"><h4>黑方陣亡</h4></div>
+    <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px; color:#aaa;">身分：未定</div>
+    <canvas id="chessBoard"></canvas>
+    <br>
+    <button id="exitBtn" onclick="confirmExit()" style="width:auto; background:#555; margin-top:20px; padding:8px 20px;">回到大廳</button>
 </div>
 
 <script>
@@ -65,129 +57,84 @@
     const statusText = document.getElementById('statusText');
     const turnDisplay = document.getElementById('turnDisplay');
     const myIdDisplay = document.getElementById('my-id-display');
-    const lobbyMsg = document.getElementById('lobby-msg');
-    
+
     const COLS = 4, ROWS = 8, PADDING = 15;
-    let cellSize, board = [], selected = null, myColor = 0, peer, conn, gameEnded = false;
-    let capturedPieces = [];
-    let syncInterval = null; 
+    let cellSize, board = [], selected = null, myColor = 0, turn = 1, peer, conn, isHost = false, gameEnded = false;
 
-    let myRole = 'NONE'; 
-    let currentTurnRole = 'HOST'; 
-
-    const randomRoomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-
-    peer = new Peer(randomRoomId, { 
-        config: {
-            'iceServers': [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:19302' }
-            ]
-        },
-        debug: 1 
-    }); 
-    
-    peer.on('open', id => { 
-        myIdDisplay.innerText = id; 
-        lobbyMsg.innerText = "✅ 伺服器就緒 (你是房主)"; 
-        lobbyMsg.style.color = "#2ecc71";
-        myRole = 'HOST';
-        initBoard();   
+    peer = new Peer();
+    peer.on('open', (id) => {
+        document.getElementById('net-dot').style.background = "#2ecc71";
+        document.getElementById('lobby-msg').innerText = "伺服器就緒";
+        myIdDisplay.innerText = id;
     });
 
-    peer.on('error', err => {
-        console.error(err);
-        lobbyMsg.innerText = "❌ 連線發生錯誤";
-        lobbyMsg.style.color = "#e74c3c";
-        myIdDisplay.innerText = "請重整網頁";
+    peer.on('connection', (c) => {
+        conn = c; isHost = true;
+        initBoard(); 
+        bindEvents();
     });
 
-    peer.on('connection', c => { 
-        if(conn) return; 
-        conn = c; 
-        bindEvents(); 
-    });
-
-    function copyMyId() { 
-        const txt = myIdDisplay.innerText;
-        if(txt.includes('...')) return;
-        navigator.clipboard.writeText(txt); 
-        alert(`邀請碼 [ ${txt} ] 已複製！傳給朋友吧。`); 
+    function copyMyId() {
+        const id = myIdDisplay.innerText;
+        if(id.includes('取得中')) return;
+        navigator.clipboard.writeText(id);
+        alert("ID 已複製！");
     }
 
-    function joinRoom() { 
-        const tid = document.getElementById('input-id').value.trim().toUpperCase(); 
-        if(!tid || tid.length !== 6) return alert("請輸入正確的 6 碼邀請碼！"); 
-        
-        myRole = 'GUEST'; 
-        lobbyMsg.innerText = "正在連線中...";
-        conn = peer.connect(tid, { reliable: true }); 
-        bindEvents(); 
+    function joinRoom() {
+        const tid = document.getElementById('input-id').value.trim();
+        if(!tid) return;
+        isHost = false;
+        conn = peer.connect(tid);
+        bindEvents();
+    }
+
+    function confirmExit() {
+        if(gameEnded || confirm("確定要退出嗎？這將會判定你輸棋。")) {
+            location.reload();
+        }
     }
 
     function bindEvents() {
         conn.on('open', () => {
             document.getElementById('lobby').style.display = 'none';
-            document.getElementById('game-container').style.display = 'flex';
+            document.getElementById('game-ui').style.display = 'block';
             resize();
-            
-            if(myRole === 'GUEST') {
-                syncInterval = setInterval(() => { sendData({ type: 'REQ_SYNC' }); }, 500);
-            }
+            if(!isHost) sendData({ type: 'GREET' });
         });
 
         conn.on('data', (data) => {
-            if(data.type === 'REQ_SYNC' && myRole === 'HOST') {
-                sendData({ type: 'FULL_SYNC', board: board, turnRole: currentTurnRole, captured: capturedPieces, colorInfo: myColor });
-            } 
-            else if(data.type === 'FULL_SYNC' && myRole === 'GUEST') {
-                if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
-                board = data.board; 
-                currentTurnRole = data.turnRole; 
-                capturedPieces = data.captured || [];
-                if (data.colorInfo !== 0) myColor = (data.colorInfo === 1) ? 2 : 1;
-                updateUI(); draw(); updateGraveyard();
-            } 
-            else if(data.type === 'ACTION') {
-                handleAction(data);
+            if(data.type === 'GREET' && isHost) {
+                sendData({ type: 'SYNC', board: board, turn: turn });
+            } else if(data.type === 'SYNC') {
+                board = data.board;
+                turn = data.turn;
+                draw(); updateUI();
+            } else if(data.type === 'ACTION') {
+                const { r1, c1, r2, c2, flip, colorSet } = data;
+                if (colorSet) myColor = (colorSet === 1) ? 2 : 1;
+                if (flip) { board[r2][c2].revealed = true; }
+                else { board[r2][c2] = board[r1][c1]; board[r1][c1] = null; }
+                turn = (turn === 1) ? 2 : 1;
+                updateUI(); draw(); checkWin();
             }
         });
 
-        conn.on('close', () => { 
-            if(!gameEnded){ 
-                gameEnded = true; 
-                statusText.innerText = "🏆 對手斷線，你贏了！"; 
-                statusText.style.color = "#2ecc71";
-                alert("對方已離開遊戲！"); 
+        conn.on('close', () => {
+            if(!gameEnded) {
+                gameEnded = true;
+                statusText.innerText = "🏆 對方逃跑，你贏了！";
+                statusText.classList.add('win-text');
+                document.getElementById('game-dot').style.background = "gold";
+                alert("對方已退出遊戲！");
             }
         });
-    }
-
-    function handleAction(data) {
-        const { r1, c1, r2, c2, flip, colorSet } = data;
-        
-        if (flip) {
-            board[r2][c2].revealed = true;
-            if (colorSet && myColor === 0) myColor = (colorSet === 1) ? 2 : 1;
-        } else {
-            if (board[r2][c2]) {
-                board[r2][c2].revealed = true; // 強制翻開，讓盲砲打掉的暗牌能顯示在陣亡區
-                capturedPieces.push(board[r2][c2]);
-            }
-            board[r2][c2] = board[r1][c1]; 
-            board[r1][c1] = null;
-        }
-        
-        currentTurnRole = (currentTurnRole === 'HOST') ? 'GUEST' : 'HOST';
-        selected = null; 
-        
-        updateUI(); draw(); updateGraveyard(); checkWin();
     }
 
     function sendData(d) { if(conn && conn.open) conn.send(d); }
-    
     function resize() {
-        const sw = Math.min(window.innerWidth * 0.75, 320);
+        const sw = Math.min(window.innerWidth * 0.9, 320);
+        canvas.style.display = "block";
         canvas.width = sw; canvas.height = sw*2;
         cellSize = (sw-PADDING*2)/COLS;
         draw();
@@ -195,7 +142,7 @@
 
     function initBoard() {
         const pConf = [
-            {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'俥',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
+            {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'車',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
             {n:'將',l:7,c:2},{n:'士',l:6,c:2,t:2},{n:'象',l:5,c:2,t:2},{n:'車',l:4,c:2,t:2},{n:'馬',l:3,c:2,t:2},{n:'包',l:2,c:2,t:2},{n:'卒',l:1,c:2,t:5}
         ];
         let pool = [];
@@ -205,62 +152,40 @@
         for(let r=0; r<ROWS; r++) { board[r] = []; for(let c=0; c<COLS; c++) board[r][c] = pool.shift(); }
     }
 
-    function updateGraveyard() {
-        document.getElementById('red-graveyard').innerHTML = "<h4>紅方陣亡</h4>";
-        document.getElementById('black-graveyard').innerHTML = "<h4>黑方陣亡</h4>";
-        capturedPieces.sort((a,b) => b.level - a.level).forEach(p => {
-            const el = document.createElement('div');
-            el.className = `dead-piece ${p.color === 1 ? 'dead-red' : 'dead-black'}`;
-            el.innerText = p.name;
-            if(p.color === 1) document.getElementById('red-graveyard').appendChild(el);
-            else document.getElementById('black-graveyard').appendChild(el);
-        });
-    }
-
     canvas.addEventListener('mousedown', e => {
-        if(gameEnded || myRole !== currentTurnRole) return;
-        
+        if(gameEnded) return; // 遊戲結束不能動
+        if(myColor !== 0 && turn !== myColor) return;
         const rect = canvas.getBoundingClientRect();
         const c = Math.floor((e.clientX-rect.left-PADDING)/cellSize), r = Math.floor((e.clientY-rect.top-PADDING)/cellSize);
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
 
-        // 翻牌動作
         if(clicked && !clicked.revealed) {
-            let cs = 0; 
+            let cs = 0;
             clicked.revealed = true;
             if(myColor === 0) { myColor = clicked.color; cs = myColor; }
-            
-            currentTurnRole = (currentTurnRole === 'HOST') ? 'GUEST' : 'HOST';
-            selected = null; 
-            
-            sendData({ type: 'ACTION', r2:r, c2:c, flip:true, colorSet:cs }); 
+            const act = { type: 'ACTION', r2:r, c2:c, flip:true, colorSet:cs };
+            sendData(act);
+            turn = (turn === 1) ? 2 : 1;
             updateUI(); draw(); checkWin();
             return;
         }
 
-        // 吃子/移動動作
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
-                if (board[r][c]) {
-                    board[r][c].revealed = true; // 解禁盲打：被吃的暗牌翻開進陣亡區
-                    capturedPieces.push(board[r][c]);
-                }
+                const act = { type: 'ACTION', r1:selected.r, c1:selected.c, r2:r, c2:c, flip:false };
+                sendData(act);
                 board[r][c] = board[selected.r][selected.c];
                 board[selected.r][selected.c] = null;
-                
-                currentTurnRole = (currentTurnRole === 'HOST') ? 'GUEST' : 'HOST';
-                const act = { type: 'ACTION', r1:selected.r, c1:selected.c, r2:r, c2:c, flip:false };
-                selected = null; 
-                
-                sendData(act); 
-                updateUI(); draw(); updateGraveyard(); checkWin();
+                selected = null;
+                turn = (turn === 1) ? 2 : 1;
+                updateUI(); draw(); checkWin();
             } else {
-                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null; 
+                selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null;
                 draw();
             }
         } else if(clicked && clicked.revealed && clicked.color === myColor) {
-            selected = {r,c}; 
+            selected = {r,c};
             draw();
         }
     });
@@ -268,63 +193,44 @@
     function canMove(r1,c1,r2,c2) {
         const p1 = board[r1][c1], p2 = board[r2][c2], dist = Math.abs(r1-r2)+Math.abs(c1-c2);
         if(!p1) return false;
-        
-        // 炮/包的特殊規則 (隔山打牛 & 盲砲解禁)
         if(p1.name==='炮'||p1.name==='包') {
             if(p2) {
                 if(r1!==r2 && c1!==c2) return false;
                 let cnt = 0;
                 if(r1===r2) for(let i=Math.min(c1,c2)+1; i<Math.max(c1,c2); i++) if(board[r1][i]) cnt++;
                 else for(let i=Math.min(r1,r2)+1; i<Math.max(r1,r2); i++) if(board[i][c1]) cnt++;
-                
-                // 必須剛好隔1個棋子
-                if (cnt !== 1) return false;
-                // 解禁盲砲：如果是翻開的，不能吃自己人；如果未翻開，無條件轟掉！
-                if (p2.revealed && p1.color === p2.color) return false;
-                return true; 
+                return cnt===1 && p1.color!==p2.color && p2.revealed;
             }
         }
-        
-        // 一般棋子規則
-        if(dist!==1) return false; 
-        if(!p2) return true; 
-        if(p1.color===p2.color || !p2.revealed) return false; // 非炮不能吃暗牌
-        
-        if(p1.level === 1 && p2.level === 7) return true; // 兵吃將
-        if(p1.level === 7 && p2.level === 1) return false; // 將不能吃兵
-        return p1.level >= p2.level; // 同階或大吃小
+        if(dist!==1) return false;
+        if(!p2) return true;
+        if(p1.color===p2.color || !p2.revealed) return false;
+        if(p1.level===1 && p2.level===7) return true;
+        if(p1.level===7 && p2.level===1) return false;
+        return p1.level>=p2.level;
     }
 
     function updateUI() {
         if(gameEnded) return;
-        const isMyTurn = (myRole === currentTurnRole);
-        statusText.innerText = isMyTurn ? "⭐ 你的回合" : "⏳ 等待對手...";
-        statusText.style.color = isMyTurn ? "#2ecc71" : "#f1c40f";
-        turnDisplay.innerText = "身分：" + (myColor === 0 ? "尚未決定" : (myColor === 1 ? "紅方" : "黑方"));
+        const isMyTurn = (myColor === 0 || turn === myColor);
+        statusText.innerText = isMyTurn ? "你的回合" : "對手回合";
+        turnDisplay.innerText = "身分：" + (myColor === 0 ? "未定" : (myColor === 1 ? "紅方" : "黑方"));
     }
 
     function draw() {
         if(!board.length) return;
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.strokeStyle = "#5d4037";
-        ctx.lineWidth = 2;
         for(let r=0; r<=ROWS; r++) { ctx.beginPath(); ctx.moveTo(PADDING, PADDING+r*cellSize); ctx.lineTo(canvas.width-PADDING, PADDING+r*cellSize); ctx.stroke(); }
         for(let c=0; c<=COLS; c++) { ctx.beginPath(); ctx.moveTo(PADDING+c*cellSize, PADDING); ctx.lineTo(PADDING+c*cellSize, canvas.height-PADDING); ctx.stroke(); }
-        
         for(let r=0; r<ROWS; r++) {
             for(let c=0; c<COLS; c++) {
                 const p = board[r][c]; if(!p) continue;
                 const x = PADDING+c*cellSize+cellSize/2, y = PADDING+r*cellSize+cellSize/2;
-                
-                if(selected && selected.r === r && selected.c === c) { 
-                    ctx.fillStyle="rgba(255,255,255,0.4)"; 
-                    ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); 
-                }
-                
+                if(selected && selected.r === r && selected.c === c) { ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); }
                 ctx.beginPath(); ctx.arc(x,y,cellSize*0.42,0,Math.PI*2);
                 ctx.fillStyle = p.revealed ? "#fdf5e6" : "#a0522d";
                 ctx.fill(); ctx.stroke();
-                
                 if(p.revealed) {
                     ctx.fillStyle = p.color===1 ? "#b22222" : "#2f4f4f";
                     ctx.font = `bold ${cellSize*0.5}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
@@ -335,13 +241,25 @@
     }
 
     function checkWin() {
-        let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
-        if(r === 0 || b === 0 && myColor !== 0) {
+        let r=0, b=0;
+        board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
+        
+        if(r === 0 || b === 0) {
             gameEnded = true;
             let iWon = (myColor === 1 && r > 0) || (myColor === 2 && b > 0);
-            statusText.innerText = iWon ? "🏆 恭喜獲勝！" : "💀 遺憾戰敗";
-            statusText.style.color = iWon ? "#2ecc71" : "#e74c3c";
-            alert(iWon ? "你贏了！對方全軍覆沒" : "你輸了！棋子被吃光了");
+            
+            if(iWon) {
+                statusText.innerText = "🏆 恭喜！你獲勝了！";
+                statusText.classList.add('win-text');
+            } else {
+                statusText.innerText = "💀 遺憾！你輸了。";
+                statusText.classList.add('lose-text');
+            }
+            
+            document.getElementById('exitBtn').innerText = "再玩一局";
+            document.getElementById('exitBtn').style.background = "#e67e22";
+            
+            alert(iWon ? "你贏了！" : "你輸了！");
             return true;
         }
         return false;
