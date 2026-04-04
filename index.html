@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v1.1</title>
+    <title>暗棋 Online v1.2</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; height: 100vh; justify-content: center; color: white; }
@@ -11,9 +11,10 @@
         .version-tag { position: absolute; bottom: 10px; right: 15px; font-size: 10px; color: #666; }
         .status-bar { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; }
         canvas { background-color: #dcb35c; box-shadow: 0 0 25px rgba(0,0,0,0.6); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; display: none; }
-        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 10px; font-size: 16px; }
+        button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 10px; font-size: 16px; transition: 0.2s; }
+        button:hover { filter: brightness(1.1); }
         #net-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff4757; margin-right: 10px; }
-        .room-info { font-size: 12px; color: #3498db; margin-top: 15px; background: #000; padding: 12px; border-radius: 8px; word-break: break-all; border: 1px solid #444; min-height: 20px; }
+        .room-info { font-size: 11px; color: #3498db; margin-top: 15px; background: #000; padding: 12px; border-radius: 8px; word-break: break-all; border: 1px solid #444; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -21,20 +22,30 @@
 <div id="lobby">
     <h2 style="margin:0 0 20px 0;">♟️ 暗棋對戰室</h2>
     <div id="main-ui">
-        <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">等待伺服器響應...</span></div>
+        <div class="status-bar"><div id="net-dot"></div><span id="lobby-msg">連線中...</span></div>
         <div id="action-area">
-            <p id="instruction" style="font-size: 13px; color:#bbb;">正在初始化...</p>
-            <div class="room-info" id="room-link" onclick="copyLink()" style="cursor:pointer; display:none;"></div>
-            <button id="create-btn" onclick="createRoom()" style="display:none; background:#e67e22;">建立新房間 (房主)</button>
+            <p id="instruction" style="font-size: 13px; color:#bbb;">正在啟動伺服器...</p>
+            
+            <button id="create-btn" onclick="startAsHost()" style="display:none; background:#e67e22;">建立新房間</button>
+            <div id="host-link-area" style="display:none;">
+                <p style="font-size: 12px;">複製下方連結給朋友：</p>
+                <div class="room-info" id="room-link" onclick="copyLink()">取得網址中...</div>
+            </div>
+
+            <div id="join-area" style="display:none;">
+                <button onclick="startAsGuest()" style="background:#27ae60;">進入朋友的房間</button>
+                <p style="font-size: 11px; color:#888; margin-top:10px;">請確認朋友已經在房間內等候</p>
+            </div>
         </div>
     </div>
-    <div class="version-tag">v1.1</div>
+    <div class="version-tag">v1.2</div>
 </div>
 
 <div id="game-ui" style="display: none; text-align: center;">
     <div class="status-bar"><div style="width:12px; height:12px; border-radius:50%; background:lime; margin-right:10px;"></div><span id="statusText">連線成功</span></div>
     <div id="turnDisplay" style="margin-bottom: 10px; font-size:14px;">身分：未定</div>
     <canvas id="chessBoard"></canvas>
+    <br>
     <button onclick="location.href=location.pathname" style="width:auto; background:#555; margin-top:15px; padding:8px 20px;">回大廳</button>
 </div>
 
@@ -42,8 +53,6 @@
     const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
     const lobbyMsg = document.getElementById('lobby-msg');
-    const roomLink = document.getElementById('room-link');
-    const createBtn = document.getElementById('create-btn');
     const instruction = document.getElementById('instruction');
 
     const COLS = 4, ROWS = 8, PADDING = 15;
@@ -52,69 +61,50 @@
     const urlParams = new URLSearchParams(window.location.search);
     const targetRoom = urlParams.get('room');
 
-    // 初始化 Peer，增加安全連線參數
-    peer = new Peer({
-        config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] },
-        debug: 1
-    });
-
-    // 超時檢測
-    const peerTimeout = setTimeout(() => {
-        if (!peer.id) {
-            lobbyMsg.innerText = "伺服器超時";
-            instruction.innerText = "請確認網路連線或嘗試重新整理。";
-        }
-    }, 8000);
+    // 初始化 Peer
+    peer = new Peer({ debug: 1 });
 
     peer.on('open', (id) => {
-        clearTimeout(peerTimeout);
         document.getElementById('net-dot').style.background = "#2ecc71";
+        lobbyMsg.innerText = "連線就緒";
         
         if (!targetRoom) {
-            // 大廳模式
-            lobbyMsg.innerText = "伺服器就緒";
-            instruction.innerText = "您可以建立一個房間並分享給朋友。";
-            createBtn.style.display = "block";
+            instruction.innerText = "點擊按鈕建立房間：";
+            document.getElementById('create-btn').style.display = "block";
         } else {
-            // 加入房間模式
-            lobbyMsg.innerText = "正在進入房間...";
-            instruction.innerText = "請稍候，正在尋找房主 " + targetRoom;
-            conn = peer.connect(targetRoom);
-            bindConnEvents();
+            instruction.innerText = "偵測到朋友的房間 ID：" + targetRoom;
+            document.getElementById('join-area').style.display = "block";
         }
     });
 
-    peer.on('connection', (c) => {
-        conn = c;
+    // 房主邏輯
+    function startAsHost() {
         isHost = true;
-        initBoard(); 
+        document.getElementById('create-btn').style.display = "none";
+        document.getElementById('host-link-area').style.display = "block";
+        document.getElementById('room-link').innerText = window.location.origin + window.location.pathname + "?room=" + peer.id;
+        initBoard();
+        lobbyMsg.innerText = "等待對手中...";
+        
+        peer.on('connection', (c) => {
+            conn = c;
+            bindConnEvents();
+        });
+    }
+
+    // 加入者邏輯
+    function startAsGuest() {
+        isHost = false;
+        lobbyMsg.innerText = "正在連線...";
+        conn = peer.connect(targetRoom);
         bindConnEvents();
-    });
-
-    peer.on('error', (err) => {
-        console.error("Peer Error:", err.type);
-        lobbyMsg.innerText = "連線發生錯誤";
-        instruction.innerText = "錯誤碼: " + err.type;
-    });
-
-    function createRoom() {
-        const myId = peer.id;
-        if (!myId) return alert("尚未取得伺服器 ID");
-        // 進入房主狀態
-        isHost = true;
-        createBtn.style.display = "none";
-        lobbyMsg.innerText = "房間已建立";
-        instruction.innerText = "點擊下方區塊複製網址傳給對手：";
-        roomLink.style.display = "block";
-        roomLink.innerText = window.location.origin + window.location.pathname + "?room=" + myId;
     }
 
     function copyLink() {
-        navigator.clipboard.writeText(roomLink.innerText);
-        alert("網址已複製！");
+        navigator.clipboard.writeText(document.getElementById('room-link').innerText);
+        alert("網址已複製！請傳給朋友。");
     }
 
-    // --- 連線事件處理 ---
     function bindConnEvents() {
         conn.on('open', () => {
             document.getElementById('lobby').style.display = 'none';
@@ -135,10 +125,14 @@
                 applyAction(data);
             }
         });
+
+        conn.on('error', (err) => {
+            alert("連線失敗：對手可能已離開或房間無效。");
+            location.href = location.pathname;
+        });
     }
 
     function sendData(d) { if(conn && conn.open) conn.send(d); }
-
     function resize() {
         const sw = Math.min(window.innerWidth * 0.9, 320);
         canvas.style.display = "block";
@@ -147,7 +141,7 @@
         draw();
     }
 
-    // --- 遊戲邏輯 ---
+    // --- 遊戲邏輯與棋盤畫法 (保持不變) ---
     function initBoard() {
         const pConf = [
             {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'車',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
