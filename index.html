@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v3.0</title>
+    <title>暗棋 Online v3.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; min-height: 100vh; justify-content: center; color: white; overflow-x: hidden; }
@@ -18,10 +18,10 @@
         .dead-red { color: #b22222; } .dead-black { color: #2f4f4f; }
 
         canvas { background-color: #dcb35c; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: pointer; border: 4px solid #5d4037; border-radius: 8px; }
-        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #fff; text-align: center; font-size: 16px; }
+        input { padding: 12px; border-radius: 8px; border: 2px solid #444; width: 100%; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #f1c40f; text-align: center; font-size: 20px; font-weight: bold; text-transform: uppercase; }
         button { padding: 12px 20px; cursor: pointer; background: #3498db; border: none; color: white; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 5px; font-size: 16px; transition: 0.2s; }
         button:hover { filter: brightness(1.1); }
-        .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; font-size: 15px; color: #3498db; letter-spacing: 1px; word-break: break-all; }
+        .id-box { background: #000; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #3498db; cursor: pointer; font-size: 24px; color: #2ecc71; letter-spacing: 3px; font-weight: bold; }
         
         @media (max-width: 600px) {
             #game-container { flex-direction: column; align-items: center; }
@@ -34,12 +34,16 @@
 <div id="lobby">
     <h2 style="margin:0 0 10px 0;">♟️ 暗棋對戰室</h2>
     <div id="main-ui">
-        <div class="status-bar" style="color: #f1c40f;"><span id="lobby-msg">連線伺服器中...</span></div>
-        <div class="id-box" onclick="copyMyId()"><span id="my-id-display">取得中...</span></div>
-        <input type="text" id="input-id" placeholder="貼上對手的 ID">
-        <button onclick="joinRoom()" style="background:#27ae60;">連線對手</button>
+        <div class="status-bar" id="lobby-msg" style="color: #f1c40f;">正在生成邀請碼...</div>
+        <p style="font-size: 12px; color:#bbb; margin:0;">你的邀請碼 (點擊複製)：</p>
+        <div class="id-box" onclick="copyMyId()"><span id="my-id-display">...</span></div>
+        
+        <hr style="border:0; border-top:1px solid #444; margin:20px 0;">
+        
+        <input type="text" id="input-id" placeholder="輸入朋友的 6 碼代號">
+        <button onclick="joinRoom()" style="background:#27ae60;">連線進入對局</button>
     </div>
-    <div class="version-tag">v3.0</div>
+    <div class="version-tag">v3.1</div>
 </div>
 
 <div id="game-container">
@@ -61,6 +65,7 @@
     const statusText = document.getElementById('statusText');
     const turnDisplay = document.getElementById('turnDisplay');
     const myIdDisplay = document.getElementById('my-id-display');
+    const lobbyMsg = document.getElementById('lobby-msg');
     
     const COLS = 4, ROWS = 8, PADDING = 15;
     let cellSize, board = [], selected = null, myColor = 0, peer, conn, gameEnded = false;
@@ -71,30 +76,54 @@
     let myRole = 'NONE'; // 'HOST' 或是 'GUEST'
     let currentTurnRole = 'HOST'; // 永遠由房主先手翻第一張牌
 
-    peer = new Peer({ debug: 1 }); 
+    // 1. 本地端先生成 6 碼大寫隨機碼
+    const randomRoomId = Math.random().toString(36).substr(2, 6).toUpperCase();
+
+    // 2. 強制使用這組 ID，並加入 Google 備用連線伺服器確保不會被擋
+    peer = new Peer(randomRoomId, { 
+        config: {
+            'iceServers': [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:19302' }
+            ]
+        },
+        debug: 1 
+    }); 
     
     peer.on('open', id => { 
         myIdDisplay.innerText = id; 
-        document.getElementById('lobby-msg').innerText = "✅ 伺服器就緒 (你是房主)"; 
+        lobbyMsg.innerText = "✅ 伺服器就緒 (你是房主)"; 
+        lobbyMsg.style.color = "#2ecc71";
         myRole = 'HOST';
         initBoard();   
     });
 
+    peer.on('error', err => {
+        console.error(err);
+        lobbyMsg.innerText = "❌ 連線發生錯誤";
+        lobbyMsg.style.color = "#e74c3c";
+        myIdDisplay.innerText = "請重整網頁";
+    });
+
     peer.on('connection', c => { 
-        if(conn) return; // 防止重複連線
+        if(conn) return; 
         conn = c; 
         bindEvents(); 
     });
 
     function copyMyId() { 
-        navigator.clipboard.writeText(myIdDisplay.innerText); 
-        alert("ID 已複製！傳給朋友吧。"); 
+        const txt = myIdDisplay.innerText;
+        if(txt.includes('...')) return;
+        navigator.clipboard.writeText(txt); 
+        alert(`邀請碼 [ ${txt} ] 已複製！傳給朋友吧。`); 
     }
 
     function joinRoom() { 
-        const tid = document.getElementById('input-id').value.trim(); 
-        if(!tid) return; 
+        const tid = document.getElementById('input-id').value.trim().toUpperCase(); 
+        if(!tid || tid.length !== 6) return alert("請輸入正確的 6 碼邀請碼！"); 
+        
         myRole = 'GUEST'; 
+        lobbyMsg.innerText = "正在連線中...";
         conn = peer.connect(tid, { reliable: true }); 
         bindEvents(); 
     }
@@ -106,7 +135,6 @@
             resize();
             
             if(myRole === 'GUEST') {
-                // 客戶端每0.5秒索取一次棋盤，確保絕不漏接
                 syncInterval = setInterval(() => { sendData({ type: 'REQ_SYNC' }); }, 500);
             }
         });
@@ -150,7 +178,6 @@
             board[r1][c1] = null;
         }
         
-        // 交換回合並清空殘影
         currentTurnRole = (currentTurnRole === 'HOST') ? 'GUEST' : 'HOST';
         selected = null; 
         
@@ -167,7 +194,6 @@
     }
 
     function initBoard() {
-        // 更正為標準的台灣暗棋字體 (俥, 傌)
         const pConf = [
             {n:'帥',l:7,c:1},{n:'仕',l:6,c:1,t:2},{n:'相',l:5,c:1,t:2},{n:'俥',l:4,c:1,t:2},{n:'傌',l:3,c:1,t:2},{n:'炮',l:2,c:1,t:2},{n:'兵',l:1,c:1,t:5},
             {n:'將',l:7,c:2},{n:'士',l:6,c:2,t:2},{n:'象',l:5,c:2,t:2},{n:'車',l:4,c:2,t:2},{n:'馬',l:3,c:2,t:2},{n:'包',l:2,c:2,t:2},{n:'卒',l:1,c:2,t:5}
@@ -192,7 +218,6 @@
     }
 
     canvas.addEventListener('mousedown', e => {
-        // 【最嚴格的防線】：不是你的回合，滑鼠按斷了也沒用！
         if(gameEnded || myRole !== currentTurnRole) return;
         
         const rect = canvas.getBoundingClientRect();
@@ -200,13 +225,11 @@
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
 
-        // 翻牌動作
         if(clicked && !clicked.revealed) {
             let cs = 0; 
             clicked.revealed = true;
             if(myColor === 0) { myColor = clicked.color; cs = myColor; }
             
-            // 本地直接強制換手，防止連點
             currentTurnRole = (currentTurnRole === 'HOST') ? 'GUEST' : 'HOST';
             selected = null; 
             
@@ -215,14 +238,12 @@
             return;
         }
 
-        // 吃子/移動動作
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
                 if (board[r][c]) capturedPieces.push(board[r][c]);
                 board[r][c] = board[selected.r][selected.c];
                 board[selected.r][selected.c] = null;
                 
-                // 本地直接強制換手，清除殘影
                 currentTurnRole = (currentTurnRole === 'HOST') ? 'GUEST' : 'HOST';
                 const act = { type: 'ACTION', r1:selected.r, c1:selected.c, r2:r, c2:c, flip:false };
                 selected = null; 
@@ -230,7 +251,6 @@
                 sendData(act); 
                 updateUI(); draw(); updateGraveyard(); checkWin();
             } else {
-                // 如果點錯位置，只能重新選擇自己的棋子
                 selected = (clicked && clicked.revealed && clicked.color === myColor) ? {r,c} : null; 
                 draw();
             }
@@ -240,41 +260,34 @@
         }
     });
 
-    // 完整的暗棋規則邏輯
     function canMove(r1,c1,r2,c2) {
         const p1 = board[r1][c1], p2 = board[r2][c2], dist = Math.abs(r1-r2)+Math.abs(c1-c2);
         if(!p1) return false;
         
-        // 炮/包的特殊規則 (隔山打牛)
         if(p1.name==='炮'||p1.name==='包') {
-            if(p2) { // 如果目標有棋子(吃子)
-                if(r1!==r2 && c1!==c2) return false; // 必須直走或橫走
-                let cnt = 0; // 計算中間隔了幾個棋子
+            if(p2) {
+                if(r1!==r2 && c1!==c2) return false;
+                let cnt = 0;
                 if(r1===r2) for(let i=Math.min(c1,c2)+1; i<Math.max(c1,c2); i++) if(board[r1][i]) cnt++;
                 else for(let i=Math.min(r1,r2)+1; i<Math.max(r1,r2); i++) if(board[i][c1]) cnt++;
-                
-                // 必須剛好隔1個棋子 + 顏色不同 + 目標必須是已翻開的
                 return cnt===1 && p1.color!==p2.color && p2.revealed;
             }
-            // 如果 p2 是空的(單純移動一格)，會自動往下跑到 if(dist!==1)
         }
         
-        // 一般棋子的規則
-        if(dist!==1) return false; // 只能走一格
-        if(!p2) return true; // 走到空格永遠合法
-        if(p1.color===p2.color || !p2.revealed) return false; // 不能吃自己人，不能吃蓋著的牌
+        if(dist!==1) return false;
+        if(!p2) return true;
+        if(p1.color===p2.color || !p2.revealed) return false;
         
-        // 大小階級判斷
-        if(p1.level === 1 && p2.level === 7) return true; // 兵卒吃將帥
-        if(p1.level === 7 && p2.level === 1) return false; // 將帥不能吃兵卒
-        return p1.level >= p2.level; // 同階或大吃小
+        if(p1.level === 1 && p2.level === 7) return true;
+        if(p1.level === 7 && p2.level === 1) return false;
+        return p1.level >= p2.level;
     }
 
     function updateUI() {
         if(gameEnded) return;
         const isMyTurn = (myRole === currentTurnRole);
         statusText.innerText = isMyTurn ? "⭐ 你的回合" : "⏳ 等待對手...";
-        statusText.style.color = isMyTurn ? "#2ecc71" : "#f1c40f"; // 綠色表示可行動，黃色表示等待
+        statusText.style.color = isMyTurn ? "#2ecc71" : "#f1c40f";
         turnDisplay.innerText = "身分：" + (myColor === 0 ? "尚未決定" : (myColor === 1 ? "紅方" : "黑方"));
     }
 
@@ -291,7 +304,6 @@
                 const p = board[r][c]; if(!p) continue;
                 const x = PADDING+c*cellSize+cellSize/2, y = PADDING+r*cellSize+cellSize/2;
                 
-                // 畫殘影/選取框
                 if(selected && selected.r === r && selected.c === c) { 
                     ctx.fillStyle="rgba(255,255,255,0.4)"; 
                     ctx.fillRect(PADDING+c*cellSize, PADDING+r*cellSize, cellSize, cellSize); 
@@ -303,4 +315,25 @@
                 
                 if(p.revealed) {
                     ctx.fillStyle = p.color===1 ? "#b22222" : "#2f4f4f";
-                    ctx.font = `bold ${cellSize*0.5}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle
+                    ctx.font = `bold ${cellSize*0.5}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+                    ctx.fillText(p.name, x, y);
+                }
+            }
+        }
+    }
+
+    function checkWin() {
+        let r=0, b=0; board.forEach(row => row.forEach(p => { if(p){ if(p.color===1) r++; else b++; }}));
+        if(r === 0 || b === 0 && myColor !== 0) {
+            gameEnded = true;
+            let iWon = (myColor === 1 && r > 0) || (myColor === 2 && b > 0);
+            statusText.innerText = iWon ? "🏆 恭喜獲勝！" : "💀 遺憾戰敗";
+            statusText.style.color = iWon ? "#2ecc71" : "#e74c3c";
+            alert(iWon ? "你贏了！對方全軍覆沒" : "你輸了！棋子被吃光了");
+            return true;
+        }
+        return false;
+    }
+</script>
+</body>
+</html>
