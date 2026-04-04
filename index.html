@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>暗棋 Online v3.1</title>
+    <title>暗棋 Online v3.2</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background-color: #1a1a1a; font-family: sans-serif; min-height: 100vh; justify-content: center; color: white; overflow-x: hidden; }
@@ -43,7 +43,7 @@
         <input type="text" id="input-id" placeholder="輸入朋友的 6 碼代號">
         <button onclick="joinRoom()" style="background:#27ae60;">連線進入對局</button>
     </div>
-    <div class="version-tag">v3.1</div>
+    <div class="version-tag">v3.2</div>
 </div>
 
 <div id="game-container">
@@ -72,14 +72,11 @@
     let capturedPieces = [];
     let syncInterval = null; 
 
-    // --- 核心修正：嚴格角色與回合制 ---
-    let myRole = 'NONE'; // 'HOST' 或是 'GUEST'
-    let currentTurnRole = 'HOST'; // 永遠由房主先手翻第一張牌
+    let myRole = 'NONE'; 
+    let currentTurnRole = 'HOST'; 
 
-    // 1. 本地端先生成 6 碼大寫隨機碼
     const randomRoomId = Math.random().toString(36).substr(2, 6).toUpperCase();
 
-    // 2. 強制使用這組 ID，並加入 Google 備用連線伺服器確保不會被擋
     peer = new Peer(randomRoomId, { 
         config: {
             'iceServers': [
@@ -173,7 +170,10 @@
             board[r2][c2].revealed = true;
             if (colorSet && myColor === 0) myColor = (colorSet === 1) ? 2 : 1;
         } else {
-            if (board[r2][c2]) capturedPieces.push(board[r2][c2]);
+            if (board[r2][c2]) {
+                board[r2][c2].revealed = true; // 強制翻開，讓盲砲打掉的暗牌能顯示在陣亡區
+                capturedPieces.push(board[r2][c2]);
+            }
             board[r2][c2] = board[r1][c1]; 
             board[r1][c1] = null;
         }
@@ -225,6 +225,7 @@
         if(r<0||r>=ROWS||c<0||c>=COLS) return;
         const clicked = board[r][c];
 
+        // 翻牌動作
         if(clicked && !clicked.revealed) {
             let cs = 0; 
             clicked.revealed = true;
@@ -238,9 +239,13 @@
             return;
         }
 
+        // 吃子/移動動作
         if(selected) {
             if(canMove(selected.r, selected.c, r, c)) {
-                if (board[r][c]) capturedPieces.push(board[r][c]);
+                if (board[r][c]) {
+                    board[r][c].revealed = true; // 解禁盲打：被吃的暗牌翻開進陣亡區
+                    capturedPieces.push(board[r][c]);
+                }
                 board[r][c] = board[selected.r][selected.c];
                 board[selected.r][selected.c] = null;
                 
@@ -264,23 +269,30 @@
         const p1 = board[r1][c1], p2 = board[r2][c2], dist = Math.abs(r1-r2)+Math.abs(c1-c2);
         if(!p1) return false;
         
+        // 炮/包的特殊規則 (隔山打牛 & 盲砲解禁)
         if(p1.name==='炮'||p1.name==='包') {
             if(p2) {
                 if(r1!==r2 && c1!==c2) return false;
                 let cnt = 0;
                 if(r1===r2) for(let i=Math.min(c1,c2)+1; i<Math.max(c1,c2); i++) if(board[r1][i]) cnt++;
                 else for(let i=Math.min(r1,r2)+1; i<Math.max(r1,r2); i++) if(board[i][c1]) cnt++;
-                return cnt===1 && p1.color!==p2.color && p2.revealed;
+                
+                // 必須剛好隔1個棋子
+                if (cnt !== 1) return false;
+                // 解禁盲砲：如果是翻開的，不能吃自己人；如果未翻開，無條件轟掉！
+                if (p2.revealed && p1.color === p2.color) return false;
+                return true; 
             }
         }
         
-        if(dist!==1) return false;
-        if(!p2) return true;
-        if(p1.color===p2.color || !p2.revealed) return false;
+        // 一般棋子規則
+        if(dist!==1) return false; 
+        if(!p2) return true; 
+        if(p1.color===p2.color || !p2.revealed) return false; // 非炮不能吃暗牌
         
-        if(p1.level === 1 && p2.level === 7) return true;
-        if(p1.level === 7 && p2.level === 1) return false;
-        return p1.level >= p2.level;
+        if(p1.level === 1 && p2.level === 7) return true; // 兵吃將
+        if(p1.level === 7 && p2.level === 1) return false; // 將不能吃兵
+        return p1.level >= p2.level; // 同階或大吃小
     }
 
     function updateUI() {
