@@ -138,6 +138,12 @@
         .xq-piece.black { color: #1e1e1e; }
         .xq-cell.selected .xq-piece { box-shadow: 0 0 15px #ffff00; border-color: #ffff00; transform: scale(1.1); }
 
+        /* 新增：將象棋棋盤視覺翻轉 180 度 */
+        .xq-flipped-board { transform: rotate(180deg); }
+        
+        /* 新增：將翻轉棋盤內的棋子「反翻轉」回來，避免棋子文字變倒立 */
+        .xq-flipped-board .xq-piece { transform: rotate(180deg); }
+
     </style>
 </head>
 <body>
@@ -403,10 +409,19 @@
             let lobbyId = currentGame === 'darkchess' ? 'dc-lobby' : (currentGame === 'gomoku' ? 'gm-lobby' : 'xq-lobby');
             let wrapperId = currentGame === 'darkchess' ? 'dc-game-wrapper' : (currentGame === 'gomoku' ? 'gm-game-wrapper' : 'xq-game-wrapper');
             let boardId = currentGame === 'darkchess' ? 'dc-board' : (currentGame === 'gomoku' ? 'gomoku-board' : 'xq-board');
+            let boardEl = document.getElementById(boardId); // 抓到棋盤元素
+
+            // 新增：如果是象棋且我是 GUEST (黑方)，把棋盤視覺翻轉
+            if (currentGame === 'xiangqi' && myRole === 'guest') {
+                boardEl.classList.add('xq-flipped-board');
+            } else {
+                // 防呆：如果是其他模式或我是 HOST (紅方)，確保沒有翻轉樣式
+                boardEl.classList.remove('xq-flipped-board');
+            }
 
             document.getElementById(lobbyId).style.display = 'none'; 
             document.getElementById(wrapperId).style.display = 'flex';
-            document.getElementById(boardId).classList.add('active'); 
+            boardEl.classList.add('active'); // 使用剛抓到的 boardEl 
             showMessage(isLocalAI ? "🤖 單機模式開啟！由你先發" : "✅ 連線成功！");
 
             if (!isLocalAI && conn) {
@@ -426,7 +441,6 @@
                 });
             }
         }
-
         function surrenderGame(gameType) {
             if (gameOver) return;
             let myAssignedColor = null;
