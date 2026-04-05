@@ -1045,6 +1045,7 @@ function syncBTFromHost(d) {
     renBT();
 }
 
+    // 重新定義牌型權重：順子(1) < 葫蘆(2) < 鐵支(3)
 function getHType(cs) {
     let l = cs.length; 
     if(l === 1) return {t:1, v:cs[0].v}; 
@@ -1052,20 +1053,34 @@ function getHType(cs) {
     if(l === 5) {
         const rOrder = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
         let idxs = cs.map(c => rOrder.indexOf(c.r)).sort((a,b)=>a-b);
+        
+        // 判定順子 (Straight)
         let isSt = true; 
         for(let i=1; i<5; i++){ if(idxs[i] !== idxs[i-1]+1) isSt = false; }
-        if(isSt) return {t:51, v:cs[4].v}; 
+        if(isSt) return {t:5, sub:1, v:cs[4].v}; // sub:1 代表順子
         
-        let fs = new Set(cs.map(c=>c.r)).size; 
-        if(fs === 2){
-            let c1 = cs.filter(c => c.r === cs[0].r).length; 
-            return {t:52, v: c1===3 || c1===4 ? cs[0].v : cs[4].v}; 
+        let counts = {};
+        cs.forEach(c => counts[c.r] = (counts[c.r] || 0) + 1);
+        let valArr = Object.values(counts);
+        
+        // 判定鐵支 (Four of a Kind)
+        if(valArr.includes(4)) {
+            let quadR = Object.keys(counts).find(k => counts[k] === 4);
+            return {t:5, sub:3, v: cs.find(c => c.r === quadR).v}; // sub:3 代表鐵支
+        }
+        
+        // 判定葫蘆 (Full House)
+        if(valArr.includes(3) && valArr.includes(2)) {
+            let trioR = Object.keys(counts).find(k => counts[k] === 3);
+            return {t:5, sub:2, v: cs.find(c => c.r === trioR).v}; // sub:2 代表葫蘆
         }
     } 
     return null;
 }
 
-// 玩家按鈕點擊：出牌
+
+
+// 玩家按鈕點擊：出牌 (修復版：支援葫蘆、鐵支、順子大小判定)
 function playBigTwoCards() {
     let sel = [...document.getElementById('bt-my-hand').children].filter(e=>e.classList.contains('selected')).map(e=>e.card);
     if(sel.length === 0) return showMessage("❌ 請先點選要出的牌！", true); 
@@ -1073,15 +1088,33 @@ function playBigTwoCards() {
     let tp = getHType(sel);
     if(!tp) return showMessage("❌ 牌型不符合規則！(單張、對子、順子、葫蘆、鐵支)", true); 
     
+    // 如果桌上有牌，且沒輪到你自由出牌 (btPass < 3)
     if(btTrick.length > 0 && btPass < 3) {
         let ltp = getHType(btTrick); 
-        if(tp.t !== ltp.t || tp.v <= ltp.v) return showMessage("❌ 牌型不對或太小，打不過桌上的牌！", true); 
+        
+        // 檢查張數是否與桌面上的一致
+        if(tp.t !== ltp.t) return showMessage("❌ 張數不符合！", true);
+        
+        // 如果是 5 張牌 (順子、葫蘆、鐵支)
+        if(tp.t === 5) {
+            // 先比牌型權重 (順子 1 < 葫蘆 2 < 鐵支 3)
+            if(tp.sub < ltp.sub) return showMessage("❌ 牌型比桌上的小！", true);
+            // 牌型一樣時，比點數大小
+            if(tp.sub === ltp.sub && tp.v <= ltp.v) return showMessage("❌ 數字比桌上的小！", true);
+        } 
+        // 單張或對子，直接比點數大小
+        else {
+            if(tp.v <= ltp.v) return showMessage("❌ 數字比桌上的小！", true);
+        }
     } 
     
-    if(myRole === 'host') procBTPlay(btMySeat, sel); 
-    else conn.send({type:'btPlay', s:btMySeat, cards:sel});
+    // 執行出牌邏輯
+    if(myRole === 'host') {
+        procBTPlay(btMySeat, sel); 
+    } else {
+        conn.send({type:'btPlay', s:btMySeat, cards:sel});
+    }
 }
-
 // 玩家按鈕點擊：PASS
 function passBigTwoTurn() {
     if(btTrick.length === 0 || btPass >= 3) return showMessage("❌ 牌桌空空，你不能 PASS，必須出牌！", true); 
