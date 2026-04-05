@@ -921,6 +921,8 @@ function bdBT() {
 }
 
 function startBigTwoGame() {
+    myRole = 'host';           // 👈 新增這行：確認你是這場牌局的主機
+    currentGame = 'bigtwo';    // 👈 新增這行：告訴系統現在玩的是大老二
     document.getElementById('bt-lobby').style.display = 'none';
     document.getElementById('bt-game-wrapper').style.display = 'flex';
     
