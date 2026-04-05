@@ -897,12 +897,14 @@
                 let btnEl = document.getElementById(`bt-ai-btn-${i+1}`);
                 
                 if (p.type !== 'empty') {
-                    seatEl.innerText = p.name;
-                    seatEl.style.color = p.type === 'ai' ? '#ff9800' : '#4caf50';
+                    if (seatEl) seatEl.innerText = p.name;
+                    if (seatEl) seatEl.style.color = p.type === 'ai' ? '#ff9800' : '#4caf50';
                     if (btnEl) btnEl.style.display = 'none'; // 座位有人就隱藏按鈕
                 }
             }
-            if (myRole === 'host') checkBigTwoReady();
+            
+            // 【關鍵修復】：不要管是不是已經被標記為 host，強制更新按鈕狀態！
+            checkBigTwoReady();
         }
 
         function checkBigTwoReady() {
