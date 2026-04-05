@@ -561,11 +561,38 @@ let dcBoard=[], dcTurn='host', dcHostC=null, dcGuestC=null, dcSel=-1;
 let dcRedKilled=[], dcBlackKilled=[]; 
 
 function initDarkchessAsHost() { 
-    let p=[{n:'帥',r:7},{n:'將',r:7},{n:'仕',r:6},{n:'仕',r:6},{n:'士',r:6},{n:'士',r:6},{n:'相',r:5},{n:'相',r:5},{n:'象',r:5},{n:'象',r:5},{n:'俥',r:4},{n:'俥',r:4},{n:'車',r:4},{n:'車',r:4},{n:'傌',r:3},{n:'傌',r:3},{n:'馬',r:3},{n:'馬',r:3},{n:'炮',r:2},{n:'炮',r:2},{n:'包',r:2},{n:'包',r:2},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1}].sort(()=>Math.random()-0.5); 
-    dcBoard=p.map(x=>({c:x.r>4&&x.n!=='象'&&x.n!=='士'&&x.n!=='將'?'red':'black',n:x.n,r:x.r,op:false,em:false})); 
-    dcTurn='host'; dcHostC=null; dcGuestC=null; dcRedKilled=[]; dcBlackKilled=[]; 
-    dcBoard.forEach(b=>{if(b.n==='包'||b.n==='卒'||b.n==='象'||b.n==='士'||b.n==='將')b.c='black';else b.c='red'}); 
-    syncDC(); renDC(); renderDCKilledPieces();
+    // 1. 定義 32 顆棋子並打亂 (洗牌)
+    let p = [
+        {n:'帥',r:7}, {n:'將',r:7},
+        {n:'仕',r:6}, {n:'仕',r:6}, {n:'士',r:6}, {n:'士',r:6},
+        {n:'相',r:5}, {n:'相',r:5}, {n:'象',r:5}, {n:'象',r:5},
+        {n:'俥',r:4}, {n:'俥',r:4}, {n:'車',r:4}, {n:'車',r:4},
+        {n:'傌',r:3}, {n:'傌',r:3}, {n:'馬',r:3}, {n:'馬',r:3},
+        {n:'炮',r:2}, {n:'炮',r:2}, {n:'包',r:2}, {n:'包',r:2},
+        {n:'兵',r:1}, {n:'兵',r:1}, {n:'兵',r:1}, {n:'兵',r:1}, {n:'兵',r:1},
+        {n:'卒',r:1}, {n:'卒',r:1}, {n:'卒',r:1}, {n:'卒',r:1}, {n:'卒',r:1}
+    ].sort(() => Math.random() - 0.5); 
+    
+    // 2. 建立棋盤資料，直接用 includes 精準判定黑方棋子，其他的全為紅方
+    dcBoard = p.map(x => ({
+        c: ['將','士','象','車','馬','包','卒'].includes(x.n) ? 'black' : 'red', 
+        n: x.n, 
+        r: x.r, 
+        op: false, 
+        em: false
+    })); 
+    
+    // 3. 初始化遊戲狀態與陣亡區
+    dcTurn = 'host'; 
+    dcHostC = null; 
+    dcGuestC = null; 
+    dcRedKilled = []; 
+    dcBlackKilled = []; 
+    
+    // 4. 同步與渲染畫面
+    syncDC(); 
+    renDC(); 
+    renderDCKilledPieces();
 }
 
 function handleDarkchessSync(d) {
