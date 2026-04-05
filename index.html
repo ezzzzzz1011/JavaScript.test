@@ -390,24 +390,75 @@
 
         // 接收別人的連線 (我是 host)
         peer.on('connection', (c) => { 
-            conn = c; 
-            myRole = 'host'; 
-            isVsAI = false; 
-            
-            // 當別人連進來時，決定是哪個遊戲
-            conn.on('data', (data) => {
-                if (data.type === 'initGame' && !currentGame) {
-                    currentGame = data.gameType;
+            c.on('data', (data) => {
+                if (data.type === 'initGame') {
+                    if (!currentGame) currentGame = data.gameType;
                     openApp(currentGame);
-                    setupConnection();
                     
-                    if (currentGame === 'darkchess') initDarkchessAsHost();
-                    else if (currentGame === 'gomoku') initGomokuAsHost();
-                    else if (currentGame === 'xiangqi') initXiangqiAsHost(); 
-                    // 註：大老二的邏輯比較特殊，連線進來後房主還要按「開始遊戲」，所以這裡先不自動初始化大老二
+                    if (currentGame === 'bigtwo') {
+                        myRole = 'host';
+                        handleBigTwoJoin(c); // 呼叫大老二專屬的多人加入邏輯
+                    } else {
+                        conn = c; // 1v1 遊戲直接綁定
+                        myRole = 'host'; 
+                        isVsAI = false; 
+                        setupConnection();
+                        if (currentGame === 'darkchess') initDarkchessAsHost();
+                        else if (currentGame === 'gomoku') initGomokuAsHost();
+                        else if (currentGame === 'xiangqi') initXiangqiAsHost(); 
+                    }
                 }
             });
         });
+
+        // 我主動去連別人 (我是 guest)
+        function connectToFriend(gameType) {
+            let inputId = 'dc-friend-id';
+            if (gameType === 'gomoku') inputId = 'gm-friend-id';
+            else if (gameType === 'xiangqi') inputId = 'xq-friend-id';
+            else if (gameType === 'bigtwo') inputId = 'bt-friend-id';
+
+            let rawInput = document.getElementById(inputId).value.trim();
+            if (!rawInput) return showMessage('請輸入代碼或貼上連結');
+            
+            let friendId = rawInput;
+            if (rawInput.includes('room=')) { const match = rawInput.match(/room=([a-zA-Z0-9]{6})/i); if(match) friendId = match[1]; }
+            
+            currentGame = gameType;
+            conn = peer.connect(friendId.toUpperCase().slice(0, 6)); 
+            myRole = 'guest'; 
+            isVsAI = false; 
+            
+            conn.on('open', () => {
+                conn.send({ type: 'initGame', gameType: currentGame });
+                
+                if (currentGame === 'bigtwo') {
+                    showMessage("✅ 成功加入房間！等待房主同步...");
+                    // 隱藏不必要的輸入框
+                    document.getElementById('bt-host-panel').style.display = 'none';
+                    document.getElementById('bt-join-section').style.display = 'none';
+                    // 把按鈕改成等待狀態
+                    document.getElementById('bt-start-btn').innerText = "等待房主開始遊戲...";
+                    document.getElementById('bt-start-btn').disabled = true;
+                    document.getElementById('bt-start-btn').style.cursor = "not-allowed";
+                } else {
+                    setupConnection();
+                }
+            });
+
+            // 大老二 Guest 專用：接收房主廣播的房間狀態
+            conn.on('data', (data) => {
+                if (currentGame === 'bigtwo') {
+                    if (data.type === 'btLobbySync') {
+                        updateBigTwoLobbyUI(data.players); // 更新看到的人數
+                    } else if (data.type === 'btGameStart') {
+                        document.getElementById('bt-lobby').style.display = 'none';
+                        document.getElementById('bt-game-wrapper').style.display = 'flex';
+                        showMessage("房主已開始遊戲！(準備進入第二階段)");
+                    }
+                }
+            });
+        }
 
         function checkUrlForInvite() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1184,32 +1235,71 @@
             }
         }
 
-    // ================= 大老二邏輯 (Big Two) - 第一階段 =================
+    // ================= 大老二邏輯 (Big Two) - 第一階段 (連線升級版) =================
         let btPlayers = [
-            { id: 'host', type: 'human', name: '👑 玩家 1 (你)', ready: true },
+            { id: 'host', type: 'human', name: '👑 玩家 1 (房主)', ready: true },
             { id: null, type: 'empty', name: '等待連線...', ready: false },
             { id: null, type: 'empty', name: '等待連線...', ready: false },
             { id: null, type: 'empty', name: '等待連線...', ready: false }
         ];
         let btCurrentPlayerCount = 1;
+        let btConnections = {}; // 儲存所有加入好友的連線
+
+        // 處理真人玩家加入房間
+        function handleBigTwoJoin(newConn) {
+            let emptyIndex = btPlayers.findIndex(p => p.type === 'empty');
+            if (emptyIndex === -1) {
+                showMessage("房間已滿，有人想擠進來！");
+                return;
+            }
+
+            let seatIndex = emptyIndex + 1;
+            // 把朋友安排到空座位
+            btPlayers[emptyIndex] = { id: newConn.peer, type: 'human', name: `🧑 玩家 ${seatIndex} (好友)`, ready: true };
+            btCurrentPlayerCount++;
+            btConnections[newConn.peer] = newConn; // 記錄這個玩家的連線通道
+
+            updateBigTwoLobbyUI(btPlayers);
+            broadcastBigTwoLobby(); // 通知所有人更新畫面
+
+            // 監聽這個朋友後續傳來的資料
+            newConn.on('data', (data) => {
+                // 之後的「出牌邏輯」會寫在這裡
+            });
+        }
 
         // 房主點擊「+ 加電腦」按鈕
         function addBigTwoAI(seatIndex) {
-            let realIndex = seatIndex - 1; // 陣列從 0 開始
+            let realIndex = seatIndex - 1; 
             if (btPlayers[realIndex].type !== 'empty') return;
 
             btPlayers[realIndex] = { id: `AI_${seatIndex}`, type: 'ai', name: `🤖 電腦 ${seatIndex}`, ready: true };
             btCurrentPlayerCount++;
             
-            // 更新畫面
-            document.getElementById(`bt-seat-${seatIndex}`).innerText = btPlayers[realIndex].name;
-            document.getElementById(`bt-seat-${seatIndex}`).style.color = '#ff9800';
-            document.getElementById(`bt-ai-btn-${seatIndex}`).style.display = 'none'; // 隱藏按鈕
-
-            checkBigTwoReady();
+            updateBigTwoLobbyUI(btPlayers);
+            broadcastBigTwoLobby(); // 加入電腦後也要通知朋友
         }
 
-        // 檢查是否滿 4 人可以開始遊戲
+        // 更新大廳畫面 (房主與加入者共用)
+        function updateBigTwoLobbyUI(players) {
+            btPlayers = players;
+            
+            for(let i = 1; i <= 3; i++) {
+                let p = btPlayers[i];
+                let seatEl = document.getElementById(`bt-seat-${i+1}`);
+                let btnEl = document.getElementById(`bt-ai-btn-${i+1}`);
+                
+                if (p.type !== 'empty') {
+                    seatEl.innerText = p.name;
+                    seatEl.style.color = p.type === 'ai' ? '#ff9800' : '#4caf50';
+                    if (btnEl) btnEl.style.display = 'none'; // 座位有人就隱藏加電腦按鈕
+                }
+            }
+            
+            if (myRole === 'host') checkBigTwoReady();
+        }
+
+        // 檢查房主是否可以開始遊戲
         function checkBigTwoReady() {
             let startBtn = document.getElementById('bt-start-btn');
             if (btCurrentPlayerCount === 4) {
@@ -1225,11 +1315,28 @@
             }
         }
 
+        // 房主把最新的房間狀態廣播給所有已經加入的真人
+        function broadcastBigTwoLobby() {
+            if (myRole !== 'host') return;
+            for (let peerId in btConnections) {
+                if (btConnections[peerId] && btConnections[peerId].open) {
+                    btConnections[peerId].send({ type: 'btLobbySync', players: btPlayers });
+                }
+            }
+        }
+
         // 點擊開始遊戲
         function startBigTwoGame() {
             document.getElementById('bt-lobby').style.display = 'none';
             document.getElementById('bt-game-wrapper').style.display = 'flex';
             showMessage("開始洗牌發牌！(即將進入第二階段)");
+            
+            // 通知所有朋友同步進入遊戲畫面
+            for (let peerId in btConnections) {
+                if (btConnections[peerId] && btConnections[peerId].open) {
+                    btConnections[peerId].send({ type: 'btGameStart' });
+                }
+            }
         }
     
     </script>
