@@ -2,13 +2,30 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>GitHub 連線暗棋 v.1.9</title>
+    <title>我的網頁遊戲大廳 v.2.0</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #121212; color: #f0f0f0; margin: 0; padding-top: 20px; }
         
         #toast { visibility: hidden; min-width: 250px; background-color: rgba(50, 50, 50, 0.95); color: #fff; text-align: center; border-radius: 8px; padding: 12px 20px; position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: bold; opacity: 0; transition: opacity 0.3s, top 0.3s; box-shadow: 0 4px 8px rgba(0,0,0,0.3); pointer-events: none; }
         #toast.show { visibility: visible; opacity: 1; top: 40px; }
+
+        /* --- 主遊戲選單大廳 --- */
+        #portal-menu { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 40px 20px; }
+        #portal-menu h1 { font-size: 36px; margin-bottom: 40px; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
+        .game-cards-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+        .game-card { 
+            background: #212121; border: 2px solid #333; border-radius: 15px; width: 280px; padding: 30px 20px; 
+            text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .game-card:hover { border-color: #1976d2; transform: translateY(-5px); box-shadow: 0 8px 25px rgba(25, 118, 210, 0.4); }
+        .game-card h2 { margin: 0 0 10px 0; font-size: 28px; }
+        .game-card p { color: #aaa; font-size: 16px; margin: 0; }
+        .game-card.disabled { cursor: not-allowed; opacity: 0.6; }
+        .game-card.disabled:hover { border-color: #333; transform: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
+        /* --- 暗棋應用程式區塊 (預設隱藏) --- */
+        #darkchess-app { display: none; flex-direction: column; align-items: center; width: 100%; }
 
         #victory-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
         .modal-content { background: #212121; padding: 40px 60px; border-radius: 15px; text-align: center; border: 3px solid #a17f2d; box-shadow: 0 10px 30px rgba(0,0,0,0.8); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -18,10 +35,13 @@
         .modal-content button { padding: 12px 30px; font-size: 20px; cursor: pointer; background-color: #4caf50; color: white; border: none; border-radius: 8px; transition: 0.2s; font-weight: bold; }
         .modal-content button:hover { background-color: #388e3c; transform: scale(1.05); }
 
-        #lobby { background: #212121; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px; text-align: center; color: white; min-width: 350px; }
-        #lobby input { padding: 10px; font-size: 16px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; width: 200px; text-align: center; }
+        #lobby { background: #212121; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px; text-align: center; color: white; min-width: 350px; position: relative;}
         
-        /* 按鈕樣式 */
+        /* 返回主選單按鈕 */
+        .back-btn { position: absolute; top: 15px; left: 15px; background: transparent; border: 1px solid #555; color: #aaa; padding: 5px 10px; border-radius: 5px; cursor: pointer; transition: 0.2s;}
+        .back-btn:hover { background: #333; color: white; }
+
+        #lobby input { padding: 10px; font-size: 16px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; width: 200px; text-align: center; }
         .btn { padding: 10px 20px; font-size: 16px; cursor: pointer; color: white; border: none; border-radius: 4px; transition: 0.2s; font-weight: bold; margin: 5px; }
         .btn-primary { background-color: #1976d2; } .btn-primary:hover { background-color: #1565c0; }
         .btn-success { background-color: #2e7d32; padding: 8px 15px; font-size: 14px; margin-bottom: 20px; } .btn-success:hover { background-color: #1b5e20; }
@@ -63,61 +83,89 @@
 
     <div id="toast">提示訊息</div>
 
-    <div id="victory-modal">
-        <div class="modal-content">
-            <h1 id="victory-title">🏆 恭喜獲勝！</h1>
-            <p id="victory-msg">你殲滅了對手</p>
-            <button onclick="location.reload()">回到大廳 / 再來一局</button>
+    <div id="portal-menu">
+        <h1>🎮 網頁遊戲大廳</h1>
+        <div class="game-cards-container">
+            <div class="game-card" onclick="openApp('darkchess')">
+                <h2>♟️ 連線暗棋</h2>
+                <p>支援P2P連線對戰與單機AI</p>
+            </div>
+            
+            <div class="game-card disabled" onclick="showMessage('努力開發中，敬請期待！')">
+                <h2>⚫ 五子棋</h2>
+                <p>開發中...</p>
+            </div>
         </div>
     </div>
 
-    <div id="lobby">
-        <h2 style="margin-top: 0;">♟️ P2P 連線暗棋 v.1.9</h2>
-        <p style="font-size: 18px;">你的連線代碼</p>
-        <p><strong id="my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
-        <button class="btn btn-success" onclick="copyInviteLink()">🔗 複製邀請連結傳給朋友</button>
-        <hr style="border: 0; border-top: 1px solid #444; margin-bottom: 20px;">
-        <p style="font-size: 14px; color: #888; margin-bottom: 10px;">貼上代碼或完整連結：</p>
-        <input type="text" id="friend-id" placeholder="例如: 6KGC33 或 https://...">
-        <button class="btn btn-primary" onclick="connectToFriend()">加入遊戲</button>
+    <div id="darkchess-app">
         
-        <hr style="border: 0; border-top: 1px dashed #666; margin: 25px 0;">
-        <p style="font-size: 14px; color: #ccc; margin-bottom: 5px;">朋友沒空嗎？</p>
-        <button class="btn btn-ai" onclick="startLocalAI()">🤖 單機模式 (跟電腦 PK)</button>
-    </div>
-
-    <div id="game-wrapper">
-        <div id="top-info-container">
-            <div id="star-icon">⭐</div>
-            <div id="turn-info">等待連線...</div>
-            <div id="role-info">身份：未定</div>
+        <div id="victory-modal">
+            <div class="modal-content">
+                <h1 id="victory-title">🏆 恭喜獲勝！</h1>
+                <p id="victory-msg">你殲滅了對手</p>
+                <button onclick="location.reload()">回到大廳 / 再來一局</button>
+            </div>
         </div>
 
-        <div id="game-main-area">
-            <div id="red-killed" class="killed-sidebar">
-                <div class="sidebar-title">紅方陣亡</div>
-                <div class="killed-pieces"></div>
+        <div id="lobby">
+            <button class="back-btn" onclick="location.reload()">🔙 回主選單</button>
+            <h2 style="margin-top: 20px;">♟️ P2P 連線暗棋</h2>
+            <p style="font-size: 18px;">你的連線代碼</p>
+            <p><strong id="my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
+            <button class="btn btn-success" onclick="copyInviteLink()">🔗 複製邀請連結傳給朋友</button>
+            <hr style="border: 0; border-top: 1px solid #444; margin-bottom: 20px;">
+            <p style="font-size: 14px; color: #888; margin-bottom: 10px;">貼上代碼或完整連結：</p>
+            <input type="text" id="friend-id" placeholder="例如: 6KGC33 或 https://...">
+            <button class="btn btn-primary" onclick="connectToFriend()">加入遊戲</button>
+            
+            <hr style="border: 0; border-top: 1px dashed #666; margin: 25px 0;">
+            <p style="font-size: 14px; color: #ccc; margin-bottom: 5px;">朋友沒空嗎？</p>
+            <button class="btn btn-ai" onclick="startLocalAI()">🤖 單機模式 (跟電腦 PK)</button>
+        </div>
+
+        <div id="game-wrapper">
+            <div id="top-info-container">
+                <div id="star-icon">⭐</div>
+                <div id="turn-info">等待連線...</div>
+                <div id="role-info">身份：未定</div>
             </div>
 
-            <div id="board-container">
-                <div id="board-outer">
-                    <div id="board"></div>
+            <div id="game-main-area">
+                <div id="red-killed" class="killed-sidebar">
+                    <div class="sidebar-title">紅方陣亡</div>
+                    <div class="killed-pieces"></div>
+                </div>
+
+                <div id="board-container">
+                    <div id="board-outer">
+                        <div id="board"></div>
+                    </div>
+                </div>
+
+                <div id="black-killed" class="killed-sidebar">
+                    <div class="sidebar-title">黑方陣亡</div>
+                    <div class="killed-pieces"></div>
                 </div>
             </div>
 
-            <div id="black-killed" class="killed-sidebar">
-                <div class="sidebar-title">黑方陣亡</div>
-                <div class="killed-pieces"></div>
+            <div id="controls">
+                <button id="surrender-btn" class="game-btn" onclick="surrenderGame()">🏳️ 投降</button>
+                <button id="end-btn" class="game-btn" onclick="location.reload()">退出遊戲</button>
             </div>
         </div>
 
-        <div id="controls">
-            <button id="surrender-btn" class="game-btn" onclick="surrenderGame()">🏳️ 投降</button>
-            <button id="end-btn" class="game-btn" onclick="location.reload()">退出遊戲</button>
-        </div>
     </div>
 
     <script>
+        // --- 介面切換邏輯 ---
+        function openApp(appId) {
+            document.getElementById('portal-menu').style.display = 'none';
+            if (appId === 'darkchess') {
+                document.getElementById('darkchess-app').style.display = 'flex';
+            }
+        }
+
         const PIECES = [
             { name: '帥', color: 'red', rank: 7 }, { name: '將', color: 'black', rank: 7 },
             { name: '仕', color: 'red', rank: 6 }, { name: '仕', color: 'red', rank: 6 }, { name: '士', color: 'black', rank: 6 }, { name: '士', color: 'black', rank: 6 },
@@ -132,7 +180,7 @@
         let boardData = []; let redKilled = []; let blackKilled = []; 
         let myRole = null; let currentTurn = 'host'; let hostColor = null; let guestColor = null; 
         let selectedIndex = -1; let conn = null; let myShortId = ""; let gameOver = false;
-        let isVsAI = false; // 新增：是否對戰電腦
+        let isVsAI = false; 
 
         function generateShortCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let result = '';
@@ -153,11 +201,18 @@
 
         function checkUrlForInvite() {
             const roomCode = new URLSearchParams(window.location.search).get('room');
-            if (roomCode) { document.getElementById('friend-id').value = roomCode.toUpperCase(); showMessage("✨ 已帶入好友代碼，請加入！"); }
+            if (roomCode) { 
+                // 如果是透過邀請連結進來的，自動打開暗棋大廳並帶入代碼
+                openApp('darkchess');
+                document.getElementById('friend-id').value = roomCode.toUpperCase(); 
+                showMessage("✨ 已帶入好友代碼，請加入遊戲！"); 
+            }
         }
 
         function copyInviteLink() {
-            const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${myShortId}`;
+            // 清除現有的查詢參數再重新加上 room
+            const baseUrl = window.location.origin + window.location.pathname;
+            const inviteUrl = `${baseUrl}?room=${myShortId}`;
             navigator.clipboard.writeText(inviteUrl).then(() => showMessage("✅ 邀請連結已複製！")).catch(() => showMessage("❌ 複製失敗"));
         }
 
@@ -170,7 +225,6 @@
             myRole = 'guest'; isVsAI = false; setupConnection();
         }
 
-        // 啟動單機 AI 模式
         function startLocalAI() {
             isVsAI = true; myRole = 'host';
             document.getElementById('lobby').style.display = 'none';
@@ -329,9 +383,8 @@
             currentTurn = currentTurn === 'host' ? 'guest' : 'host'; selectedIndex = -1;
             syncGame(); renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
             
-            // 觸發 AI 行動
             if (isVsAI && currentTurn === 'guest' && !gameOver) {
-                setTimeout(makeAIMove, 800); // 延遲 0.8 秒讓它看起來像在思考
+                setTimeout(makeAIMove, 800); 
             }
         }
 
@@ -374,7 +427,7 @@
             modal.style.display = 'flex';
         }
 
-        /* --- 核心 AI 邏輯 --- */
+        /* --- AI 邏輯 --- */
         function isSquareThreatened(targetIdx, pieceRank, aiColor) {
             let playerColor = aiColor === 'red' ? 'black' : 'red';
             for (let i = 0; i < 32; i++) {
@@ -403,15 +456,12 @@
 
             for (let i = 0; i < 32; i++) {
                 let p = boardData[i];
-                // 1. 紀錄翻棋選項 (給予基礎分數 40，加一點隨機數防呆板)
                 if (!p.isEmpty && !p.isOpen) {
-                    // 如果還沒決定顏色，只能翻棋
                     let score = (!aiAssignedColor) ? 1000 : 40 + Math.random() * 10;
                     actions.push({ type: 'flip', target: i, score: score });
                     continue;
                 }
 
-                // 2. 評估移動與吃子
                 if (aiAssignedColor && !p.isEmpty && p.isOpen && p.color === aiAssignedColor) {
                     let currentlyThreatened = isSquareThreatened(i, p.rank, aiAssignedColor);
                     
@@ -436,22 +486,21 @@
                         if (isValid) {
                             let score = 0;
                             if (target.isEmpty) {
-                                score = 15 + Math.random() * 5; // 空地移動基礎分
+                                score = 15 + Math.random() * 5; 
                                 let futureThreatened = isSquareThreatened(j, p.rank, aiAssignedColor);
                                 if (currentlyThreatened && !futureThreatened) {
-                                    score += p.rank * 100; // 成功逃跑大加分
+                                    score += p.rank * 100; 
                                 } else if (!currentlyThreatened && futureThreatened) {
-                                    score -= 500; // 沒事不要送死
+                                    score -= 500; 
                                 }
                             } else {
-                                // 吃子計算
                                 let targetVal = target.rank;
-                                if (p.rank === 1 && target.rank === 7) targetVal = 15; // 兵吃帥無敵高分
-                                score = targetVal * 100 + (10 - p.rank); // 吃大牌優先
+                                if (p.rank === 1 && target.rank === 7) targetVal = 15; 
+                                score = targetVal * 100 + (10 - p.rank); 
                                 
                                 let futureThreatened = isSquareThreatened(j, p.rank, aiAssignedColor);
                                 if (futureThreatened) {
-                                    score -= p.rank * 80; // 吃了會死，扣除自身價值的風險分數
+                                    score -= p.rank * 80; 
                                 }
                             }
                             actions.push({ type: 'move', from: i, to: j, score: score });
@@ -460,7 +509,6 @@
                 }
             }
 
-            // 執行最高分的動作
             if (actions.length > 0) {
                 actions.sort((a, b) => b.score - a.score);
                 let bestAction = actions[0];
@@ -472,9 +520,9 @@
                         hostColor = guestColor === 'red' ? 'black' : 'red';
                         showMessage(`電腦抽到了 ${guestColor === 'red' ? '紅方' : '黑方'}！`);
                     }
-                    endTurn(); // 翻開直接換手
+                    endTurn(); 
                 } else {
-                    doMove(bestAction.from, bestAction.to); // doMove 內建換手功能
+                    doMove(bestAction.from, bestAction.to); 
                 }
             }
         }
