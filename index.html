@@ -360,8 +360,8 @@
         let peer = null;
         let conn = null;
         let myShortId = "";
-        let currentGame = null; // 'darkchess' 或 'gomoku'
-        let myRole = null;      // 'host' 或 'guest'
+        let currentGame = null; 
+        let myRole = null;      
         let isVsAI = false;
         let gameOver = false;
 
@@ -384,7 +384,7 @@
             document.getElementById('dc-my-id').innerText = id;
             document.getElementById('gm-my-id').innerText = id;
             if (document.getElementById('xq-my-id')) document.getElementById('xq-my-id').innerText = id; 
-            if (document.getElementById('bt-my-id')) document.getElementById('bt-my-id').innerText = id; // 新增大老二代碼派發
+            if (document.getElementById('bt-my-id')) document.getElementById('bt-my-id').innerText = id; // 大老二代碼
             checkUrlForInvite(); 
         });
 
@@ -397,9 +397,9 @@
                     
                     if (currentGame === 'bigtwo') {
                         myRole = 'host';
-                        handleBigTwoJoin(c); // 呼叫大老二專屬的多人加入邏輯
+                        handleBigTwoJoin(c); // 大老二專屬：朋友加入大廳
                     } else {
-                        conn = c; // 1v1 遊戲直接綁定
+                        conn = c; 
                         myRole = 'host'; 
                         isVsAI = false; 
                         setupConnection();
@@ -410,6 +410,41 @@
                 }
             });
         });
+
+        function checkUrlForInvite() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+            const gameType = urlParams.get('game') || 'darkchess'; 
+
+            if (roomCode) { 
+                openApp(gameType);
+                let inputId = 'dc-friend-id';
+                if (gameType === 'gomoku') inputId = 'gm-friend-id';
+                else if (gameType === 'xiangqi') inputId = 'xq-friend-id';
+                else if (gameType === 'bigtwo') inputId = 'bt-friend-id';
+
+                document.getElementById(inputId).value = roomCode.toUpperCase(); 
+                showMessage("✨ 已帶入好友代碼，請點擊加入遊戲！"); 
+            }
+        }
+
+        function copyInviteLink(gameType, idElement) {
+            const inviteUrl = `${window.location.origin}${window.location.pathname}?game=${gameType}&room=${myShortId}`;
+            navigator.clipboard.writeText(inviteUrl).then(() => showMessage("✅ 邀請連結已複製！")).catch(() => showMessage("❌ 複製失敗"));
+        }
+
+        function openApp(appId) {
+            document.getElementById('portal-menu').style.display = 'none';
+            document.getElementById('darkchess-app').style.display = 'none';
+            document.getElementById('gomoku-app').style.display = 'none';
+            if (document.getElementById('xiangqi-app')) document.getElementById('xiangqi-app').style.display = 'none';
+            if (document.getElementById('bigtwo-app')) document.getElementById('bigtwo-app').style.display = 'none';
+            
+            if (appId === 'darkchess') document.getElementById('darkchess-app').style.display = 'flex';
+            else if (appId === 'gomoku') document.getElementById('gomoku-app').style.display = 'flex';
+            else if (appId === 'xiangqi') document.getElementById('xiangqi-app').style.display = 'flex';
+            else if (appId === 'bigtwo') document.getElementById('bigtwo-app').style.display = 'flex';
+        }
 
         // 我主動去連別人 (我是 guest)
         function connectToFriend(gameType) {
@@ -434,10 +469,8 @@
                 
                 if (currentGame === 'bigtwo') {
                     showMessage("✅ 成功加入房間！等待房主同步...");
-                    // 隱藏不必要的輸入框
                     document.getElementById('bt-host-panel').style.display = 'none';
                     document.getElementById('bt-join-section').style.display = 'none';
-                    // 把按鈕改成等待狀態
                     document.getElementById('bt-start-btn').innerText = "等待房主開始遊戲...";
                     document.getElementById('bt-start-btn').disabled = true;
                     document.getElementById('bt-start-btn').style.cursor = "not-allowed";
@@ -450,7 +483,7 @@
             conn.on('data', (data) => {
                 if (currentGame === 'bigtwo') {
                     if (data.type === 'btLobbySync') {
-                        updateBigTwoLobbyUI(data.players); // 更新看到的人數
+                        updateBigTwoLobbyUI(data.players); 
                     } else if (data.type === 'btGameStart') {
                         document.getElementById('bt-lobby').style.display = 'none';
                         document.getElementById('bt-game-wrapper').style.display = 'flex';
@@ -460,75 +493,14 @@
             });
         }
 
-        function checkUrlForInvite() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const roomCode = urlParams.get('room');
-            const gameType = urlParams.get('game') || 'darkchess'; 
-
-            if (roomCode) { 
-                openApp(gameType);
-                let inputId = 'dc-friend-id';
-                if (gameType === 'gomoku') inputId = 'gm-friend-id';
-                else if (gameType === 'xiangqi') inputId = 'xq-friend-id';
-                else if (gameType === 'bigtwo') inputId = 'bt-friend-id'; // 支援大老二自動帶入代碼
-
-                document.getElementById(inputId).value = roomCode.toUpperCase(); 
-                showMessage("✨ 已帶入好友代碼，請點擊加入遊戲！"); 
-            }
-        }
-
-        function copyInviteLink(gameType, idElement) {
-            const inviteUrl = `${window.location.origin}${window.location.pathname}?game=${gameType}&room=${myShortId}`;
-            navigator.clipboard.writeText(inviteUrl).then(() => showMessage("✅ 邀請連結已複製！")).catch(() => showMessage("❌ 複製失敗"));
-        }
-
-        function openApp(appId) {
-            document.getElementById('portal-menu').style.display = 'none';
-            document.getElementById('darkchess-app').style.display = 'none';
-            document.getElementById('gomoku-app').style.display = 'none';
-            if (document.getElementById('xiangqi-app')) document.getElementById('xiangqi-app').style.display = 'none';
-            if (document.getElementById('bigtwo-app')) document.getElementById('bigtwo-app').style.display = 'none'; // 隱藏大老二
-            
-            if (appId === 'darkchess') document.getElementById('darkchess-app').style.display = 'flex';
-            else if (appId === 'gomoku') document.getElementById('gomoku-app').style.display = 'flex';
-            else if (appId === 'xiangqi') document.getElementById('xiangqi-app').style.display = 'flex';
-            else if (appId === 'bigtwo') document.getElementById('bigtwo-app').style.display = 'flex'; // 打開大老二
-        }
-
-        // 我主動去連別人 (我是 guest)
-        function connectToFriend(gameType) {
-            let inputId = 'dc-friend-id';
-            if (gameType === 'gomoku') inputId = 'gm-friend-id';
-            else if (gameType === 'xiangqi') inputId = 'xq-friend-id';
-            else if (gameType === 'bigtwo') inputId = 'bt-friend-id';
-
-            let rawInput = document.getElementById(inputId).value.trim();
-            if (!rawInput) return showMessage('請輸入代碼或貼上連結');
-            
-            let friendId = rawInput;
-            if (rawInput.includes('room=')) { const match = rawInput.match(/room=([a-zA-Z0-9]{6})/i); if(match) friendId = match[1]; }
-            
-            currentGame = gameType;
-            conn = peer.connect(friendId.toUpperCase().slice(0, 6)); 
-            myRole = 'guest'; 
-            isVsAI = false; 
-            
-            conn.on('open', () => {
-                // 告訴對方我們玩什麼遊戲
-                conn.send({ type: 'initGame', gameType: currentGame });
-                setupConnection();
-            });
-        }
-
         function startLocalAI(gameType) {
             currentGame = gameType;
             isVsAI = true; myRole = 'host';
-            setupConnection(true); // 傳入 true 代表是 AI 模式，不需處理網路事件
+            setupConnection(true); 
             
             if (currentGame === 'darkchess') initDarkchessAsHost();
             else if (currentGame === 'gomoku') initGomokuAsHost();
             else if (currentGame === 'xiangqi') initXiangqiAsHost();
-            // 註：大老二的 AI 加入由專屬大廳控制，不在這裡初始化
         }
 
         function setupConnection(isLocalAI = false) {
@@ -536,11 +508,11 @@
             
             if (currentGame === 'gomoku') { lobbyId = 'gm-lobby'; wrapperId = 'gm-game-wrapper'; boardId = 'gomoku-board'; }
             else if (currentGame === 'xiangqi') { lobbyId = 'xq-lobby'; wrapperId = 'xq-game-wrapper'; boardId = 'xq-board'; }
-            else if (currentGame === 'bigtwo') { lobbyId = 'bt-lobby'; wrapperId = 'bt-game-wrapper'; boardId = 'bt-game-area'; } // 加入大老二判斷
+            else if (currentGame === 'bigtwo') { lobbyId = 'bt-lobby'; wrapperId = 'bt-game-wrapper'; boardId = 'bt-game-area'; } 
 
             let boardEl = document.getElementById(boardId); 
 
-            // 象棋視角翻轉
+            // 象棋視角翻轉防呆
             if (currentGame === 'xiangqi' && myRole === 'guest') {
                 if(boardEl) boardEl.classList.add('xq-flipped-board');
             } else {
@@ -549,7 +521,7 @@
 
             document.getElementById(lobbyId).style.display = 'none'; 
             document.getElementById(wrapperId).style.display = 'flex';
-            if (boardEl && currentGame !== 'bigtwo') boardEl.classList.add('active'); // 大老二目前沒有 active 樣式
+            if (boardEl && currentGame !== 'bigtwo') boardEl.classList.add('active'); 
             
             showMessage(isLocalAI ? "🤖 單機模式開啟！由你先發" : "✅ 連線成功！");
 
@@ -567,7 +539,6 @@
                     } else if (currentGame === 'xiangqi' && data.game === 'xiangqi') {
                         handleXiangqiSync(data);
                     }
-                    // 大老二的資料同步會在後續階段加入
                 });
             }
         }
@@ -595,8 +566,8 @@
 
         function showVictoryModal(winnerColor, bySurrender) {
             gameOver = true;
-            document.getElementById('dc-board').classList.remove('active');
-            document.getElementById('gomoku-board').classList.remove('active');
+            if (document.getElementById('dc-board')) document.getElementById('dc-board').classList.remove('active');
+            if (document.getElementById('gomoku-board')) document.getElementById('gomoku-board').classList.remove('active');
             if (document.getElementById('xq-board')) document.getElementById('xq-board').classList.remove('active');
             
             const modal = document.getElementById('victory-modal');
