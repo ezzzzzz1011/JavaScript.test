@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>網頁遊戲大廳 v.Max (完美排版無蟲版)</title>
+    <title>網頁遊戲大廳 v.Max (極速AI與防呆版)</title>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
@@ -17,7 +17,7 @@
             color: #f0f0f0; margin: 0; padding-top: 30px; min-height: 100vh;
         }
         
-        /* 提示框特效 */
+        /* 提示框特效 (加入紅色錯誤樣式的支援) */
         #toast { 
             visibility: hidden; min-width: 250px; background: rgba(30, 30, 30, 0.95); 
             color: #fff; text-align: center; border-radius: 30px; padding: 12px 25px; 
@@ -26,6 +26,7 @@
             pointer-events: none; box-shadow: 0 8px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
         }
         #toast.show { visibility: visible; opacity: 1; top: 50px; }
+        #toast.error { background: rgba(211, 47, 47, 0.95); border-color: #ff5252; } /* 錯誤專用紅底 */
 
         /* ==========================================================================
            2. 共用 UI 介面 (玻璃透視 Glassmorphism)
@@ -151,7 +152,7 @@
         .xq-cell.river-top::after { height:50%; } .xq-cell.river-bottom::after { top:50%; height:50%; } 
         .xq-cell.top-edge::after { top:50%; height:50%; } .xq-cell.bottom-edge::after { height:50%; } 
         .xq-cell.left-edge::before { left:50%; width:50%; } .xq-cell.right-edge::before { width:50%; } 
-        .xq-piece { width:44px; height:44px; border-radius:50%; background:#faebd7; border:2px solid #5d4037; display:flex; justify-content:center; align-items:center; font-size:26px; font-weight:bold; z-index:2; user-select:none; box-shadow: 0 4px 8px rgba(0,0,0,0.5); } 
+        .xq-piece { width:44px; height:44px; border-radius:50%; background:#faebd7; border:2px solid #5d4037; display:flex; justify-content:center; align-items:center; font-size:26px; font-weight:bold; z-index:2; user-select:none; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: 0.2s;} 
         .xq-piece.red { color:#d32f2f; } .xq-piece.black { color:#1e1e1e; } 
         .xq-cell.selected .xq-piece { box-shadow:0 0 20px #ff0; border-color:#ff0; transform:scale(1.15); } 
         .xq-flipped-board { transform:rotate(180deg); } .xq-flipped-board .xq-piece { transform:rotate(180deg); }
@@ -209,7 +210,7 @@
             <h2>⚫ 五子棋</h2><p>15x15 經典網格<br>八向攔截殺手 AI</p>
         </div>
         <div class="game-card" onclick="openApp('xiangqi')">
-            <h2>🔴 經典象棋</h2><p>完美楚河漢界<br>Minimax 預讀 AI</p>
+            <h2>🔴 經典象棋</h2><p>完美楚河漢界<br>極速 Minimax AI</p>
         </div>
         <div class="game-card" onclick="openApp('bigtwo')">
             <h2>🃏 大老二</h2><p>支援 1~4 人連線<br>牌型演算扣牌 AI</p>
@@ -236,15 +237,9 @@
             <div id="dc-role-info" class="role-info">身份：未定</div>
         </div>
         <div id="darkchess-main-area">
-            <div class="killed-sidebar">
-                <div style="margin-bottom:15px;font-weight:bold;">紅方陣亡</div>
-                <div id="dc-red-killed" class="killed-pieces"></div>
-            </div>
+            <div class="killed-sidebar"><div style="margin-bottom:15px;font-weight:bold;">紅方陣亡</div><div id="dc-red-killed" class="killed-pieces"></div></div>
             <div id="dc-board-container"><div id="dc-board-outer"><div id="dc-board"></div></div></div>
-            <div class="killed-sidebar">
-                <div style="margin-bottom:15px;font-weight:bold;">黑方陣亡</div>
-                <div id="dc-black-killed" class="killed-pieces"></div>
-            </div>
+            <div class="killed-sidebar"><div style="margin-bottom:15px;font-weight:bold;">黑方陣亡</div><div id="dc-black-killed" class="killed-pieces"></div></div>
         </div>
         <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('darkchess')">🏳️ 投降</button></div>
     </div>
@@ -281,7 +276,7 @@
         <input type="text" id="xq-friend-id" placeholder="輸入房主代碼">
         <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button>
         <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
-        <button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機挑戰 (大師 AI)</button>
+        <button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機挑戰 (極速 AI)</button>
     </div>
     <div id="xq-game-wrapper" class="game-wrapper">
         <div class="top-info-container"><div id="xq-turn-info" class="turn-info">等待連線...</div><div id="xq-role-info" class="role-info">身份：未定</div></div>
@@ -352,19 +347,19 @@
 
 <script>
 // ==========================================================================
-// 共用核心引擎 (連線、畫面切換、彈窗)
+// 共用核心引擎 (連線、畫面切換、彈窗防呆)
 // ==========================================================================
 let peer = null, conn = null, myShortId = "", currentGame = null, myRole = null, isVsAI = false, gameOver = false;
 
-// 顯示畫面上方 Toast 提示
-function showMessage(m) {
+// 顯示畫面上方 Toast 提示 (加入 Error 紅色防呆狀態)
+function showMessage(m, isError = false) {
     let t = document.getElementById("toast");
     t.innerText = m;
+    if (isError) t.classList.add("error"); else t.classList.remove("error");
     t.classList.add("show");
     setTimeout(() => t.classList.remove("show"), 2500);
 }
 
-// 產生並複製邀請網址
 function copyInviteLink(btnEl, gameType) {
     const inviteUrl = `${window.location.origin}${window.location.pathname}?game=${gameType}&room=${myShortId}`;
     navigator.clipboard.writeText(inviteUrl).then(() => {
@@ -372,10 +367,9 @@ function copyInviteLink(btnEl, gameType) {
         btnEl.innerHTML = "✅ 網址已複製！快去貼給朋友"; 
         btnEl.style.background = "linear-gradient(135deg, #00c6ff, #0072ff)";
         setTimeout(() => { btnEl.innerHTML = oldHTML; btnEl.style.background = ""; }, 2500);
-    }).catch(() => showMessage("❌ 複製失敗，請手動複製代碼"));
+    }).catch(() => showMessage("❌ 複製失敗，請手動複製代碼", true));
 }
 
-// 初始化 PeerJS
 myShortId = [...Array(6)].map(()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
 peer = new Peer(myShortId);
 
@@ -386,7 +380,6 @@ peer.on('open', id => {
     checkUrlForInvite(); 
 });
 
-// 接收連線處理 (身為房主時)
 peer.on('connection', c => { 
     c.on('data', d => { 
         if(d.type === 'initGame') { 
@@ -402,11 +395,9 @@ peer.on('connection', c => {
                 else if(currentGame === 'xiangqi') initXiangqiAsHost();
             } 
         } 
-        // 【重點備註】1對1 遊戲的接收事件
         else if (currentGame === 'darkchess') { handleDarkchessSync(d); }
         else if (currentGame === 'gomoku') { if(d.type==='surrender'){showVictoryModal(d.loserColor==='red'?'black':'red',true);} else {handleGomokuSync(d);} }
         else if (currentGame === 'xiangqi') { if(d.type==='surrender'){showVictoryModal(d.loserColor==='red'?'black':'red',true);} else {handleXiangqiSync(d);} }
-        // 【重點備註】大老二的接收出牌/Pass事件統一寫在這裡，讓房主可以收到朋友的動作
         else if (currentGame === 'bigtwo') {
             if(d.type === 'btPlay') procBTPlay(d.s, d.cards);
             else if(d.type === 'btPass') procBTPass(d.s);
@@ -414,7 +405,6 @@ peer.on('connection', c => {
     }); 
 });
 
-// 切換遊戲畫面
 function openApp(appId) { 
     ['darkchess','gomoku','xiangqi','bigtwo'].forEach(id => {
         if(document.getElementById(id+'-app')) document.getElementById(id+'-app').style.display = (id === appId) ? 'flex' : 'none';
@@ -422,7 +412,6 @@ function openApp(appId) {
     document.getElementById('portal-menu').style.display = 'none'; 
 }
 
-// 檢查網址帶入的邀請碼並自動連線
 function checkUrlForInvite() {
     const urlParams = new URLSearchParams(window.location.search); 
     const roomCode = urlParams.get('room'); 
@@ -436,11 +425,10 @@ function checkUrlForInvite() {
     }
 }
 
-// 客端連線至房主
 function connectToFriend(gameType) { 
     let idMap = {'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id'}; 
     let raw = document.getElementById(idMap[gameType]).value.trim(); 
-    if(!raw) return; 
+    if(!raw) return showMessage("❌ 請先輸入房間代碼！", true); 
     
     currentGame = gameType; 
     conn = peer.connect(raw.toUpperCase().slice(0,6)); 
@@ -463,7 +451,6 @@ function connectToFriend(gameType) {
         }
     }); 
     
-    // 客端接收事件
     conn.on('data', d => { 
         if(currentGame === 'bigtwo') { 
             if(d.type === 'btLobbySync') {
@@ -471,7 +458,6 @@ function connectToFriend(gameType) {
             } else if(d.type === 'btGameStart') { 
                 document.getElementById('bt-lobby').style.display = 'none'; 
                 document.getElementById('bt-game-wrapper').style.display = 'flex'; 
-                // 【重點備註】修正座位變數：客端收到手牌後，設定自己的 btMySeat
                 btMySeat = d.seat; 
                 btHands[btMySeat] = d.hand; 
                 renderBigTwoTable(); 
@@ -485,7 +471,6 @@ function connectToFriend(gameType) {
     }); 
 }
 
-// 啟動單機 AI 模式
 function startLocalAI(g) {
     currentGame = g; isVsAI = true; myRole = 'host'; setupConnection(true);
     if(g === 'darkchess') initDarkchessAsHost();
@@ -493,7 +478,6 @@ function startLocalAI(g) {
     else if(g === 'xiangqi') initXiangqiAsHost();
 }
 
-// 共用連線設定與畫面切換
 function setupConnection(isAI = false) { 
     let map = {
         'darkchess':['dc-lobby','dc-game-wrapper','dc-board'],
@@ -506,13 +490,11 @@ function setupConnection(isAI = false) {
     let b = document.getElementById(e[2]); 
     if(b) b.classList.add('active'); 
     
-    // 象棋黑方視角翻轉
     if(currentGame === 'xiangqi' && myRole === 'guest') b.classList.add('xq-flipped-board'); 
     
     showMessage(isAI ? "🤖 單機模式開啟" : "✅ 連線成功！"); 
 }
 
-// 投降與結算
 function surrenderGame(g) {
     if(gameOver) return;
     let c = (myRole==='host') ? (g==='gomoku'?'black':'red') : (g==='gomoku'?'white':'black');
@@ -536,7 +518,7 @@ function showVictoryModal(win, surr) {
 
 
 // ==========================================================================
-// 棋類遊戲邏輯 (暗棋、五子棋、象棋)
+// 棋類遊戲邏輯 (暗棋、五子棋、極速象棋)
 // ==========================================================================
 
 // --- 暗棋 (Darkchess) ---
@@ -551,8 +533,50 @@ function initDarkchessAsHost() {
 function handleDarkchessSync(d){dcBoard=d.b;dcTurn=d.t;dcHostC=d.hc;dcGuestC=d.gc;dcSel=-1;renDC();}
 function syncDC(){if(!isVsAI&&conn)conn.send({game:'darkchess',type:'sync',b:dcBoard,t:dcTurn,hc:dcHostC,gc:dcGuestC});document.getElementById('dc-turn-info').innerText=dcTurn===myRole?"🟩 你的回合":"🟥 等待對手...";}
 function renDC(){let b=document.getElementById('dc-board');b.innerHTML='';dcBoard.forEach((p,i)=>{let c=document.createElement('div');c.className='dc-cell '+(p.em?'empty':(p.op?'open '+p.c:'hidden'));if(p.op)c.innerText=p.n;if(i===dcSel)c.classList.add('selected');c.onclick=()=>clkDC(i);b.appendChild(c);});}
-function clkDC(i){if(gameOver||dcTurn!==myRole)return;let t=dcBoard[i], mc=myRole==='host'?dcHostC:dcGuestC; if(!t.em&&t.op&&t.c===mc){dcSel=dcSel===i?-1:i;renDC();return;} if(dcSel!==-1){if(t.em||t.op){if(tryDCMv(dcSel,i)){dcSel=-1;return;}}dcSel=-1;} if(!t.em&&!t.op){dcBoard[i].op=true;if(!dcHostC){if(myRole==='host'){dcHostC=t.c;dcGuestC=t.c==='red'?'black':'red';}else{dcGuestC=t.c;dcHostC=t.c==='red'?'black':'red';}} endDCTurn();}}
-function tryDCMv(f,to){let a=dcBoard[f],t=dcBoard[to],r1=(f/4)|0,c1=f%4,r2=(to/4)|0,c2=to%4,adj=(Math.abs(r1-r2)===1&&c1===c2)||(Math.abs(c1-c2)===1&&r1===r2); if(a.r===2){if(t.em){if(adj){dcBoard[to]=a;dcBoard[f]={em:true};endDCTurn();return true;}}else{if(!t.op)return false;let b=0;if(r1===r2){for(let i=Math.min(c1,c2)+1;i<Math.max(c1,c2);i++)if(!dcBoard[r1*4+i].em)b++;}else if(c1===c2){for(let i=Math.min(r1,r2)+1;i<Math.max(r1,r2);i++)if(!dcBoard[i*4+c1].em)b++;} if(b===1){dcBoard[to]=a;dcBoard[f]={em:true};endDCTurn();return true;}}}else{if(!adj)return false;if(t.em||(t.op&&(a.r>=t.r||(a.r===1&&t.r===7))&&!(a.r===7&&t.r===1))){dcBoard[to]=a;dcBoard[f]={em:true};endDCTurn();return true;}}return false;}
+function clkDC(i){
+    if(gameOver) return;
+    if(dcTurn!==myRole) return showMessage("❌ 還沒輪到你！", true); // 防呆提示
+    let t=dcBoard[i], mc=myRole==='host'?dcHostC:dcGuestC; 
+    if(!t.em&&t.op&&t.c===mc){dcSel=dcSel===i?-1:i;renDC();return;} 
+    if(dcSel!==-1){
+        if(t.em||t.op){
+            if(tryDCMv(dcSel,i)){dcSel=-1;return;}
+            else { dcSel=-1; renDC(); return; } // tryDCMv 內已有提示
+        }
+        dcSel=-1; renDC(); return;
+    } 
+    if(!t.em&&!t.op){
+        dcBoard[i].op=true;
+        if(!dcHostC){
+            if(myRole==='host'){dcHostC=t.c;dcGuestC=t.c==='red'?'black':'red';}
+            else{dcGuestC=t.c;dcHostC=t.c==='red'?'black':'red';}
+        } 
+        endDCTurn();
+    }
+}
+function tryDCMv(f,to){
+    let a=dcBoard[f],t=dcBoard[to],r1=(f/4)|0,c1=f%4,r2=(to/4)|0,c2=to%4,adj=(Math.abs(r1-r2)===1&&c1===c2)||(Math.abs(c1-c2)===1&&r1===r2); 
+    if(a.r===2){
+        if(t.em){
+            if(adj){dcBoard[to]=a;dcBoard[f]={em:true};endDCTurn();return true;}
+            else { showMessage("❌ 炮移動空地只能走一步！", true); return false; }
+        } else {
+            if(!t.op) { showMessage("❌ 炮不能直接打暗棋！", true); return false; }
+            let b=0;
+            if(r1===r2){for(let i=Math.min(c1,c2)+1;i<Math.max(c1,c2);i++)if(!dcBoard[r1*4+i].em)b++;}
+            else if(c1===c2){for(let i=Math.min(r1,r2)+1;i<Math.max(r1,r2);i++)if(!dcBoard[i*4+c1].em)b++;} 
+            if(b===1){dcBoard[to]=a;dcBoard[f]={em:true};endDCTurn();return true;}
+            else { showMessage("❌ 炮必須剛好隔一顆棋子！", true); return false; }
+        }
+    } else {
+        if(!adj) { showMessage("❌ 只能移動一格！", true); return false; }
+        if(t.em||(t.op&&(a.r>=t.r||(a.r===1&&t.r===7))&&!(a.r===7&&t.r===1))){
+            dcBoard[to]=a;dcBoard[f]={em:true};endDCTurn();return true;
+        } else {
+            showMessage("❌ 階級不足，無法吃子！", true); return false;
+        }
+    }
+}
 function endDCTurn(){dcTurn=dcTurn==='host'?'guest':'host';syncDC();renDC();if(isVsAI&&dcTurn==='guest')setTimeout(makeDCAIMove,600);}
 function makeDCAIMove(){let aic=dcGuestC, acts=[]; for(let i=0;i<32;i++){let p=dcBoard[i];if(!p.em&&!p.op)acts.push({type:'flip',to:i,score:!aic?1000:50+Math.random()*10}); if(aic&&!p.em&&p.op&&p.c===aic){for(let j=0;j<32;j++){let t=dcBoard[j],r1=(i/4)|0,c1=i%4,r2=(j/4)|0,c2=j%4,adj=(Math.abs(r1-r2)===1&&c1===c2)||(Math.abs(c1-c2)===1&&r1===r2); if(p.r===2){let b=0;if(r1===r2){for(let k=Math.min(c1,c2)+1;k<Math.max(c1,c2);k++)if(!dcBoard[r1*4+k].em)b++;}else if(c1===c2){for(let k=Math.min(r1,r2)+1;k<Math.max(r1,r2);k++)if(!dcBoard[k*4+c1].em)b++;} if((t.em&&adj)||(b===1&&!t.em&&t.op&&t.c!==aic)) acts.push({type:'move',f:i,to:j,score:t.em?20:t.r*100});}else if(adj){if(t.em)acts.push({type:'move',f:i,to:j,score:20+Math.random()*5}); else if(t.op&&t.c!==aic&&((p.r>=t.r&&!(p.r===7&&t.r===1))||(p.r===1&&t.r===7)))acts.push({type:'move',f:i,to:j,score:t.r*100+(10-p.r)});} }}} acts.sort((a,b)=>b.score-a.score); let b=acts[0]; if(b.type==='flip'){dcBoard[b.to].op=true;if(!dcHostC){dcGuestC=dcBoard[b.to].c;dcHostC=dcGuestC==='red'?'black':'red';}endDCTurn();}else{dcBoard[b.to]=dcBoard[b.f];dcBoard[b.f]={em:true};endDCTurn();} }
 
@@ -562,14 +586,22 @@ function initGomokuAsHost(){gmBoard=Array(15).fill(0).map(()=>Array(15).fill(nul
 function handleGomokuSync(d){gmBoard=d.b;gmTurn=d.t;renGM();chkGMWin();}
 function syncGM(){if(!isVsAI&&conn)conn.send({game:'gomoku',type:'sync',b:gmBoard,t:gmTurn});document.getElementById('gm-turn-info').innerText=gmTurn===myRole?"🟩 你的回合 (落子)":"🟥 等待對手...";}
 function renGM(){let b=document.getElementById('gomoku-board');b.innerHTML='';for(let r=0;r<15;r++)for(let c=0;c<15;c++){let el=document.createElement('div');el.className='gm-cell';if(gmBoard[r][c])el.innerHTML=`<div class="gm-piece ${gmBoard[r][c]}"></div>`;el.onclick=()=>clkGM(r,c);b.appendChild(el);}}
-function clkGM(r,c){let mc=myRole==='host'?'black':'white';if(gmTurn!==mc||gmBoard[r][c]||gameOver)return;gmBoard[r][c]=mc;gmTurn=mc==='black'?'white':'black';syncGM();renGM();chkGMWin();if(isVsAI&&!gameOver)setTimeout(makeGMAIMove,500);}
+function clkGM(r,c){
+    if(gameOver) return;
+    let mc=myRole==='host'?'black':'white';
+    if(gmTurn!==mc) return showMessage("❌ 還沒輪到你！", true); // 防呆
+    if(gmBoard[r][c]) return showMessage("❌ 這裡已經有棋子了！", true); // 防呆
+    
+    gmBoard[r][c]=mc; gmTurn=mc==='black'?'white':'black'; syncGM(); renGM(); chkGMWin();
+    if(isVsAI&&!gameOver) setTimeout(makeGMAIMove,500);
+}
 function chkGMWin(){let dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let r=0;r<15;r++)for(let c=0;c<15;c++){let color=gmBoard[r][c];if(!color)continue;for(let [dr,dc]of dirs){let count=1;for(let i=1;i<5;i++){let nr=r+dr*i,nc=c+dc*i;if(nr>=0&&nr<15&&nc>=0&&nc<15&&gmBoard[nr][nc]===color)count++;else break;}if(count>=5)showVictoryModal(color,false);}}}
 function evalGMLine(r,c,color){let s=0, dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let [dr,dc]of dirs){let cons=1,blk=0;for(let dir of [1,-1]){let e=false;for(let i=1;i<5;i++){let nr=r+dr*i*dir,nc=c+dc*i*dir;if(nr<0||nr>=15||nc<0||nc>=15){blk++;e=true;break;}if(gmBoard[nr][nc]===color)cons++;else if(gmBoard[nr][nc]){blk++;e=true;break;}else{break;}} } if(cons>=5)s+=100000;else if(cons===4&&blk===0)s+=10000;else if(cons===4&&blk===1)s+=1000;else if(cons===3&&blk===0)s+=1000;else if(cons===3&&blk===1)s+=100;else if(cons===2&&blk===0)s+=10;}return s;}
 function makeGMAIMove(){let bS=-1,bM=[];for(let r=0;r<15;r++)for(let c=0;c<15;c++){if(!gmBoard[r][c]){let atk=evalGMLine(r,c,'white'),def=evalGMLine(r,c,'black'),sc=atk+def*1.2+Math.random();if(sc>bS){bS=sc;bM=[{r,c}];}else if(sc===bS)bM.push({r,c});}}if(bM.length){let m=bM[Math.floor(Math.random()*bM.length)];gmBoard[m.r][m.c]='white';gmTurn='black';syncGM();renGM();chkGMWin();}}
 
-// --- 象棋 (Xiangqi) ---
+// --- 象棋 (Xiangqi 極速 AI) ---
 let xqBoard=[], xqTurn='red', xqSel=null;
-let xqRedKilled=[], xqBlackKilled=[]; // 儲存陣亡棋子
+let xqRedKilled=[], xqBlackKilled=[]; 
 
 function initXiangqiAsHost(){
     let I=[['車','馬','象','士','將','士','象','馬','車'],[0,0,0,0,0,0,0,0,0],[0,'包',0,0,0,0,0,'包',0],['卒',0,'卒',0,'卒',0,'卒',0,'卒'],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],['兵',0,'兵',0,'兵',0,'兵',0,'兵'],[0,'炮',0,0,0,0,0,'炮',0],[0,0,0,0,0,0,0,0,0],['俥','傌','相','仕','帥','仕','相','傌','俥']];
@@ -588,7 +620,6 @@ function syncXQ(){
     document.getElementById('xq-turn-info').innerText = xqTurn===myRole ? "🟩 你的回合 (行棋)" : "🟥 等待對手...";
 }
 
-// 渲染陣亡區
 function renderXQKilledPieces() {
     const rContainer = document.getElementById('xq-red-killed'); const bContainer = document.getElementById('xq-black-killed');
     rContainer.innerHTML = ''; bContainer.innerHTML = '';
@@ -609,39 +640,50 @@ function renXQ(){
 function valXQMv(fr,fc,tr,tc,b){let p=b[fr][fc];if(!p)return 0;let dr=tr-fr,dc=tc-fc,n=p.n;if(n==='帥'||n==='將'){if(Math.abs(dr)+Math.abs(dc)!==1||tc<3||tc>5||(p.c==='red'&&tr<7)||(p.c==='black'&&tr>2))return 0;return 1;}if(n==='仕'||n==='士'){if(Math.abs(dr)!==1||Math.abs(dc)!==1||tc<3||tc>5||(p.c==='red'&&tr<7)||(p.c==='black'&&tr>2))return 0;return 1;}if(n==='相'||n==='象'){if(Math.abs(dr)!==2||Math.abs(dc)!==2||(p.c==='red'&&tr<5)||(p.c==='black'&&tr>4)||b[fr+dr/2][fc+dc/2])return 0;return 1;}if(n==='傌'||n==='馬'){if(Math.abs(dr)===2&&Math.abs(dc)===1)return !b[fr+dr/2][fc];if(Math.abs(dr)===1&&Math.abs(dc)===2)return !b[fr][fc+dc/2];return 0;}if(n==='俥'||n==='車'){if(dr!==0&&dc!==0)return 0;for(let i=1;i<Math.max(Math.abs(dr),Math.abs(dc));i++)if(b[fr+(dr===0?0:dr/Math.abs(dr))*i][fc+(dc===0?0:dc/Math.abs(dc))*i])return 0;return 1;}if(n==='炮'||n==='包'){if(dr!==0&&dc!==0)return 0;let k=0;for(let i=1;i<Math.max(Math.abs(dr),Math.abs(dc));i++)if(b[fr+(dr===0?0:dr/Math.abs(dr))*i][fc+(dc===0?0:dc/Math.abs(dc))*i])k++;if(!b[tr][tc])return k===0;return k===1;}if(n==='兵'||n==='卒'){let dir=p.c==='red'?-1:1;if(dr===dir&&dc===0)return 1;if((p.c==='red'?fr<5:fr>4)&&dr===0&&Math.abs(dc)===1)return 1;return 0;}return 0;}
 
 function clkXQ(r,c){
-    let mc=myRole==='host'?'red':'black'; if(xqTurn!==mc) return;
-    let t=xqBoard[r][c]; if(t&&t.c===mc){xqSel={r,c};renXQ();return;}
-    if(xqSel&&valXQMv(xqSel.r,xqSel.c,r,c,xqBoard)){
-        // 【修復】吃子邏輯：將吃掉的棋子放入陣亡區
-        let target = xqBoard[r][c];
-        if (target) { if (target.c === 'red') xqRedKilled.push(target); else xqBlackKilled.push(target); }
-        
-        xqBoard[r][c]=xqBoard[xqSel.r][xqSel.c]; xqBoard[xqSel.r][xqSel.c]=null; 
-        xqTurn=xqTurn==='red'?'black':'red'; xqSel=null;
-        syncXQ(); renXQ(); renderXQKilledPieces(); chkXQWin(); 
-        if(isVsAI&&!gameOver) setTimeout(makeXQAIMove,500);
+    if(gameOver) return;
+    let mc=myRole==='host'?'red':'black'; 
+    if(xqTurn!==mc) return showMessage("❌ 還沒輪到你！", true); // 防呆
+    
+    let t=xqBoard[r][c]; 
+    if(t&&t.c===mc){xqSel={r,c};renXQ();return;}
+    
+    if(xqSel) {
+        if(valXQMv(xqSel.r,xqSel.c,r,c,xqBoard)){
+            let target = xqBoard[r][c];
+            if (target) { if (target.c === 'red') xqRedKilled.push(target); else xqBlackKilled.push(target); }
+            
+            xqBoard[r][c]=xqBoard[xqSel.r][xqSel.c]; xqBoard[xqSel.r][xqSel.c]=null; 
+            xqTurn=xqTurn==='red'?'black':'red'; xqSel=null;
+            syncXQ(); renXQ(); renderXQKilledPieces(); chkXQWin(); 
+            if(isVsAI&&!gameOver) setTimeout(makeXQAIMove,500);
+        } else {
+            showMessage("❌ 違反象棋走法規則！", true); // 防呆
+            xqSel = null; renXQ();
+        }
     }
 }
 
 function chkXQWin(){let rA=0,bA=0;for(let r=0;r<10;r++)for(let c=0;c<9;c++){if(xqBoard[r][c]?.n==='帥')rA=1;if(xqBoard[r][c]?.n==='將')bA=1;}if(!rA)showVictoryModal('black');if(!bA)showVictoryModal('red');}
 
-function evalXQ(b){let s=0, v={'車':90,'俥':90,'炮':45,'包':45,'馬':40,'傌':40,'象':20,'相':20,'士':20,'仕':20,'卒':10,'兵':10,'將':10000,'帥':10000};for(let r=0;r<10;r++)for(let c=0;c<9;c++){let p=b[r][c];if(p){s+=(p.c==='black'?v[p.n]:-v[p.n]);}}return s;}
-
+// 【修復：極速差值運算 Delta Evaluation AI】
+// 原本是每一種可能都要計算整個棋盤的分數，現在只計算「目標棋子的價值」+「前進的獎勵」，運算時間從卡頓變成毫秒級瞬間秒殺！
 function makeXQAIMove(){
     let moves=[], best=-99999, bm=[];
+    let v={'車':90,'俥':90,'炮':45,'包':45,'馬':40,'傌':40,'象':20,'相':20,'士':20,'仕':20,'卒':10,'兵':10,'將':10000,'帥':10000};
+    
     for(let r=0;r<10;r++)for(let c=0;c<9;c++)if(xqBoard[r][c]?.c==='black'){
         for(let tr=0;tr<10;tr++)for(let tc=0;tc<9;tc++)if(xqBoard[tr][tc]?.c!=='black'&&valXQMv(r,c,tr,tc,xqBoard)){
-            let t=xqBoard[tr][tc]; xqBoard[tr][tc]=xqBoard[r][c]; xqBoard[r][c]=null;
-            // 【修復】AI 避免迴圈抽搐：加入推進權重與微小亂數
-            let s = evalXQ(xqBoard) + (tr * 0.1) + (Math.random() * 0.1); 
+            let target = xqBoard[tr][tc];
+            
+            // 差值運算：吃掉敵方棋子的價值 + 往前推進的微小獎勵 + 亂數(避免平分死循環)
+            let s = (target ? v[target.n] : 0) + (tr * 0.1) + (Math.random() * 0.1); 
+            
             if(s>best){best=s; bm=[{f:{r,c},t:{r:tr,c:tc}}];}
             else if(Math.abs(s-best)<0.05) {bm.push({f:{r,c},t:{r:tr,c:tc}});}
-            xqBoard[r][c]=xqBoard[tr][tc]; xqBoard[tr][tc]=t; // 復原
         }
     }
     if(bm.length > 0){
         let chosen = bm[Math.floor(Math.random()*bm.length)];
-        // 電腦吃子判定
         let target = xqBoard[chosen.t.r][chosen.t.c];
         if (target) { if (target.c === 'red') xqRedKilled.push(target); else xqBlackKilled.push(target); }
 
@@ -663,7 +705,6 @@ let btPlayers=[
 ];
 let btConns={}, btDeck=[], btHands=[[],[],[],[]], btMySeat=0, btTrick=[], btPass=0, btTurn=0;
 
-// 真人好友加入大廳
 function handleBigTwoJoin(c) {
     let e = btPlayers.findIndex(p => p.t==='empty');
     if(e !== -1){
@@ -673,14 +714,12 @@ function handleBigTwoJoin(c) {
     }
 }
 
-// 補上電腦 AI
 function addBigTwoAI(s) {
     if(btPlayers[s-1].t !== 'empty') return;
     btPlayers[s-1] = {t:'ai', n:`🤖 殺手電腦 ${s}`, r:1};
     updBTUI(); bdBT();
 }
 
-// 更新大廳按鈕與人數狀態
 function updBTUI() {
     let pc = btPlayers.filter(p => p.t !== 'empty').length;
     for(let i=1; i<4; i++){
@@ -699,45 +738,38 @@ function updBTUI() {
     } 
 }
 
-// 廣播大廳狀態給所有連線的朋友
 function bdBT() {
     for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btLobbySync', players:btPlayers});
 }
 
-// 房主點擊開始，發放卡牌
 function startBigTwoGame() {
     document.getElementById('bt-lobby').style.display = 'none';
     document.getElementById('bt-game-wrapper').style.display = 'flex';
     
-    // 建立並洗牌
     btDeck = []; let v = 1;
     for(let r of ['3','4','5','6','7','8','9','10','J','Q','K','A','2']) {
         for(let s of ['♣','♦','♥','♠']) btDeck.push({r,s,v:v++,c:(s==='♦'||s==='♥')});
     }
     for(let i=51; i>0; i--){ let j = Math.floor(Math.random()*(i+1)); [btDeck[i], btDeck[j]] = [btDeck[j], btDeck[i]]; }
     
-    // 發牌與排序
     btHands = [[],[],[],[]];
     for(let i=0; i<52; i++) btHands[i%4].push(btDeck[i]);
     for(let i=0; i<4; i++) btHands[i].sort((a,b) => a.v - b.v);
     
-    btMySeat = 0; // 房主永遠是第 0 座位
-    btTurn = btHands.findIndex(h => h.some(c => c.v === 1)); // 梅花3先出
+    btMySeat = 0; 
+    btTurn = btHands.findIndex(h => h.some(c => c.v === 1)); 
     btTrick = []; btPass = 0;
     
     renBT();
     
-    // 傳送牌組給其他真人朋友
     for(let i=1, k=Object.keys(btConns); i<=k.length; i++){
         if(btConns[k[i-1]].open) btConns[k[i-1]].send({type:'btGameStart', hand:btHands[i], seat:i});
     } 
     syncBTTurn(); 
     
-    // 如果是電腦開局，延遲啟動 AI
     if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1000);
 }
 
-// 渲染牌桌 (自己、對手、桌中央)
 function renBT() {
     document.getElementById('bt-turn-info').innerText = btTurn === btMySeat ? "🟩 該你出牌了！" : "🟥 等待對手出牌...";
     document.getElementById('bt-play-controls').style.display = btTurn === btMySeat ? 'flex' : 'none';
@@ -751,7 +783,6 @@ function renBT() {
         d.card = c; mh.appendChild(d);
     }); 
     
-    // 對手背牌展示
     ['top','left','right'].forEach((pos, i) => {
         let id = (btMySeat + i + 1) % 4;
         let el = document.getElementById(`bt-opp-${pos}`); el.innerHTML = '';
@@ -764,7 +795,6 @@ function renBT() {
     });
 }
 
-// 同步回合狀態給朋友
 function syncBTTurn() {
     if(myRole === 'host') {
         for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btSync', turn:btTurn, trick:btTrick, hLen:btHands.map(h=>h.length)});
@@ -773,14 +803,12 @@ function syncBTTurn() {
     }
 }
 
-// 朋友接收房主的同步狀態
 function syncBTFromHost(d) {
     btTurn = d.turn; btTrick = d.trick;
     d.hLen.forEach((l, i) => { if(i !== btMySeat) btHands[i] = Array(l).fill(null); });
     renBT();
 }
 
-// 分析選中的卡片牌型
 function getHType(cs) {
     let l = cs.length; 
     if(l === 1) return {t:1, v:cs[0].v}; 
@@ -790,49 +818,42 @@ function getHType(cs) {
         let idxs = cs.map(c => rOrder.indexOf(c.r)).sort((a,b)=>a-b);
         let isSt = true; 
         for(let i=1; i<5; i++){ if(idxs[i] !== idxs[i-1]+1) isSt = false; }
-        if(isSt) return {t:51, v:cs[4].v}; // 順子
+        if(isSt) return {t:51, v:cs[4].v}; 
         
         let fs = new Set(cs.map(c=>c.r)).size; 
         if(fs === 2){
             let c1 = cs.filter(c => c.r === cs[0].r).length; 
-            return {t:52, v: c1===3 || c1===4 ? cs[0].v : cs[4].v}; // 葫蘆 / 鐵支
+            return {t:52, v: c1===3 || c1===4 ? cs[0].v : cs[4].v}; 
         }
     } 
     return null;
 }
 
-// 客戶端點擊「確認出牌」
 function playBigTwoCards() {
     let sel = [...document.getElementById('bt-my-hand').children].filter(e=>e.classList.contains('selected')).map(e=>e.card);
-    if(sel.length === 0) return; 
+    if(sel.length === 0) return showMessage("❌ 請先點選要出的牌！", true); // 防呆
     
     let tp = getHType(sel);
-    if(!tp) return showMessage("❌ 牌型錯誤！");
+    if(!tp) return showMessage("❌ 牌型不符合規則！(單張、對子、順子、葫蘆、鐵支)", true); // 防呆
     
     if(btTrick.length > 0 && btPass < 3) {
         let ltp = getHType(btTrick); 
-        if(tp.t !== ltp.t || tp.v <= ltp.v) return showMessage("❌ 打不過桌上的牌！");
+        if(tp.t !== ltp.t || tp.v <= ltp.v) return showMessage("❌ 牌型不對或太小，打不過桌上的牌！", true); // 防呆
     } 
     
-    // 【重點備註】修正朋友不能出牌的邏輯：如果我是朋友，直接把牌傳給房主處理
-    if(myRole === 'host') {
-        procBTPlay(btMySeat, sel); 
-    } else {
-        conn.send({type:'btPlay', s:btMySeat, cards:sel});
-    }
+    if(myRole === 'host') procBTPlay(btMySeat, sel); 
+    else conn.send({type:'btPlay', s:btMySeat, cards:sel});
 }
 
-// 客戶端點擊「PASS」
 function passBigTwoTurn() {
-    if(btTrick.length === 0 || btPass >= 3) return showMessage("❌ 牌桌是空的，你必須出牌！");
+    if(btTrick.length === 0 || btPass >= 3) return showMessage("❌ 牌桌空空，你不能 PASS，必須出牌！", true); // 防呆
     if(myRole === 'host') procBTPass(btMySeat);
     else conn.send({type:'btPass', s:btMySeat});
 }
 
-// 【重點備註】房主統一處理「任何玩家」的出牌邏輯 (包含銷毀手牌陣列)
 function procBTPlay(s, cs) {
     let pVals = cs.map(c => c.v);
-    btHands[s] = btHands[s].filter(c => !pVals.includes(c.v)); // 徹底消滅出掉的牌
+    btHands[s] = btHands[s].filter(c => !pVals.includes(c.v)); 
     btTrick = cs; btPass = 0; btTurn = (btTurn + 1) % 4;
     
     if(btHands[s].length === 0){ showVictoryModal(s===btMySeat?'red':'black', false); return; }
@@ -841,34 +862,20 @@ function procBTPlay(s, cs) {
     if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
 }
 
-// 房主統一處理 PASS
 function procBTPass(s) {
     btPass++; btTurn = (btTurn + 1) % 4;
     syncBTTurn(); renBT();
     if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
 }
 
-// 殺手電腦 AI 自動出牌邏輯
 function doBTAI() {
     let h = btHands[btTurn];
-    
-    // 當我是第一個出牌，就丟最小的一張
-    if(btTrick.length === 0 || btPass >= 3) { 
-        return procBTPlay(btTurn, [h[0]]); 
-    } 
-    
-    // 如果別人出了牌，我試著壓過去
+    if(btTrick.length === 0 || btPass >= 3) { return procBTPlay(btTurn, [h[0]]); } 
     let lt = getHType(btTrick);
     for(let i=0; i<h.length; i++) {
-        if(lt.t === 1 && h[i].v > lt.v) { 
-            return procBTPlay(btTurn, [h[i]]); 
-        }
-        if(lt.t === 2 && i < h.length-1 && h[i].r === h[i+1].r && h[i+1].v > lt.v) { 
-            return procBTPlay(btTurn, [h[i], h[i+1]]); 
-        }
+        if(lt.t === 1 && h[i].v > lt.v) { return procBTPlay(btTurn, [h[i]]); }
+        if(lt.t === 2 && i < h.length-1 && h[i].r === h[i+1].r && h[i+1].v > lt.v) { return procBTPlay(btTurn, [h[i], h[i+1]]); }
     }
-    
-    // 如果打不過，就 PASS
     procBTPass(btTurn); 
 }
 </script>
