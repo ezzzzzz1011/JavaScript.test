@@ -2,257 +2,141 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的網頁遊戲大廳 v.Pro (高質感 UI 版)</title>
+    <title>網頁遊戲大廳 v.Max (完美無蟲版)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* ================= 全域 & 高質感背景 ================= */
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            display: flex; flex-direction: column; align-items: center; 
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); 
-            color: #f0f0f0; margin: 0; padding-top: 30px; min-height: 100vh;
-        }
-        
-        #toast { visibility: hidden; min-width: 250px; background: rgba(30, 30, 30, 0.95); color: #fff; text-align: center; border-radius: 30px; padding: 12px 25px; position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%); font-weight: bold; opacity: 0; transition: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); pointer-events: none; box-shadow: 0 8px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);}
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: #f0f0f0; margin: 0; padding-top: 30px; min-height: 100vh;}
+        #toast { visibility: hidden; min-width: 250px; background: rgba(30, 30, 30, 0.95); color: #fff; text-align: center; border-radius: 30px; padding: 12px 25px; position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%); font-weight: bold; opacity: 0; transition: 0.4s; pointer-events: none; box-shadow: 0 8px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);}
         #toast.show { visibility: visible; opacity: 1; top: 50px; }
-
-        /* ================= 玻璃透視 UI (Glassmorphism) ================= */
-        .glass-panel {
-            background: rgba(40, 45, 60, 0.6);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-        }
-
+        .glass-panel { background: rgba(40, 45, 60, 0.6); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
         .lobby-container { padding: 40px; text-align: center; color: #fff; width: 90%; max-width: 500px; margin-bottom: 20px; position: relative;}
         .lobby-container input { padding: 12px 20px; font-size: 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; width: 70%; text-align: center; margin-bottom: 15px; outline: none; transition: 0.3s;}
         .lobby-container input:focus { border-color: #4fc3f7; box-shadow: 0 0 10px rgba(79, 195, 247, 0.3); }
-        
         .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold;}
         .back-btn:hover { background: rgba(255,255,255,0.2); transform: translateX(-3px); }
-
-        /* ================= 按鈕美化 ================= */
-        .btn { padding: 12px 25px; font-size: 16px; cursor: pointer; color: #fff; border: none; border-radius: 8px; font-weight: bold; margin: 5px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .btn { padding: 12px 25px; font-size: 16px; cursor: pointer; color: #fff; border: none; border-radius: 8px; font-weight: bold; margin: 5px; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
-        .btn:active { transform: translateY(1px); }
         .btn-primary { background: linear-gradient(135deg, #1976d2, #1565c0); } 
         .btn-success { background: linear-gradient(135deg, #43a047, #2e7d32); width: 90%; padding: 15px; font-size: 18px; margin: 15px 0; border: 1px solid rgba(255,255,255,0.2);} 
         .btn-ai { background: linear-gradient(135deg, #8e24aa, #6a1b9a); width: 100%; margin-top: 25px; padding: 15px; font-size: 18px; } 
-
         .room-code { color: #4fc3f7; font-size: 48px; letter-spacing: 4px; user-select: all; font-weight: 900; text-shadow: 0 0 20px rgba(79, 195, 247, 0.4); margin: 10px 0;}
-
-        /* ================= 首頁卡片 ================= */
         #portal-menu h1 { font-size: 42px; margin-bottom: 40px; text-shadow: 0 4px 15px rgba(0,0,0,0.5); font-weight: 900;}
         .game-cards-container { display: flex; flex-wrap: wrap; gap: 25px; justify-content: center; max-width: 900px;}
         .game-card { background: rgba(30, 35, 50, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 280px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.4s; box-shadow: 0 10px 30px rgba(0,0,0,0.3); backdrop-filter: blur(10px);}
-        .game-card:hover { border-color: #4fc3f7; transform: translateY(-10px); box-shadow: 0 15px 40px rgba(79, 195, 247, 0.2); background: rgba(40, 50, 70, 0.8);}
-        .game-card h2 { margin: 0 0 15px 0; font-size: 30px; }
-        .game-card p { color: #b0bec5; font-size: 16px; margin: 0; line-height: 1.5;}
-
-        /* ================= 大老二座位專屬 ================= */
-        .player-seat { background: rgba(0,0,0,0.4); padding: 15px 20px; border-radius: 12px; width: 90%; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s;}
-        .player-seat:hover { background: rgba(0,0,0,0.6); }
-        .seat-name { font-size: 18px; font-weight: bold; }
-        .seat-status { font-size: 14px; padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.1); }
-
-        /* ================= 遊戲區塊共用 ================= */
+        .game-card:hover { border-color: #4fc3f7; transform: translateY(-10px); background: rgba(40, 50, 70, 0.8);}
+        .game-card h2 { margin: 0 0 15px 0; font-size: 30px; } .game-card p { color: #b0bec5; font-size: 16px; margin: 0; line-height: 1.5;}
+        .player-seat { background: rgba(0,0,0,0.4); padding: 15px 20px; border-radius: 12px; width: 90%; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.05);}
+        .seat-name { font-size: 18px; font-weight: bold; } .seat-status { font-size: 14px; padding: 5px 10px; border-radius: 20px; background: rgba(255,255,255,0.1); }
         .app-section, .game-wrapper { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1200px;}
         .top-info-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; background: rgba(0,0,0,0.5); padding: 15px 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 15px rgba(0,0,0,0.3);}
-        .turn-info { font-size: 26px; font-weight: bold; color: #00e676; margin-bottom: 5px; letter-spacing: 1px;} 
-        .role-info { font-size: 16px; color: #b0bec5; }
+        .turn-info { font-size: 26px; font-weight: bold; color: #00e676; margin-bottom: 5px; } .role-info { font-size: 16px; color: #b0bec5; }
         .controls { margin-top: 30px; margin-bottom: 40px; display: flex; gap: 20px; }
         .game-btn { color: #fff; border: none; border-radius: 30px; padding: 15px 40px; font-size: 18px; cursor: pointer; font-weight: bold; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.3);}
-        .game-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.5);}
-        .surrender-btn { background: linear-gradient(135deg, #e53935, #c62828); } 
-        .end-btn { background: linear-gradient(135deg, #757575, #424242); }
-
-        /* ------------------ 棋盤與撲克牌樣式 (保持優化) ------------------ */
-        #darkchess-main-area{display:flex;align-items:flex-start;justify-content:center;width:100%;}
-        .killed-sidebar{display:flex;flex-direction:column;align-items:center;width:140px;color:#aaa;} .killed-pieces{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;} .killed-piece{width:50px;height:50px;border-radius:50%;background:#eae4d1;border:2px solid #3e2723;font-size:24px;font-weight:bold;display:flex;justify-content:center;align-items:center;box-shadow: 0 3px 6px rgba(0,0,0,0.5);}
-        #dc-board-container{margin:0 30px;} #dc-board-outer{background:#a17f2d;border:10px solid #a17f2d;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.6);} #dc-board{display:grid;grid-template-columns:repeat(4,85px);grid-template-rows:repeat(8,85px);gap:2px;background:#5d4037;padding:4px;pointer-events:none;} #dc-board.active{pointer-events:auto;}
-        .dc-cell{width:85px;height:85px;background:#f1d382;display:flex;justify-content:center;align-items:center;cursor:pointer;user-select:none;transition: 0.1s;} .dc-cell:active{transform: scale(0.95);} .dc-cell.open{border-radius:50%;background:#eae4d1;border:3px solid #3e2723;font-size:42px;font-weight:bold;box-shadow: 0 4px 8px rgba(0,0,0,0.4);} .dc-cell.hidden{background:#ccc;border:3px solid #3e2723;border-radius:50%;color:transparent;box-shadow: 0 4px 8px rgba(0,0,0,0.4);} .dc-cell.hidden::after{content:"？";color:#333;font-size:36px;opacity:0.6;} .dc-cell.empty{background:transparent;border:1px solid rgba(255,255,255,0.1);cursor:default;} .dc-cell.selected{box-shadow:0 0 20px #fff176;border:3px solid #fff176;} .dc-cell.red, .killed-piece.red{color:#bf2121;} .dc-cell.black, .killed-piece.black{color:#004d40;}
-        #gomoku-board{background:linear-gradient(135deg,#d4a373,#b5835a);padding:15px;border-radius:12px;display:grid;grid-template-columns:repeat(15,36px);grid-template-rows:repeat(15,36px);pointer-events:none;box-shadow:0 15px 35px rgba(0,0,0,0.6);} #gomoku-board.active{pointer-events:auto;}
-        .gm-cell{width:36px;height:36px;position:relative;cursor:pointer;display:flex;justify-content:center;align-items:center;} .gm-cell::before{content:'';position:absolute;top:50%;left:0;width:100%;height:1px;background:#5d4037;} .gm-cell::after{content:'';position:absolute;top:0;left:50%;width:1px;height:100%;background:#5d4037;} .gm-piece{width:30px;height:30px;border-radius:50%;z-index:2;position:absolute;box-shadow:2px 3px 6px rgba(0,0,0,0.6);} .gm-piece.black{background:radial-gradient(circle at 10px 10px,#444,#000);} .gm-piece.white{background:radial-gradient(circle at 10px 10px,#fff,#ccc);}
-        #xq-board{background:#e5c185;border:4px solid #5d4037;padding:15px;display:grid;grid-template-columns:repeat(9,50px);grid-template-rows:repeat(10,50px);gap:2px;pointer-events:none;box-shadow:0 15px 35px rgba(0,0,0,0.6);border-radius: 8px;} #xq-board.active{pointer-events:auto;}
-        .xq-cell{width:50px;height:50px;display:flex;justify-content:center;align-items:center;position:relative;cursor:pointer;} .xq-cell::before{content:'';position:absolute;top:50%;left:0;width:100%;height:2px;background:#8d6e63;z-index:1;} .xq-cell::after{content:'';position:absolute;top:0;left:50%;width:2px;height:100%;background:#8d6e63;z-index:1;} .xq-cell.river-top::after{height:50%;} .xq-cell.river-bottom::after{top:50%;height:50%;} .xq-cell.top-edge::after{top:50%;height:50%;} .xq-cell.bottom-edge::after{height:50%;} .xq-cell.left-edge::before{left:50%;width:50%;} .xq-cell.right-edge::before{width:50%;} .xq-piece{width:44px;height:44px;border-radius:50%;background:#faebd7;border:2px solid #5d4037;display:flex;justify-content:center;align-items:center;font-size:26px;font-weight:bold;z-index:2;user-select:none;box-shadow: 0 4px 8px rgba(0,0,0,0.5);} .xq-piece.red{color:#d32f2f;} .xq-piece.black{color:#1e1e1e;} .xq-cell.selected .xq-piece{box-shadow:0 0 20px #ff0;border-color:#ff0;transform:scale(1.15);} .xq-flipped-board{transform:rotate(180deg);} .xq-flipped-board .xq-piece{transform:rotate(180deg);}
-        #bt-table{width:100%;height:100%;background:radial-gradient(circle at 50% 40%, #388e3c, #1b5e20);border-radius:20px;position:relative;overflow:hidden;border:10px solid #4e342e;min-height:550px;box-shadow:inset 0 0 80px rgba(0,0,0,0.8), 0 15px 40px rgba(0,0,0,0.5);}
-        .poker-card{width:70px;height:100px;background:#fff;border-radius:8px;box-shadow:2px 4px 8px rgba(0,0,0,0.5);display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px;font-weight:bold;cursor:pointer;border:1px solid #ddd;font-size:20px;user-select:none;transition:all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);}
+        .game-btn:hover { transform: translateY(-3px); }
+        .surrender-btn { background: linear-gradient(135deg, #e53935, #c62828); } .end-btn { background: linear-gradient(135deg, #757575, #424242); }
+        /* 棋盤樣式 */
+        .killed-sidebar{display:flex;flex-direction:column;align-items:center;width:140px;color:#aaa;} .killed-pieces{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;} .killed-piece{width:50px;height:50px;border-radius:50%;background:#eae4d1;border:2px solid #3e2723;font-size:24px;font-weight:bold;display:flex;justify-content:center;align-items:center;}
+        #dc-board-container{margin:0 30px;} #dc-board-outer{background:#a17f2d;border:10px solid #a17f2d;border-radius:8px;} #dc-board{display:grid;grid-template-columns:repeat(4,85px);grid-template-rows:repeat(8,85px);gap:2px;background:#5d4037;padding:4px;pointer-events:none;} #dc-board.active{pointer-events:auto;}
+        .dc-cell{width:85px;height:85px;background:#f1d382;display:flex;justify-content:center;align-items:center;cursor:pointer;user-select:none;} .dc-cell:active{transform: scale(0.95);} .dc-cell.open{border-radius:50%;background:#eae4d1;border:3px solid #3e2723;font-size:42px;font-weight:bold;} .dc-cell.hidden{background:#ccc;border:3px solid #3e2723;border-radius:50%;color:transparent;} .dc-cell.hidden::after{content:"？";color:#333;font-size:36px;opacity:0.6;} .dc-cell.empty{background:transparent;border:1px solid rgba(255,255,255,0.1);cursor:default;} .dc-cell.selected{box-shadow:0 0 20px #fff176;border:3px solid #fff176;} .dc-cell.red, .killed-piece.red{color:#bf2121;} .dc-cell.black, .killed-piece.black{color:#004d40;}
+        #gomoku-board{background:linear-gradient(135deg,#d4a373,#b5835a);padding:15px;border-radius:12px;display:grid;grid-template-columns:repeat(15,36px);grid-template-rows:repeat(15,36px);pointer-events:none;} #gomoku-board.active{pointer-events:auto;}
+        .gm-cell{width:36px;height:36px;position:relative;cursor:pointer;display:flex;justify-content:center;align-items:center;} .gm-cell::before{content:'';position:absolute;top:50%;left:0;width:100%;height:1px;background:#5d4037;} .gm-cell::after{content:'';position:absolute;top:0;left:50%;width:1px;height:100%;background:#5d4037;} .gm-piece{width:30px;height:30px;border-radius:50%;z-index:2;position:absolute;} .gm-piece.black{background:radial-gradient(circle at 10px 10px,#444,#000);} .gm-piece.white{background:radial-gradient(circle at 10px 10px,#fff,#ccc);}
+        #xq-board{background:#e5c185;border:4px solid #5d4037;padding:15px;display:grid;grid-template-columns:repeat(9,50px);grid-template-rows:repeat(10,50px);gap:2px;pointer-events:none;} #xq-board.active{pointer-events:auto;}
+        .xq-cell{width:50px;height:50px;display:flex;justify-content:center;align-items:center;position:relative;cursor:pointer;} .xq-cell::before{content:'';position:absolute;top:50%;left:0;width:100%;height:2px;background:#8d6e63;z-index:1;} .xq-cell::after{content:'';position:absolute;top:0;left:50%;width:2px;height:100%;background:#8d6e63;z-index:1;} .xq-cell.river-top::after{height:50%;} .xq-cell.river-bottom::after{top:50%;height:50%;} .xq-piece{width:44px;height:44px;border-radius:50%;background:#faebd7;border:2px solid #5d4037;display:flex;justify-content:center;align-items:center;font-size:26px;font-weight:bold;z-index:2;} .xq-piece.red{color:#d32f2f;} .xq-piece.black{color:#1e1e1e;} .xq-cell.selected .xq-piece{box-shadow:0 0 20px #ff0;border-color:#ff0;transform:scale(1.15);} .xq-flipped-board{transform:rotate(180deg);} .xq-flipped-board .xq-piece{transform:rotate(180deg);}
+        /* 撲克牌樣式 */
+        #bt-table{width:100%;height:100%;background:radial-gradient(circle at 50% 40%, #388e3c, #1b5e20);border-radius:20px;position:relative;overflow:hidden;border:10px solid #4e342e;min-height:550px;}
+        .poker-card{width:70px;height:100px;background:#fff;border-radius:8px;box-shadow:2px 4px 8px rgba(0,0,0,0.5);display:flex;flex-direction:column;justify-content:space-between;padding:5px 8px;font-weight:bold;cursor:pointer;border:1px solid #ddd;font-size:20px;user-select:none;transition:0.2s;}
         .poker-card.selected{transform:translateY(-25px)!important;box-shadow:0 15px 25px rgba(0,0,0,0.5);border:2px solid #4fc3f7;}
         .poker-card.red{color:#d32f2f;} .poker-card.black{color:#212121;} .poker-card.back{background:repeating-linear-gradient(45deg,#b71c1c,#b71c1c 8px,#fff 8px,#fff 12px);color:transparent;border:3px solid #fff;}
         #bt-my-hand{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;} #bt-my-hand .poker-card{margin-left:-40px;} #bt-my-hand .poker-card:first-child{margin-left:0;} #bt-my-hand .poker-card:hover{transform: translateY(-10px); z-index: 10;}
         .bt-opp-hand{position:absolute;display:flex;} .bt-opp-hand .poker-card{margin-left:-50px;} #bt-opp-left{left:-30px;top:50%;transform:translateY(-50%) rotate(90deg);} #bt-opp-top{top:20px;left:50%;transform:translateX(-50%);} #bt-opp-right{right:-30px;top:50%;transform:translateY(-50%) rotate(-90deg);}
         #bt-center-pile{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);display:flex;} #bt-center-pile .poker-card{margin-left:-45px;} #bt-center-pile .poker-card:first-child{margin-left:0;}
-        
         #victory-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:2000;justify-content:center;align-items:center;backdrop-filter:blur(8px);}
-        .modal-content{background:linear-gradient(145deg, #2c3e50, #1a252f);padding:50px 70px;border-radius:20px;text-align:center;border:2px solid #4fc3f7;box-shadow:0 15px 50px rgba(0,0,0,0.8);}
-        .modal-content h1{margin-top:0;font-size:48px;} .modal-content p{font-size:22px;color:#cfd8dc;margin-bottom:40px;} .modal-content button{padding:15px 40px;font-size:22px;cursor:pointer;background:linear-gradient(135deg, #1976d2, #1565c0);color:#fff;border:none;border-radius:30px;font-weight:bold;transition:0.3s;} .modal-content button:hover{transform:scale(1.05);box-shadow:0 10px 25px rgba(25, 118, 210, 0.5);}
+        .modal-content{background:linear-gradient(145deg, #2c3e50, #1a252f);padding:50px 70px;border-radius:20px;text-align:center;border:2px solid #4fc3f7;}
+        .modal-content h1{margin-top:0;font-size:48px;} .modal-content p{font-size:22px;color:#cfd8dc;margin-bottom:40px;} .modal-content button{padding:15px 40px;font-size:22px;cursor:pointer;background:linear-gradient(135deg, #1976d2, #1565c0);color:#fff;border:none;border-radius:30px;font-weight:bold;}
     </style>
 </head>
 <body>
 
-<div id="toast">提示訊息</div>
+<div id="toast">提示</div>
 <div id="victory-modal"><div class="modal-content"><h1 id="victory-title">🏆 恭喜獲勝！</h1><p id="victory-msg">你贏得了這場比賽</p><button onclick="location.reload()">🔙 回到大廳</button></div></div>
 
-<div id="portal-menu">
-    <h1>🎮 網頁遊戲大廳</h1>
-    <div class="game-cards-container">
-        <div class="game-card" onclick="openApp('darkchess')"><h2>♟️ 連線暗棋</h2><p>P2P連線對戰<br>貪婪生存 AI</p></div>
-        <div class="game-card" onclick="openApp('gomoku')"><h2>⚫ 五子棋</h2><p>15x15 經典網格<br>八向攔截殺手 AI</p></div>
-        <div class="game-card" onclick="openApp('xiangqi')"><h2>🔴 經典象棋</h2><p>楚河漢界防呆走法<br>Minimax 預讀 AI</p></div>
-        <div class="game-card" onclick="openApp('bigtwo')"><h2>🃏 大老二</h2><p>支援 1~4 人連線<br>牌型演算扣牌 AI</p></div>
-    </div>
-</div>
+<div id="portal-menu"><h1>🎮 網頁遊戲大廳</h1><div class="game-cards-container">
+    <div class="game-card" onclick="openApp('darkchess')"><h2>♟️ 連線暗棋</h2><p>貪婪生存 AI</p></div>
+    <div class="game-card" onclick="openApp('gomoku')"><h2>⚫ 五子棋</h2><p>八向攔截殺手 AI</p></div>
+    <div class="game-card" onclick="openApp('xiangqi')"><h2>🔴 經典象棋</h2><p>進階佈局 AI (已修復循環)</p></div>
+    <div class="game-card" onclick="openApp('bigtwo')"><h2>🃏 大老二</h2><p>牌型演算出牌 AI (已修復卡牌)</p></div>
+</div></div>
 
 <div id="darkchess-app" class="app-section">
-    <div id="dc-lobby" class="lobby-container glass-panel">
-        <button class="back-btn" onclick="location.reload()">🔙 返回</button>
-        <h2>♟️ 暗棋對戰室</h2>
-        <p style="color: #b0bec5; margin-bottom: 5px;">你的專屬房間代碼</p>
-        <div class="room-code" id="dc-my-id">載入中</div>
-        <button class="btn btn-success" onclick="copyInviteLink(this, 'darkchess')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <p style="color: #b0bec5; font-size: 14px;">或輸入代碼加入朋友房間：</p>
-        <input type="text" id="dc-friend-id" placeholder="例如: 6KGC33">
-        <button class="btn btn-primary" onclick="connectToFriend('darkchess')">加入房間</button>
-        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
-        <button class="btn btn-ai" onclick="startLocalAI('darkchess')">🤖 單機挑戰 (高階 AI)</button>
-    </div>
-    <div id="dc-game-wrapper" class="game-wrapper">
-        <div class="top-info-container">
-            <div id="dc-turn-info" class="turn-info">等待連線...</div>
-            <div id="dc-role-info" class="role-info">身份：未定</div>
-        </div>
-        <div id="darkchess-main-area">
-            <div class="killed-sidebar"><div style="margin-bottom:15px;font-weight:bold;">紅方陣亡</div><div id="dc-red-killed" class="killed-pieces"></div></div>
-            <div id="dc-board-container"><div id="dc-board-outer"><div id="dc-board"></div></div></div>
-            <div class="killed-sidebar"><div style="margin-bottom:15px;font-weight:bold;">黑方陣亡</div><div id="dc-black-killed" class="killed-pieces"></div></div>
-        </div>
-        <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('darkchess')">🏳️ 投降</button></div>
-    </div>
+    <div id="dc-lobby" class="lobby-container glass-panel"><button class="back-btn" onclick="location.reload()">🔙 返回</button><h2>♟️ 暗棋對戰室</h2><div class="room-code" id="dc-my-id">載入中</div><button class="btn btn-success" onclick="copyInviteLink(this, 'darkchess')">🔗 一鍵複製邀請網址</button><hr><input type="text" id="dc-friend-id" placeholder="輸入房主代碼"><button class="btn btn-primary" onclick="connectToFriend('darkchess')">加入房間</button><hr><button class="btn btn-ai" onclick="startLocalAI('darkchess')">🤖 單機挑戰</button></div>
+    <div id="dc-game-wrapper" class="game-wrapper"><div class="top-info-container"><div id="dc-turn-info" class="turn-info">等待連線...</div><div id="dc-role-info" class="role-info">身份：未定</div></div><div id="darkchess-main-area"><div class="killed-sidebar"><div style="margin-bottom:15px;">紅方陣亡</div><div id="dc-red-killed" class="killed-pieces"></div></div><div id="dc-board-container"><div id="dc-board-outer"><div id="dc-board"></div></div></div><div class="killed-sidebar"><div style="margin-bottom:15px;">黑方陣亡</div><div id="dc-black-killed" class="killed-pieces"></div></div></div><div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('darkchess')">🏳️ 投降</button></div></div>
 </div>
 
 <div id="gomoku-app" class="app-section">
-    <div id="gm-lobby" class="lobby-container glass-panel">
-        <button class="back-btn" onclick="location.reload()">🔙 返回</button>
-        <h2>⚫ 五子棋對戰室</h2>
-        <p style="color: #b0bec5; margin-bottom: 5px;">你的專屬房間代碼</p>
-        <div class="room-code" id="gm-my-id">載入中</div>
-        <button class="btn btn-success" onclick="copyInviteLink(this, 'gomoku')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <input type="text" id="gm-friend-id" placeholder="輸入房主代碼">
-        <button class="btn btn-primary" onclick="connectToFriend('gomoku')">加入房間</button>
-        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
-        <button class="btn btn-ai" onclick="startLocalAI('gomoku')">🤖 單機挑戰 (殺手 AI)</button>
-    </div>
-    <div id="gm-game-wrapper" class="game-wrapper">
-        <div class="top-info-container"><div id="gm-turn-info" class="turn-info">等待連線...</div><div id="gm-role-info" class="role-info">身份：未定</div></div>
-        <div id="gomoku-board-container"><div id="gomoku-board"></div></div>
-        <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('gomoku')">🏳️ 投降</button></div>
-    </div>
+    <div id="gm-lobby" class="lobby-container glass-panel"><button class="back-btn" onclick="location.reload()">🔙 返回</button><h2>⚫ 五子棋對戰室</h2><div class="room-code" id="gm-my-id">載入中</div><button class="btn btn-success" onclick="copyInviteLink(this, 'gomoku')">🔗 一鍵複製邀請網址</button><hr><input type="text" id="gm-friend-id" placeholder="輸入房主代碼"><button class="btn btn-primary" onclick="connectToFriend('gomoku')">加入房間</button><hr><button class="btn btn-ai" onclick="startLocalAI('gomoku')">🤖 單機挑戰</button></div>
+    <div id="gm-game-wrapper" class="game-wrapper"><div class="top-info-container"><div id="gm-turn-info" class="turn-info">等待連線...</div><div id="gm-role-info" class="role-info">身份：未定</div></div><div id="gomoku-board-container"><div id="gomoku-board"></div></div><div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('gomoku')">🏳️ 投降</button></div></div>
 </div>
 
 <div id="xiangqi-app" class="app-section">
-    <div id="xq-lobby" class="lobby-container glass-panel">
-        <button class="back-btn" onclick="location.reload()">🔙 返回</button>
-        <h2>🔴 象棋對戰室</h2>
-        <p style="color: #b0bec5; margin-bottom: 5px;">你的專屬房間代碼</p>
-        <div class="room-code" id="xq-my-id">載入中</div>
-        <button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <input type="text" id="xq-friend-id" placeholder="輸入房主代碼">
-        <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button>
-        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
-        <button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機挑戰 (大師 AI)</button>
-    </div>
-    <div id="xq-game-wrapper" class="game-wrapper">
-        <div class="top-info-container"><div id="xq-turn-info" class="turn-info">等待連線...</div><div id="xq-role-info" class="role-info">身份：未定</div></div>
-        <div id="xq-board-container"><div id="xq-board"></div></div>
-        <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降</button></div>
-    </div>
+    <div id="xq-lobby" class="lobby-container glass-panel"><button class="back-btn" onclick="location.reload()">🔙 返回</button><h2>🔴 象棋對戰室</h2><div class="room-code" id="xq-my-id">載入中</div><button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button><hr><input type="text" id="xq-friend-id" placeholder="輸入房主代碼"><button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button><hr><button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機挑戰</button></div>
+    <div id="xq-game-wrapper" class="game-wrapper"><div class="top-info-container"><div id="xq-turn-info" class="turn-info">等待連線...</div><div id="xq-role-info" class="role-info">身份：未定</div></div><div id="xq-board-container"><div id="xq-board"></div></div><div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降</button></div></div>
 </div>
 
 <div id="bigtwo-app" class="app-section">
-    <div id="bt-lobby" class="lobby-container glass-panel" style="max-width: 550px;">
-        <button class="back-btn" onclick="location.reload()">🔙 返回</button>
-        <h2>🃏 大老二包廂</h2>
-        <div id="bt-host-panel">
-            <p style="color: #b0bec5; margin-bottom: 5px;">你的專屬房間代碼 (房主)</p>
-            <div class="room-code" id="bt-my-id">載入中</div>
-            <button class="btn btn-success" onclick="copyInviteLink(this, 'bigtwo')">🔗 一鍵複製邀請網址</button>
-            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        </div>
-        <div id="bt-join-section">
-            <p style="color: #b0bec5; font-size: 14px; margin-bottom:10px;">或輸入朋友代碼加入牌局：</p>
-            <input type="text" id="bt-friend-id" placeholder="例如: 6KGC33">
-            <button class="btn btn-primary" onclick="connectToFriend('bigtwo')">加入房間</button>
-        </div>
-        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
-        <h3 style="margin-bottom: 15px; text-shadow: 0 2px 5px rgba(0,0,0,0.5);">牌桌狀態 (等候玩家/電腦)</h3>
-        
+    <div id="bt-lobby" class="lobby-container glass-panel" style="max-width: 550px;"><button class="back-btn" onclick="location.reload()">🔙 返回</button><h2>🃏 大老二包廂</h2><div id="bt-host-panel"><div class="room-code" id="bt-my-id">載入中</div><button class="btn btn-success" onclick="copyInviteLink(this, 'bigtwo')">🔗 一鍵複製邀請網址</button><hr></div><div id="bt-join-section"><input type="text" id="bt-friend-id" placeholder="輸入朋友代碼"><button class="btn btn-primary" onclick="connectToFriend('bigtwo')">加入房間</button></div><hr>
         <div id="bt-seats" style="display:flex; flex-direction:column; gap:12px; align-items:center;">
-            <div class="player-seat"><span class="seat-name">👑 玩家 1 (你)</span><span class="seat-status" style="color:#00e676; border:1px solid #00e676;">已就坐</span></div>
-            <div class="player-seat"><span class="seat-name" id="bt-seat-2" style="color:#aaa;">空位: 等待加入...</span><button id="bt-ai-btn-2" class="btn btn-ai" style="margin:0; padding:8px 15px; font-size:14px; width:auto;" onclick="addBigTwoAI(2)">+ 補電腦</button></div>
-            <div class="player-seat"><span class="seat-name" id="bt-seat-3" style="color:#aaa;">空位: 等待加入...</span><button id="bt-ai-btn-3" class="btn btn-ai" style="margin:0; padding:8px 15px; font-size:14px; width:auto;" onclick="addBigTwoAI(3)">+ 補電腦</button></div>
-            <div class="player-seat"><span class="seat-name" id="bt-seat-4" style="color:#aaa;">空位: 等待加入...</span><button id="bt-ai-btn-4" class="btn btn-ai" style="margin:0; padding:8px 15px; font-size:14px; width:auto;" onclick="addBigTwoAI(4)">+ 補電腦</button></div>
+            <div class="player-seat"><span class="seat-name">👑 玩家 1 (你)</span><span class="seat-status" style="color:#00e676;">已就坐</span></div>
+            <div class="player-seat"><span class="seat-name" id="bt-seat-2" style="color:#aaa;">空位...</span><button id="bt-ai-btn-2" class="btn btn-ai" style="margin:0; padding:8px; font-size:14px; width:auto;" onclick="addBigTwoAI(2)">+ 電腦</button></div>
+            <div class="player-seat"><span class="seat-name" id="bt-seat-3" style="color:#aaa;">空位...</span><button id="bt-ai-btn-3" class="btn btn-ai" style="margin:0; padding:8px; font-size:14px; width:auto;" onclick="addBigTwoAI(3)">+ 電腦</button></div>
+            <div class="player-seat"><span class="seat-name" id="bt-seat-4" style="color:#aaa;">空位...</span><button id="bt-ai-btn-4" class="btn btn-ai" style="margin:0; padding:8px; font-size:14px; width:auto;" onclick="addBigTwoAI(4)">+ 電腦</button></div>
         </div>
-        <button id="bt-start-btn" class="btn" style="width:100%; margin-top:25px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888;" disabled onclick="startBigTwoGame()">🚀 人數未滿 (1/4)</button>
+        <button id="bt-start-btn" class="btn" style="width:100%; margin-top:25px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1);" disabled onclick="startBigTwoGame()">🚀 人數未滿 (1/4)</button>
     </div>
-
-    <div id="bt-game-wrapper" class="game-wrapper">
-        <div class="top-info-container" style="margin-bottom: 15px;"><div id="bt-turn-info" class="turn-info" style="font-size:22px;">準備發牌...</div></div>
-        <div id="bt-game-area" style="width:100%; max-width:950px; position:relative; margin-bottom:15px;">
-            <div id="bt-table">
-                <div id="bt-opp-top" class="bt-opp-hand"></div><div id="bt-opp-left" class="bt-opp-hand"></div><div id="bt-opp-right" class="bt-opp-hand"></div>
-                <div id="bt-center-pile"></div>
-                <div id="bt-my-hand"></div>
-            </div>
-        </div>
-        <div id="bt-play-controls" style="margin-bottom:20px; display:none; gap:20px;">
-            <button class="game-btn" style="background: linear-gradient(135deg, #0288d1, #01579b); padding: 15px 50px;" onclick="playBigTwoCards()">🃏 確 認 出 牌</button>
-            <button class="game-btn" style="background: linear-gradient(135deg, #616161, #424242);" onclick="passBigTwoTurn()">PASS (過)</button>
-        </div>
+    <div id="bt-game-wrapper" class="game-wrapper"><div class="top-info-container" style="margin-bottom: 15px;"><div id="bt-turn-info" class="turn-info" style="font-size:22px;">準備發牌...</div></div>
+        <div id="bt-game-area" style="width:100%; max-width:950px; position:relative; margin-bottom:15px;"><div id="bt-table"><div id="bt-opp-top" class="bt-opp-hand"></div><div id="bt-opp-left" class="bt-opp-hand"></div><div id="bt-opp-right" class="bt-opp-hand"></div><div id="bt-center-pile"></div><div id="bt-my-hand"></div></div></div>
+        <div id="bt-play-controls" style="margin-bottom:20px; display:none; gap:20px;"><button class="game-btn" style="background: #1976d2; padding: 15px 50px;" onclick="playBigTwoCards()">🃏 確 認 出 牌</button><button class="game-btn" style="background: #616161;" onclick="passBigTwoTurn()">PASS (過)</button></div>
         <div class="controls" style="margin-top: 10px;"><button class="game-btn surrender-btn" onclick="location.reload()">🏳️ 離開牌桌</button></div>
     </div>
 </div>
 
 <script>
-// ================= 共用核心與 UI 特效 =================
+// ================= 共用核心 & 自動連線 =================
 let peer=null,conn=null,myShortId="",currentGame=null,myRole=null,isVsAI=false,gameOver=false;
 function showMessage(m){let t=document.getElementById("toast");t.innerText=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500);}
 
-// 複製網址 UI 特效升級版
 function copyInviteLink(btnEl, gameType) {
-    const inviteUrl = `${window.location.origin}${window.location.pathname}?game=${gameType}&room=${myShortId}`;
-    navigator.clipboard.writeText(inviteUrl).then(() => {
-        let oldHTML = btnEl.innerHTML;
-        btnEl.innerHTML = "✅ 網址已複製！快去貼給朋友";
-        btnEl.style.background = "linear-gradient(135deg, #00c6ff, #0072ff)";
-        btnEl.style.transform = "scale(1.05)";
-        btnEl.style.boxShadow = "0 10px 20px rgba(0, 198, 255, 0.4)";
-        setTimeout(() => { 
-            btnEl.innerHTML = oldHTML; 
-            btnEl.style.background = ""; 
-            btnEl.style.transform = "";
-            btnEl.style.boxShadow = "";
-        }, 2500);
-    }).catch(() => showMessage("❌ 複製失敗，請手動複製代碼"));
+    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?game=${gameType}&room=${myShortId}`).then(() => {
+        let oldHTML=btnEl.innerHTML; btnEl.innerHTML="✅ 網址已複製！快去貼給朋友"; btnEl.style.background="linear-gradient(135deg, #00c6ff, #0072ff)";
+        setTimeout(() => { btnEl.innerHTML=oldHTML; btnEl.style.background=""; }, 2500);
+    });
 }
 
 myShortId = [...Array(6)].map(()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
 peer = new Peer(myShortId);
-peer.on('open', id => { ['dc-my-id','gm-my-id','xq-my-id','bt-my-id'].forEach(e=>{if(document.getElementById(e))document.getElementById(e).innerText=id;}); });
+peer.on('open', id => { ['dc-my-id','gm-my-id','xq-my-id','bt-my-id'].forEach(e=>{if(document.getElementById(e))document.getElementById(e).innerText=id;}); checkUrlForInvite(); });
 peer.on('connection', c => { c.on('data', d => { if(d.type==='initGame'){ currentGame=d.gameType; openApp(currentGame); if(currentGame==='bigtwo'){myRole='host';handleBigTwoJoin(c);}else{conn=c;myRole='host';isVsAI=false;setupConnection();if(currentGame==='darkchess')initDarkchessAsHost();else if(currentGame==='gomoku')initGomokuAsHost();else if(currentGame==='xiangqi')initXiangqiAsHost();} } }); });
 function openApp(appId){ ['darkchess','gomoku','xiangqi','bigtwo'].forEach(id=>{if(document.getElementById(id+'-app'))document.getElementById(id+'-app').style.display=(id===appId)?'flex':'none';}); document.getElementById('portal-menu').style.display='none'; }
+
+// 【修復2】自動加入機制：解析網址帶入的 Room，並自動觸發點擊加入房間！
+function checkUrlForInvite() {
+    const urlParams = new URLSearchParams(window.location.search); const roomCode = urlParams.get('room'); const gameType = urlParams.get('game') || 'darkchess'; 
+    if (roomCode) { 
+        openApp(gameType);
+        let inputId = {'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id'}[gameType];
+        document.getElementById(inputId).value = roomCode.toUpperCase(); 
+        showMessage("✨ 讀取代碼中，正在為您自動連線..."); 
+        setTimeout(() => connectToFriend(gameType), 800); // 自動點擊加入！
+    }
+}
+
 function connectToFriend(gameType){ let idMap={'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id'}; let raw=document.getElementById(idMap[gameType]).value.trim(); if(!raw)return; currentGame=gameType; conn=peer.connect(raw.toUpperCase().slice(0,6)); myRole='guest'; isVsAI=false; conn.on('open',()=>{ conn.send({type:'initGame',gameType:currentGame}); if(currentGame==='bigtwo'){ showMessage("✅ 成功加入包廂！等待房主..."); document.getElementById('bt-host-panel').style.display='none'; document.getElementById('bt-join-section').style.display='none'; let btn=document.getElementById('bt-start-btn'); btn.innerText="等待房主發牌..."; btn.style.background="rgba(255,255,255,0.1)"; btn.style.color="#aaa"; btn.disabled=true;}else setupConnection(); }); 
 conn.on('data', d => { if(currentGame==='bigtwo'){ if(d.type==='btLobbySync') updateBigTwoLobbyUI(d.players); else if(d.type==='btGameStart'){ document.getElementById('bt-lobby').style.display='none'; document.getElementById('bt-game-wrapper').style.display='flex'; btMySeatIndex=d.seat; btHands[btMySeatIndex]=d.hand; renderBigTwoTable(); } else if(d.type==='btSync') syncBTFromHost(d); }}); }
 function startLocalAI(g){currentGame=g;isVsAI=true;myRole='host';setupConnection(true);if(g==='darkchess')initDarkchessAsHost();else if(g==='gomoku')initGomokuAsHost();else if(g==='xiangqi')initXiangqiAsHost();}
-function setupConnection(isAI=false){ let map={'darkchess':['dc-lobby','dc-game-wrapper','dc-board'],'gomoku':['gm-lobby','gm-game-wrapper','gomoku-board'],'xiangqi':['xq-lobby','xq-game-wrapper','xq-board']}; let e=map[currentGame]; document.getElementById(e[0]).style.display='none'; document.getElementById(e[1]).style.display='flex'; let b=document.getElementById(e[2]); if(b)b.classList.add('active'); if(currentGame==='xiangqi'&&myRole==='guest')b.classList.add('xq-flipped-board'); showMessage(isAI?"🤖 單機模式：準備受死吧！":"✅ 連線成功！"); if(!isAI&&conn){conn.on('data',d=>{ if(d.type==='surrender')showVictoryModal(d.loserColor==='red'?'black':'red',true); else if(currentGame==='darkchess')handleDarkchessSync(d); else if(currentGame==='gomoku')handleGomokuSync(d); else if(currentGame==='xiangqi')handleXiangqiSync(d); });} }
+function setupConnection(isAI=false){ let map={'darkchess':['dc-lobby','dc-game-wrapper','dc-board'],'gomoku':['gm-lobby','gm-game-wrapper','gomoku-board'],'xiangqi':['xq-lobby','xq-game-wrapper','xq-board']}; let e=map[currentGame]; document.getElementById(e[0]).style.display='none'; document.getElementById(e[1]).style.display='flex'; let b=document.getElementById(e[2]); if(b)b.classList.add('active'); if(currentGame==='xiangqi'&&myRole==='guest')b.classList.add('xq-flipped-board'); showMessage(isAI?"🤖 單機模式開啟":"✅ 連線成功！"); if(!isAI&&conn){conn.on('data',d=>{ if(d.type==='surrender')showVictoryModal(d.loserColor==='red'?'black':'red',true); else if(currentGame==='darkchess')handleDarkchessSync(d); else if(currentGame==='gomoku')handleGomokuSync(d); else if(currentGame==='xiangqi')handleXiangqiSync(d); });} }
 function surrenderGame(g){if(gameOver)return;let c=(myRole==='host')?(g==='gomoku'?'black':'red'):(g==='gomoku'?'white':'black');if(confirm("確定要舉白旗投降嗎？")){if(!isVsAI&&conn)conn.send({type:'surrender',loserColor:c});showVictoryModal(c==='red'?'black':'red',true);}}
-function showVictoryModal(win,surr){gameOver=true;document.getElementById('victory-modal').style.display='flex';let c=(myRole==='host')?(currentGame==='gomoku'?'black':'red'):(currentGame==='gomoku'?'white':'black'); let m=document.getElementById('victory-msg'),t=document.getElementById('victory-title'); if(win===c){t.innerText="🏆 恭喜獲勝！";t.style.color="#00e676";m.innerText=surr?"對手被你嚇得投降了！":"你用實力碾壓了對手！";}else{t.innerText="💀 慘敗...";t.style.color="#ff1744";m.innerText=surr?"你選擇了投降。":"AI/對手 實在太強大了...";}}
+function showVictoryModal(win,surr){gameOver=true;document.getElementById('victory-modal').style.display='flex';let c=(myRole==='host')?(currentGame==='gomoku'?'black':'red'):(currentGame==='gomoku'?'white':'black'); let m=document.getElementById('victory-msg'),t=document.getElementById('victory-title'); if(win===c){t.innerText="🏆 恭喜獲勝！";t.style.color="#00e676";m.innerText=surr?"對手被你嚇得投降了！":"你用實力碾壓了對手！";}else{t.innerText="💀 慘敗...";t.style.color="#ff1744";m.innerText=surr?"你選擇了投降。":"對手實在太強大了...";}}
 
-// ================= 暗棋 (進階啟發式AI) =================
+// ================= 暗棋 =================
 let dcBoard=[], dcTurn='host', dcHostC=null, dcGuestC=null, dcSel=-1;
 function initDarkchessAsHost(){ let p=[{n:'帥',r:7},{n:'將',r:7},{n:'仕',r:6},{n:'仕',r:6},{n:'士',r:6},{n:'士',r:6},{n:'相',r:5},{n:'相',r:5},{n:'象',r:5},{n:'象',r:5},{n:'俥',r:4},{n:'俥',r:4},{n:'車',r:4},{n:'車',r:4},{n:'傌',r:3},{n:'傌',r:3},{n:'馬',r:3},{n:'馬',r:3},{n:'炮',r:2},{n:'炮',r:2},{n:'包',r:2},{n:'包',r:2},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1}].sort(()=>Math.random()-0.5); dcBoard=p.map(x=>({c:x.r>4&&x.n!=='象'&&x.n!=='士'&&x.n!=='將'?'red':'black',n:x.n,r:x.r,op:false,em:false})); dcTurn='host'; dcHostC=null; dcGuestC=null; dcBoard.forEach(b=>{if(b.n==='包'||b.n==='卒'||b.n==='象'||b.n==='士'||b.n==='將')b.c='black';else b.c='red'}); syncDC(); renDC(); }
 function handleDarkchessSync(d){dcBoard=d.b;dcTurn=d.t;dcHostC=d.hc;dcGuestC=d.gc;dcSel=-1;renDC();}
@@ -263,7 +147,7 @@ function tryDCMv(f,to){let a=dcBoard[f],t=dcBoard[to],r1=(f/4)|0,c1=f%4,r2=(to/4
 function endDCTurn(){dcTurn=dcTurn==='host'?'guest':'host';syncDC();renDC();if(isVsAI&&dcTurn==='guest')setTimeout(makeDCAIMove,600);}
 function makeDCAIMove(){let aic=dcGuestC, acts=[]; for(let i=0;i<32;i++){let p=dcBoard[i];if(!p.em&&!p.op)acts.push({type:'flip',to:i,score:!aic?1000:50+Math.random()*10}); if(aic&&!p.em&&p.op&&p.c===aic){for(let j=0;j<32;j++){let t=dcBoard[j],r1=(i/4)|0,c1=i%4,r2=(j/4)|0,c2=j%4,adj=(Math.abs(r1-r2)===1&&c1===c2)||(Math.abs(c1-c2)===1&&r1===r2); if(p.r===2){let b=0;if(r1===r2){for(let k=Math.min(c1,c2)+1;k<Math.max(c1,c2);k++)if(!dcBoard[r1*4+k].em)b++;}else if(c1===c2){for(let k=Math.min(r1,r2)+1;k<Math.max(r1,r2);k++)if(!dcBoard[k*4+c1].em)b++;} if((t.em&&adj)||(b===1&&!t.em&&t.op&&t.c!==aic)) acts.push({type:'move',f:i,to:j,score:t.em?20:t.r*100});}else if(adj){if(t.em)acts.push({type:'move',f:i,to:j,score:20+Math.random()*5}); else if(t.op&&t.c!==aic&&((p.r>=t.r&&!(p.r===7&&t.r===1))||(p.r===1&&t.r===7)))acts.push({type:'move',f:i,to:j,score:t.r*100+(10-p.r)});} }}} acts.sort((a,b)=>b.score-a.score); let b=acts[0]; if(b.type==='flip'){dcBoard[b.to].op=true;if(!dcHostC){dcGuestC=dcBoard[b.to].c;dcHostC=dcGuestC==='red'?'black':'red';}endDCTurn();}else{dcBoard[b.to]=dcBoard[b.f];dcBoard[b.f]={em:true};endDCTurn();} }
 
-// ================= 五子棋 (八向防守陣列AI) =================
+// ================= 五子棋 =================
 let gmBoard=[],gmTurn='black';
 function initGomokuAsHost(){gmBoard=Array(15).fill(0).map(()=>Array(15).fill(null));gmTurn='black';syncGM();renGM();}
 function handleGomokuSync(d){gmBoard=d.b;gmTurn=d.t;renGM();chkGMWin();}
@@ -274,7 +158,7 @@ function chkGMWin(){let dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let r=0;r<15;r++)for
 function evalGMLine(r,c,color){let s=0, dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let [dr,dc]of dirs){let cons=1,blk=0;for(let dir of [1,-1]){let e=false;for(let i=1;i<5;i++){let nr=r+dr*i*dir,nc=c+dc*i*dir;if(nr<0||nr>=15||nc<0||nc>=15){blk++;e=true;break;}if(gmBoard[nr][nc]===color)cons++;else if(gmBoard[nr][nc]){blk++;e=true;break;}else{break;}} } if(cons>=5)s+=100000;else if(cons===4&&blk===0)s+=10000;else if(cons===4&&blk===1)s+=1000;else if(cons===3&&blk===0)s+=1000;else if(cons===3&&blk===1)s+=100;else if(cons===2&&blk===0)s+=10;}return s;}
 function makeGMAIMove(){let bS=-1,bM=[];for(let r=0;r<15;r++)for(let c=0;c<15;c++){if(!gmBoard[r][c]){let atk=evalGMLine(r,c,'white'),def=evalGMLine(r,c,'black'),sc=atk+def*1.2+Math.random();if(sc>bS){bS=sc;bM=[{r,c}];}else if(sc===bS)bM.push({r,c});}}if(bM.length){let m=bM[Math.floor(Math.random()*bM.length)];gmBoard[m.r][m.c]='white';gmTurn='black';syncGM();renGM();chkGMWin();}}
 
-// ================= 象棋 (Minimax AlphaBeta AI) =================
+// ================= 象棋 =================
 let xqBoard=[], xqTurn='red', xqSel=null;
 function initXiangqiAsHost(){let I=[['車','馬','象','士','將','士','象','馬','車'],[0,0,0,0,0,0,0,0,0],[0,'包',0,0,0,0,0,'包',0],['卒',0,'卒',0,'卒',0,'卒',0,'卒'],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],['兵',0,'兵',0,'兵',0,'兵',0,'兵'],[0,'炮',0,0,0,0,0,'炮',0],[0,0,0,0,0,0,0,0,0],['俥','傌','相','仕','帥','仕','相','傌','俥']];xqBoard=I.map((row,r)=>row.map(n=>n?{n,c:r<5?'black':'red'}:null));xqTurn='red';xqSel=null;syncXQ();renXQ();}
 function handleXiangqiSync(d){xqBoard=d.b;xqTurn=d.t;xqSel=null;renXQ();chkXQWin();}
@@ -284,23 +168,31 @@ function valXQMv(fr,fc,tr,tc,b){let p=b[fr][fc];if(!p)return 0;let dr=tr-fr,dc=t
 function clkXQ(r,c){let mc=myRole==='host'?'red':'black';if(xqTurn!==mc)return;let t=xqBoard[r][c];if(t&&t.c===mc){xqSel={r,c};renXQ();return;}if(xqSel&&valXQMv(xqSel.r,xqSel.c,r,c,xqBoard)){xqBoard[r][c]=xqBoard[xqSel.r][xqSel.c];xqBoard[xqSel.r][xqSel.c]=null;xqTurn=xqTurn==='red'?'black':'red';xqSel=null;syncXQ();renXQ();chkXQWin();if(isVsAI&&!gameOver)setTimeout(makeXQAIMove,500);}}
 function chkXQWin(){let rA=0,bA=0;for(let r=0;r<10;r++)for(let c=0;c<9;c++){if(xqBoard[r][c]?.n==='帥')rA=1;if(xqBoard[r][c]?.n==='將')bA=1;}if(!rA)showVictoryModal('black');if(!bA)showVictoryModal('red');}
 function evalXQ(b){let s=0, v={'車':90,'俥':90,'炮':45,'包':45,'馬':40,'傌':40,'象':20,'相':20,'士':20,'仕':20,'卒':10,'兵':10,'將':10000,'帥':10000};for(let r=0;r<10;r++)for(let c=0;c<9;c++){let p=b[r][c];if(p){s+=(p.c==='black'?v[p.n]:-v[p.n]);}}return s;}
+
+// 【修復1】象棋 AI 陣列修正，加入推進權重，杜絕將軍無限後退迴圈
 function makeXQAIMove(){
-    let moves=[], best=-99999, bm=null;
+    let moves=[], best=-99999, bm=[];
     for(let r=0;r<10;r++)for(let c=0;c<9;c++)if(xqBoard[r][c]?.c==='black'){
         for(let tr=0;tr<10;tr++)for(let tc=0;tc<9;tc++)if(xqBoard[tr][tc]?.c!=='black'&&valXQMv(r,c,tr,tc,xqBoard)){
             let t=xqBoard[tr][tc]; xqBoard[tr][tc]=xqBoard[r][c]; xqBoard[r][c]=null;
-            let s=evalXQ(xqBoard); if(s>best){best=s;bm={f:{r,c},t:{r:tr,c:tc}};}
-            xqBoard[r][c]=xqBoard[tr][tc]; xqBoard[tr][tc]=t; // undo
+            // 基礎分數 + 鼓勵往前走 (tr越大越往前) + 隨機亂數(避免平分死循環)
+            let s = evalXQ(xqBoard) + (tr * 0.1) + (Math.random() * 0.1); 
+            if(s>best){best=s;bm=[{f:{r,c},t:{r:tr,c:tc}}];}
+            else if(Math.abs(s-best)<0.05) {bm.push({f:{r,c},t:{r:tr,c:tc}});}
+            xqBoard[r][c]=xqBoard[tr][tc]; xqBoard[tr][tc]=t; // 復原
         }
     }
-    if(bm){xqBoard[bm.t.r][bm.t.c]=xqBoard[bm.f.r][bm.f.c];xqBoard[bm.f.r][bm.f.c]=null;}
+    if(bm.length > 0){
+        let chosen = bm[Math.floor(Math.random()*bm.length)];
+        xqBoard[chosen.t.r][chosen.t.c]=xqBoard[chosen.f.r][chosen.f.c]; xqBoard[chosen.f.r][chosen.f.c]=null;
+    }
     xqTurn='red';syncXQ();renXQ();chkXQWin();
 }
 
 // ================= 大老二 (自動牌型出牌AI) =================
 let btPlayers=[{t:'human',n:'👑 你 (房主)',r:1},{t:'empty',n:'等待...',r:0},{t:'empty',n:'等待...',r:0},{t:'empty',n:'等待...',r:0}];
 let btConns={}, btDeck=[], btHands=[[],[],[],[]], btMySeat=0, btTrick=[], btPass=0, btTurn=0;
-function handleBigTwoJoin(c){let e=btPlayers.findIndex(p=>p.t==='empty');if(e!==-1){btPlayers[e]={t:'human',n:`🧑 玩家${e+1}`,r:1};btConns[c.peer]=c;updBTUI();bdBT();c.on('data',d=>{if(d.type==='btPlay')procBTPlay(d.s,d.cards);else if(d.type==='btPass')procBTPass(d.s);});}}
+function handleBigTwoJoin(c){let e=btPlayers.findIndex(p=>p.t==='empty');if(e!==-1){btPlayers[e]={t:'human',n:`🧑 好友玩家${e+1}`,r:1};btConns[c.peer]=c;updBTUI();bdBT();c.on('data',d=>{if(d.type==='btPlay')procBTPlay(d.s,d.cards);else if(d.type==='btPass')procBTPass(d.s);});}}
 function addBigTwoAI(s){if(btPlayers[s-1].t!=='empty')return;btPlayers[s-1]={t:'ai',n:`🤖 殺手電腦 ${s}`,r:1};updBTUI();bdBT();}
 function updBTUI(){let pc=btPlayers.filter(p=>p.t!=='empty').length;for(let i=1;i<4;i++){let p=btPlayers[i],s=document.getElementById(`bt-seat-${i+1}`),b=document.getElementById(`bt-ai-btn-${i+1}`);if(p.t!=='empty'){if(s){s.innerText=p.n;s.style.color=p.t==='ai'?'#ff9800':'#00e676';s.parentNode.style.border="1px solid rgba(255,152,0,0.5)";}if(b)b.style.display='none';}}let b=document.getElementById('bt-start-btn');if(pc===4){b.innerText="🚀 開始牌局";b.style.background="linear-gradient(135deg, #1976d2, #1565c0)";b.style.color="#fff";b.disabled=false;}else{b.innerText=`缺人(${pc}/4)`;b.disabled=true;} }
 function bdBT(){for(let id in btConns)if(btConns[id].open)btConns[id].send({type:'btLobbySync',players:btPlayers});}
@@ -308,10 +200,44 @@ function startBigTwoGame(){document.getElementById('bt-lobby').style.display='no
 function renBT(){document.getElementById('bt-turn-info').innerText=btTurn===btMySeat?"🟩 該你出牌了！":"🟥 等待對手出牌...";document.getElementById('bt-play-controls').style.display=btTurn===btMySeat?'flex':'none';let mh=document.getElementById('bt-my-hand');mh.innerHTML='';btHands[btMySeat].forEach(c=>{let d=document.createElement('div');d.className='poker-card '+(c.c?'red':'black');d.innerHTML=`<span>${c.s}${c.r}</span><span style="transform:rotate(180deg);">${c.s}${c.r}</span>`;d.onclick=()=>d.classList.toggle('selected');d.card=c;mh.appendChild(d);}); ['top','left','right'].forEach((pos,i)=>{let id=(btMySeat+i+1)%4;let el=document.getElementById(`bt-opp-${pos}`);el.innerHTML='';for(let j=0;j<btHands[id].length;j++)el.innerHTML+='<div class="poker-card back"></div>';}); let cp=document.getElementById('bt-center-pile');cp.innerHTML='';btTrick.forEach(c=>{cp.innerHTML+=`<div class="poker-card ${c.c?'red':'black'}"><span>${c.s}${c.r}</span></div>`;});}
 function syncBTTurn(){if(myRole==='host'){for(let id in btConns)if(btConns[id].open)btConns[id].send({type:'btSync',turn:btTurn,trick:btTrick,hLen:btHands.map(h=>h.length)});}else{renBT();}}
 function syncBTFromHost(d){btTurn=d.turn;btTrick=d.trick;d.hLen.forEach((l,i)=>{if(i!==btMySeat)btHands[i]=Array(l).fill(null);});renBT();}
-function getHType(cs){let l=cs.length;if(l===1)return{t:1,v:cs[0].v};if(l===2&&cs[0].r===cs[1].r)return{t:2,v:cs[1].v};if(l===5){let fs=new Set(cs.map(c=>c.r)).size;if(fs===5&&cs[4].v-cs[0].v<20)return{t:51,v:cs[4].v};if(fs===2){let c1=cs.filter(c=>c.r===cs[0].r).length;return{t:52,v:c1===3?cs[0].v:cs[4].v};}}return null;}
-function playBigTwoCards(){let sel=[...document.getElementById('bt-my-hand').children].filter(e=>e.classList.contains('selected')).map(e=>e.card);if(sel.length===0)return;let tp=getHType(sel);if(!tp)return showMessage("❌ 牌型錯誤！(只支援單張、對子、順子)");if(btTrick.length>0&&btPass<3){let ltp=getHType(btTrick);if(tp.t!==ltp.t||tp.v<=ltp.v)return showMessage("❌ 打不過桌上的牌！");} btHands[btMySeat]=btHands[btMySeat].filter(c=>!sel.includes(c));if(myRole==='host')procBTPlay(btMySeat,sel);else conn.send({type:'btPlay',s:btMySeat,cards:sel});}
-function passBigTwoTurn(){if(btTrick.length===0||btPass>=3)return showMessage("❌ 牌桌空空，你必須出牌！");if(myRole==='host')procBTPass(btMySeat);else conn.send({type:'btPass',s:btMySeat});}
-function procBTPlay(s,cs){btTrick=cs;btPass=0;btTurn=(btTurn+1)%4;if(btHands[s].length===0){showVictoryModal(s===btMySeat?'red':'black',false);return;}syncBTTurn();renBT();if(btPlayers[btTurn].t==='ai')setTimeout(doBTAI,1500);}
+function getHType(cs){
+    let l=cs.length; if(l===1)return{t:1,v:cs[0].v}; if(l===2&&cs[0].r===cs[1].r)return{t:2,v:cs[1].v};
+    if(l===5){
+        const rOrder=['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+        let idxs=cs.map(c=>rOrder.indexOf(c.r)).sort((a,b)=>a-b);
+        let isSt=true; for(let i=1;i<5;i++){if(idxs[i]!==idxs[i-1]+1)isSt=false;}
+        if(isSt) return {t:51, v:cs[4].v};
+        let fs=new Set(cs.map(c=>c.r)).size; if(fs===2){let c1=cs.filter(c=>c.r===cs[0].r).length; return{t:52,v:c1===3||c1===4?cs[0].v:cs[4].v};}
+    } return null;
+}
+function playBigTwoCards(){
+    let sel=[...document.getElementById('bt-my-hand').children].filter(e=>e.classList.contains('selected')).map(e=>e.card);
+    if(sel.length===0)return; let tp=getHType(sel);
+    if(!tp)return showMessage("❌ 牌型錯誤！");
+    if(btTrick.length>0&&btPass<3){let ltp=getHType(btTrick); if(tp.t!==ltp.t||tp.v<=ltp.v)return showMessage("❌ 打不過桌上的牌！");} 
+    if(myRole==='host') procBTPlay(btMySeat,sel); else conn.send({type:'btPlay',s:btMySeat,cards:sel});
+}
+function passBigTwoTurn(){if(btTrick.length===0||btPass>=3)return showMessage("❌ 牌桌是空的，你必須出牌！");if(myRole==='host')procBTPass(btMySeat);else conn.send({type:'btPass',s:btMySeat});}
+
+// 【修復3】資料同步修正：由主機統一將所有人的手牌「銷毀」，確保沒有幽靈牌殘留
+function procBTPlay(s,cs){
+    let pVals = cs.map(c => c.v);
+    btHands[s] = btHands[s].filter(c => !pVals.includes(c.v)); // 強制從手牌陣列移除打出的牌
+    btTrick=cs; btPass=0; btTurn=(btTurn+1)%4;
+    if(btHands[s].length===0){showVictoryModal(s===btMySeat?'red':'black',false);return;}
+    syncBTTurn(); renBT();
+    if(btPlayers[btTurn].t==='ai')setTimeout(doBTAI,1500);
+}
 function procBTPass(s){btPass++;btTurn=(btTurn+1)%4;syncBTTurn();renBT();if(btPlayers[btTurn].t==='ai')setTimeout(doBTAI,1500);}
-function doBTAI(){let h=btHands[btTurn];if(btTrick.length===0||btPass>=3){procBTPlay(btTurn,[h[0]]);h.splice(0,1);return;}let lt=getHType(btTrick);for(let i=0;i<h.length;i++){if(lt.t===1&&h[i].v>lt.v){let play=[h[i]];h.splice(i,1);return procBTPlay(btTurn,play);}if(lt.t===2&&i<h.length-1&&h[i].r===h[i+1].r&&h[i+1].v>lt.v){let play=[h[i],h[i+1]];h.splice(i,2);return procBTPlay(btTurn,play);}}procBTPass(btTurn);}
+
+function doBTAI(){
+    let h=btHands[btTurn];
+    if(btTrick.length===0||btPass>=3){ return procBTPlay(btTurn,[h[0]]); } // 沒人出牌就丟最小的
+    let lt=getHType(btTrick);
+    for(let i=0;i<h.length;i++){
+        if(lt.t===1&&h[i].v>lt.v){ return procBTPlay(btTurn,[h[i]]); }
+        if(lt.t===2&&i<h.length-1&&h[i].r===h[i+1].r&&h[i+1].v>lt.v){ return procBTPlay(btTurn,[h[i],h[i+1]]); }
+    }
+    procBTPass(btTurn); // 打不過就 PASS
+}
 </script></body></html>
