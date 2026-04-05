@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>網頁遊戲大廳 v.Pro (終極防呆與聰明 AI 版)</title>
+    <title>網頁遊戲大廳 v.Max (完美排版無蟲版)</title>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
@@ -211,10 +211,10 @@
             <h2>⚫ 五子棋</h2><p>15x15 經典網格<br>八向攔截殺手 AI</p>
         </div>
         <div class="game-card" onclick="openApp('xiangqi')">
-            <h2>🔴 經典象棋</h2><p>完美楚河漢界<br>攻守兼備防衛 AI</p>
+            <h2>🔴 經典象棋</h2><p>完美楚河漢界<br>攻守兼備防跳 AI</p>
         </div>
         <div class="game-card" onclick="openApp('bigtwo')">
-            <h2>🃏 大老二</h2><p>支援 1~4 人連線<br>牌型演算扣牌 AI</p>
+            <h2>🃏 大老二</h2><p>支援 1~4 人連線<br>牌型演算不卡死 AI</p>
         </div>
     </div>
 </div>
@@ -477,9 +477,9 @@ function connectToFriend(gameType) {
                 renderBigTwoTable(); 
             } else if(d.type === 'btSync') {
                 syncBTFromHost(d); 
-            } else if(d.type === 'surrender') {
-                // 接收到房主發送的遊戲結束訊號
-                showVictoryModal(d.loserColor === 'red' ? 'black' : 'red', false);
+            } else if(d.type === 'btWin') {
+                // 接收到房主發送的大老二遊戲結束訊號
+                showVictoryModal(d.winnerSeat, false);
             }
         } 
         else if (currentGame === 'darkchess') { handleDarkchessSync(d); }
@@ -515,31 +515,39 @@ function setupConnection(isAI = false) {
     showMessage(isAI ? "🤖 單機模式開啟" : "✅ 連線成功！"); 
 }
 
-// 投降與結算
+// 投降邏輯
 function surrenderGame(g) {
     if(gameOver) return;
-    let c = (myRole==='host') ? (g==='gomoku'?'black':'red') : (g==='gomoku'?'white':'black');
+    let c;
+    if (g === 'darkchess') c = myRole==='host' ? dcHostC : dcGuestC;
+    else if (g === 'gomoku') c = myRole==='host' ? 'black' : 'white';
+    else if (g === 'xiangqi') c = myRole==='host' ? 'red' : 'black';
+
     if(confirm("確定要舉白旗投降嗎？")) {
         if(!isVsAI && conn) conn.send({type:'surrender', loserColor:c});
-        showVictoryModal(c==='red'?'black':'red', true);
+        showVictoryModal(c === 'red' ? 'black' : 'red', true);
     }
 }
 
-function showVictoryModal(win, surr) {
+// 【修復】精準的勝利結算視窗
+function showVictoryModal(winnerCode, surr) {
     gameOver = true;
     document.getElementById('victory-modal').style.display = 'flex';
-    let c = (myRole === 'host') ? (currentGame==='gomoku'?'black':'red') : (currentGame==='gomoku'?'white':'black'); 
-    
-    // 大老二的判斷較特別，因為只有 s (座位)
-    if(currentGame === 'bigtwo') {
-        c = (myRole === 'host') ? 'red' : 'black'; // 主機預設視為紅，客端為黑 (簡化顯示)
-    }
-
     let m = document.getElementById('victory-msg'), t = document.getElementById('victory-title'); 
-    if(win === c) {
-        t.innerText = "🏆 恭喜獲勝！"; t.style.color = "#00e676"; m.innerText = surr ? "對手被你嚇得投降了！" : "你用實力碾壓了對局！";
+    
+    // 判斷自己是否為贏家
+    let iWon = false;
+    if (currentGame === 'darkchess') iWon = (winnerCode === (myRole === 'host' ? dcHostC : dcGuestC));
+    else if (currentGame === 'gomoku') iWon = (winnerCode === (myRole === 'host' ? 'black' : 'white'));
+    else if (currentGame === 'xiangqi') iWon = (winnerCode === (myRole === 'host' ? 'red' : 'black'));
+    else if (currentGame === 'bigtwo') iWon = (winnerCode === btMySeat);
+
+    if(iWon) {
+        t.innerText = "🏆 恭喜獲勝！"; t.style.color = "#00e676"; 
+        m.innerText = surr ? "對手被你嚇得投降了！" : "你用實力碾壓了對局！";
     } else {
-        t.innerText = "💀 慘敗..."; t.style.color = "#ff1744"; m.innerText = surr ? "你選擇了投降。" : "對手實在太強大了...";
+        t.innerText = "💀 慘敗..."; t.style.color = "#ff1744"; 
+        m.innerText = surr ? "你選擇了投降。" : "對手實在太強大了...";
     }
 }
 
@@ -550,12 +558,12 @@ function showVictoryModal(win, surr) {
 
 // --- 暗棋 (Darkchess) ---
 let dcBoard=[], dcTurn='host', dcHostC=null, dcGuestC=null, dcSel=-1;
-let dcRedKilled=[], dcBlackKilled=[]; // 【修復】陣亡名單變數
+let dcRedKilled=[], dcBlackKilled=[]; 
 
 function initDarkchessAsHost() { 
     let p=[{n:'帥',r:7},{n:'將',r:7},{n:'仕',r:6},{n:'仕',r:6},{n:'士',r:6},{n:'士',r:6},{n:'相',r:5},{n:'相',r:5},{n:'象',r:5},{n:'象',r:5},{n:'俥',r:4},{n:'俥',r:4},{n:'車',r:4},{n:'車',r:4},{n:'傌',r:3},{n:'傌',r:3},{n:'馬',r:3},{n:'馬',r:3},{n:'炮',r:2},{n:'炮',r:2},{n:'包',r:2},{n:'包',r:2},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'兵',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1},{n:'卒',r:1}].sort(()=>Math.random()-0.5); 
     dcBoard=p.map(x=>({c:x.r>4&&x.n!=='象'&&x.n!=='士'&&x.n!=='將'?'red':'black',n:x.n,r:x.r,op:false,em:false})); 
-    dcTurn='host'; dcHostC=null; dcGuestC=null; dcRedKilled=[]; dcBlackKilled=[]; // 初始化
+    dcTurn='host'; dcHostC=null; dcGuestC=null; dcRedKilled=[]; dcBlackKilled=[]; 
     dcBoard.forEach(b=>{if(b.n==='包'||b.n==='卒'||b.n==='象'||b.n==='士'||b.n==='將')b.c='black';else b.c='red'}); 
     syncDC(); renDC(); renderDCKilledPieces();
 }
@@ -563,7 +571,7 @@ function initDarkchessAsHost() {
 function handleDarkchessSync(d) {
     dcBoard=d.b; dcTurn=d.t; dcHostC=d.hc; dcGuestC=d.gc; 
     dcRedKilled=d.rk||[]; dcBlackKilled=d.bk||[]; dcSel=-1; 
-    renDC(); renderDCKilledPieces();
+    renDC(); renderDCKilledPieces(); chkDCWin();
 }
 
 function syncDC() {
@@ -571,7 +579,6 @@ function syncDC() {
     document.getElementById('dc-turn-info').innerText=dcTurn===myRole?"🟩 你的回合":"🟥 等待對手...";
 }
 
-// 【修復】繪製暗棋陣亡區
 function renderDCKilledPieces() {
     const rContainer = document.getElementById('dc-red-killed'); const bContainer = document.getElementById('dc-black-killed');
     if(!rContainer || !bContainer) return;
@@ -580,7 +587,7 @@ function renderDCKilledPieces() {
     dcBlackKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.n; bContainer.appendChild(div); });
 }
 
-function renDC(){
+function renDC() {
     let b=document.getElementById('dc-board'); b.innerHTML='';
     dcBoard.forEach((p,i)=>{
         let c=document.createElement('div');
@@ -592,9 +599,9 @@ function renDC(){
     });
 }
 
-function clkDC(i){
+function clkDC(i) {
     if(gameOver) return;
-    if(dcTurn!==myRole) return showMessage("❌ 還沒輪到你！", true); // 防呆
+    if(dcTurn!==myRole) return showMessage("❌ 還沒輪到你！", true); 
     let t=dcBoard[i], mc=myRole==='host'?dcHostC:dcGuestC; 
     if(!t.em&&t.op&&t.c===mc){dcSel=dcSel===i?-1:i;renDC();return;} 
     if(dcSel!==-1){
@@ -614,10 +621,9 @@ function clkDC(i){
     }
 }
 
-function tryDCMv(f,to){
+function tryDCMv(f,to) {
     let a=dcBoard[f], t=dcBoard[to], r1=(f/4)|0, c1=f%4, r2=(to/4)|0, c2=to%4, adj=(Math.abs(r1-r2)===1&&c1===c2)||(Math.abs(c1-c2)===1&&r1===r2); 
     
-    // 執行吃子並更新陣亡名單
     const doCapture = () => {
         if (!t.em) { if (t.c === 'red') dcRedKilled.push(t); else dcBlackKilled.push(t); }
         dcBoard[to]=a; dcBoard[f]={em:true}; endDCTurn(); return true;
@@ -645,13 +651,19 @@ function tryDCMv(f,to){
     }
 }
 
-function endDCTurn(){
-    dcTurn = dcTurn==='host'?'guest':'host';
-    syncDC(); renDC(); renderDCKilledPieces(); // 同步畫面
-    if(isVsAI&&dcTurn==='guest')setTimeout(makeDCAIMove,600);
+function chkDCWin() {
+    if(dcRedKilled.length === 16) showVictoryModal('black', false);
+    else if(dcBlackKilled.length === 16) showVictoryModal('red', false);
 }
 
-function makeDCAIMove(){
+function endDCTurn() {
+    dcTurn = dcTurn==='host'?'guest':'host';
+    syncDC(); renDC(); renderDCKilledPieces(); chkDCWin();
+    if(isVsAI&&dcTurn==='guest' && !gameOver) setTimeout(makeDCAIMove,600);
+}
+
+function makeDCAIMove() {
+    if(gameOver) return;
     let aic=dcGuestC, acts=[]; 
     for(let i=0;i<32;i++){
         let p=dcBoard[i];
@@ -677,7 +689,6 @@ function makeDCAIMove(){
         if(!dcHostC){dcGuestC=dcBoard[b.to].c;dcHostC=dcGuestC==='red'?'black':'red';}
         endDCTurn();
     }else{
-        // 電腦吃子判定
         let t = dcBoard[b.to];
         if (!t.em) { if (t.c === 'red') dcRedKilled.push(t); else dcBlackKilled.push(t); }
         dcBoard[b.to]=dcBoard[b.f]; dcBoard[b.f]={em:true}; 
@@ -695,8 +706,8 @@ function renGM(){let b=document.getElementById('gomoku-board');b.innerHTML='';fo
 function clkGM(r,c){
     if(gameOver) return;
     let mc=myRole==='host'?'black':'white';
-    if(gmTurn!==mc) return showMessage("❌ 還沒輪到你！", true); // 防呆
-    if(gmBoard[r][c]) return showMessage("❌ 這裡已經有棋子了！", true); // 防呆
+    if(gmTurn!==mc) return showMessage("❌ 還沒輪到你！", true); 
+    if(gmBoard[r][c]) return showMessage("❌ 這裡已經有棋子了！", true); 
     
     gmBoard[r][c]=mc; gmTurn=mc==='black'?'white':'black'; syncGM(); renGM(); chkGMWin();
     if(isVsAI&&!gameOver) setTimeout(makeGMAIMove,500);
@@ -706,14 +717,15 @@ function evalGMLine(r,c,color){let s=0, dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let 
 function makeGMAIMove(){let bS=-1,bM=[];for(let r=0;r<15;r++)for(let c=0;c<15;c++){if(!gmBoard[r][c]){let atk=evalGMLine(r,c,'white'),def=evalGMLine(r,c,'black'),sc=atk+def*1.2+Math.random();if(sc>bS){bS=sc;bM=[{r,c}];}else if(sc===bS)bM.push({r,c});}}if(bM.length){let m=bM[Math.floor(Math.random()*bM.length)];gmBoard[m.r][m.c]='white';gmTurn='black';syncGM();renGM();chkGMWin();}}
 
 
-// --- 象棋 (Xiangqi 攻守兼備 AI) ---
+// --- 象棋 (Xiangqi 攻守兼備 & 防跳恰恰 AI) ---
 let xqBoard=[], xqTurn='red', xqSel=null;
 let xqRedKilled=[], xqBlackKilled=[]; 
+let xqLastAIMove = null; // 【修復】紀錄 AI 上一步，避免來回跳
 
-function initXiangqiAsHost(){
+function initXiangqiAsHost() {
     let I=[['車','馬','象','士','將','士','象','馬','車'],[0,0,0,0,0,0,0,0,0],[0,'包',0,0,0,0,0,'包',0],['卒',0,'卒',0,'卒',0,'卒',0,'卒'],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],['兵',0,'兵',0,'兵',0,'兵',0,'兵'],[0,'炮',0,0,0,0,0,'炮',0],[0,0,0,0,0,0,0,0,0],['俥','傌','相','仕','帥','仕','相','傌','俥']];
     xqBoard=I.map((row,r)=>row.map(n=>n?{n,c:r<5?'black':'red'}:null));
-    xqTurn='red'; xqSel=null; xqRedKilled=[]; xqBlackKilled=[]; 
+    xqTurn='red'; xqSel=null; xqRedKilled=[]; xqBlackKilled=[]; xqLastAIMove=null;
     syncXQ(); renXQ(); renderXQKilledPieces();
 }
 
@@ -722,7 +734,7 @@ function handleXiangqiSync(d){
     renXQ(); renderXQKilledPieces(); chkXQWin();
 }
 
-function syncXQ(){
+function syncXQ() {
     if(!isVsAI&&conn) conn.send({game:'xiangqi',type:'sync',b:xqBoard,t:xqTurn,rk:xqRedKilled,bk:xqBlackKilled});
     document.getElementById('xq-turn-info').innerText = xqTurn===myRole ? "🟩 你的回合 (行棋)" : "🟥 等待對手...";
 }
@@ -773,7 +785,7 @@ function clkXQ(r,c){
 
 function chkXQWin(){let rA=0,bA=0;for(let r=0;r<10;r++)for(let c=0;c<9;c++){if(xqBoard[r][c]?.n==='帥')rA=1;if(xqBoard[r][c]?.n==='將')bA=1;}if(!rA)showVictoryModal('black');if(!bA)showVictoryModal('red');}
 
-// 【修復】AI 危險偵測雷達：檢查特定格子是否會被敵方攻擊
+// 檢查特定格子是否被特定顏色威脅
 function isXQAttacked(tr, tc, attC, b) {
     for(let r=0; r<10; r++) for(let c=0; c<9; c++) {
         if(b[r][c]?.c === attC && valXQMv(r, c, tr, tc, b)) return true;
@@ -781,8 +793,7 @@ function isXQAttacked(tr, tc, attC, b) {
     return false;
 }
 
-// 【修復】攻守兼備 AI：防護自己、追殺敵人
-function makeXQAIMove(){
+function makeXQAIMove() {
     let moves=[], best=-99999, bm=[];
     let v={'車':90,'俥':90,'炮':45,'包':45,'馬':40,'傌':40,'象':20,'相':20,'士':20,'仕':20,'卒':10,'兵':10,'將':10000,'帥':10000};
     
@@ -791,27 +802,28 @@ function makeXQAIMove(){
             let target = xqBoard[tr][tc];
             let piece = xqBoard[r][c];
             
-            // 1. 吃子的價值
-            let s = target ? v[target.n] : 0; 
+            // 基礎吃子分數 + 推進分數
+            let s = (target ? v[target.n] : 0) + (tr * 0.1); 
             
-            // 2. 往前推進微小獎勵
-            s += (tr * 0.1); 
-            
-            // 3. 【防守】如果現在這顆棋子正在被威脅，能逃跑就加分！
+            // 如果這顆棋子正在被紅方威脅，走開就加分 (逃跑機制)
             if (isXQAttacked(r, c, 'red', xqBoard)) {
-                s += v[piece.n] * 0.8; // 救下一顆棋子的價值
+                s += v[piece.n] * 0.8; 
             }
             
-            // 4. 【防守】如果目標格子是死胡同(會被吃)，嚴厲扣分！(避免無腦送頭)
-            // 為了不改變棋盤，我們先假裝移動過去測測看
+            // 假裝移動過去，測試會不會被吃掉 (避免送頭)
             xqBoard[tr][tc] = piece; xqBoard[r][c] = null;
             if (isXQAttacked(tr, tc, 'red', xqBoard)) {
-                s -= v[piece.n]; // 扣除即將損失的價值
+                s -= v[piece.n]; 
             }
             // 復原棋盤
             xqBoard[r][c] = piece; xqBoard[tr][tc] = target;
 
-            s += (Math.random() * 0.1); // 隨機性避免死循環
+            // 【修復】嚴厲懲罰來回跳恰恰！如果跟上一步完全相反，直接大扣分
+            if (xqLastAIMove && xqLastAIMove.f.r === tr && xqLastAIMove.f.c === tc && xqLastAIMove.t.r === r && xqLastAIMove.t.c === c) {
+                s -= 100; 
+            }
+
+            s += (Math.random() * 0.2); // 亂數避免平分死循環
             
             if(s>best){best=s; bm=[{f:{r,c},t:{r:tr,c:tc}}];}
             else if(Math.abs(s-best)<0.05) {bm.push({f:{r,c},t:{r:tr,c:tc}});}
@@ -819,6 +831,10 @@ function makeXQAIMove(){
     }
     if(bm.length > 0){
         let chosen = bm[Math.floor(Math.random()*bm.length)];
+        
+        // 紀錄這一步，供下次避免跳舞
+        xqLastAIMove = {f:{r:chosen.f.r, c:chosen.f.c}, t:{r:chosen.t.r, c:chosen.t.c}};
+
         let target = xqBoard[chosen.t.r][chosen.t.c];
         if (target) { if (target.c === 'red') xqRedKilled.push(target); else xqBlackKilled.push(target); }
 
@@ -830,7 +846,7 @@ function makeXQAIMove(){
 
 
 // ==========================================================================
-// 大老二 (Big Two) - 支援 4 人連線與強力出牌 AI
+// 大老二 (Big Two) - 支援 4 人連線與不卡死出牌 AI
 // ==========================================================================
 let btPlayers=[
     {t:'human', n:'👑 你 (房主)', r:1},
@@ -851,7 +867,7 @@ function handleBigTwoJoin(c) {
 
 function addBigTwoAI(s) {
     if(btPlayers[s-1].t !== 'empty') return;
-    btPlayers[s-1] = {t:'ai', n:`🤖 殺手電腦 ${s}`, r:1};
+    btPlayers[s-1] = {t:'ai', n:`🤖 電腦殺手 ${s}`, r:1};
     updBTUI(); bdBT();
 }
 
@@ -902,7 +918,7 @@ function startBigTwoGame() {
     } 
     syncBTTurn(); 
     
-    if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
+    if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1000);
 }
 
 function renBT() {
@@ -930,16 +946,19 @@ function renBT() {
     });
 }
 
+// 【修復】將 btPass 也同步給朋友，朋友才不會被卡死無法 PASS
 function syncBTTurn() {
     if(myRole === 'host') {
-        for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btSync', turn:btTurn, trick:btTrick, hLen:btHands.map(h=>h.length)});
+        for(let id in btConns) {
+            if(btConns[id].open) btConns[id].send({type:'btSync', turn:btTurn, trick:btTrick, pass:btPass, hLen:btHands.map(h=>h.length)});
+        }
     } else {
         renBT();
     }
 }
 
 function syncBTFromHost(d) {
-    btTurn = d.turn; btTrick = d.trick;
+    btTurn = d.turn; btTrick = d.trick; btPass = d.pass; 
     d.hLen.forEach((l, i) => { if(i !== btMySeat) btHands[i] = Array(l).fill(null); });
     renBT();
 }
@@ -988,40 +1007,35 @@ function passBigTwoTurn() {
     else conn.send({type:'btPass', s:btMySeat});
 }
 
-// 【修復】出牌中央處理器：徹底解決卡住問題，確保同步後再結算
+// 房主統一處理出牌邏輯
 function procBTPlay(s, cs) {
     let pVals = cs.map(c => c.v);
     btHands[s] = btHands[s].filter(c => !pVals.includes(c.v)); 
     btTrick = cs; btPass = 0; btTurn = (btTurn + 1) % 4;
     
-    // 同步桌面狀態給所有人
     syncBTTurn(); renBT();
     
-    // 如果有人出完牌了，廣播獲勝並結束
+    // 遊戲結束判定：精準發送勝利座位
     if(btHands[s].length === 0){ 
-        let winColor = s === btMySeat ? 'red' : 'black';
         if(myRole === 'host') {
-            for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'surrender', loserColor: winColor==='red'?'black':'red'});
+            for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btWin', winnerSeat: s});
         }
-        showVictoryModal(winColor, false); 
+        showVictoryModal(s, false); 
         return; 
     }
     
-    // 沒結束的話，判斷下一位是不是 AI
     if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
 }
 
-// PASS 中央處理器
 function procBTPass(s) {
     btPass++; btTurn = (btTurn + 1) % 4;
     syncBTTurn(); renBT();
     if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
 }
 
-// AI 出牌大腦 (安全防呆版)
 function doBTAI() {
     let h = btHands[btTurn];
-    if(!h || h.length === 0) return; // 防呆
+    if(!h || h.length === 0) return;
     
     if(btTrick.length === 0 || btPass >= 3) { return procBTPlay(btTurn, [h[0]]); } 
     
