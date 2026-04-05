@@ -106,6 +106,38 @@
         .gm-cell:hover:empty::before { content: ''; width: 30px; height: 30px; border-radius: 50%; position: absolute; z-index: 2; opacity: 0.3; }
         #gomoku-board.my-turn-black .gm-cell:not(.has-piece):hover::before { background: radial-gradient(circle at 10px 10px, #444, #000); }
         #gomoku-board.my-turn-white .gm-cell:not(.has-piece):hover::before { background: radial-gradient(circle at 10px 10px, #fff, #ccc); }
+
+        /* ================= 象棋專屬樣式 ================= */
+        #xq-board-container { display: flex; justify-content: center; margin: 10px; }
+        #xq-board { 
+            background-color: #e5c185; border: 4px solid #5d4037; padding: 15px; 
+            display: grid; grid-template-columns: repeat(9, 50px); grid-template-rows: repeat(10, 50px); 
+            gap: 2px; position: relative; pointer-events: none;
+        }
+        #xq-board.active { pointer-events: auto; }
+        .xq-cell { width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; position: relative; cursor: pointer; }
+        /* 畫十字線 */
+        .xq-cell::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background-color: #8d6e63; z-index: 1; }
+        .xq-cell::after { content: ''; position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background-color: #8d6e63; z-index: 1; }
+        /* 楚河漢界 (第5和第6列的直線隱藏) */
+        .xq-cell.river-top::after { height: 50%; }
+        .xq-cell.river-bottom::after { top: 50%; height: 50%; }
+        /* 邊界處理 */
+        .xq-cell.top-edge::after { top: 50%; height: 50%; }
+        .xq-cell.bottom-edge::after { height: 50%; }
+        .xq-cell.left-edge::before { left: 50%; width: 50%; }
+        .xq-cell.right-edge::before { width: 50%; }
+        
+        .xq-piece { 
+            width: 44px; height: 44px; border-radius: 50%; background-color: #faebd7; 
+            border: 2px solid #5d4037; display: flex; justify-content: center; align-items: center; 
+            font-size: 26px; font-weight: bold; z-index: 2; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); 
+            user-select: none; transition: transform 0.1s;
+        }
+        .xq-piece.red { color: #d32f2f; }
+        .xq-piece.black { color: #1e1e1e; }
+        .xq-cell.selected .xq-piece { box-shadow: 0 0 15px #ffff00; border-color: #ffff00; transform: scale(1.1); }
+
     </style>
 </head>
 <body>
@@ -220,6 +252,40 @@
             </div>
         </div>
     </div>
+
+    <div id="xiangqi-app" class="app-section">
+        <div id="xq-lobby" class="lobby-container">
+            <button class="back-btn" onclick="location.reload()">🔙</button>
+            <h2 style="margin-top: 0;">🔴 P2P 經典象棋</h2>
+            <p>你的連線代碼</p>
+            <p><strong id="xq-my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
+            <button class="btn btn-success" onclick="copyInviteLink('xiangqi', 'xq-my-id')">🔗 複製邀請連結傳給朋友</button>
+            <hr style="border: 0; border-top: 1px solid #444; margin-bottom: 20px;">
+            <input type="text" id="xq-friend-id" placeholder="例如: 6KGC33">
+            <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入遊戲</button>
+            <hr style="border: 0; border-top: 1px dashed #666; margin: 25px 0;">
+            <button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機模式 (跟電腦 PK)</button>
+        </div>
+
+        <div id="xq-game-wrapper" class="game-wrapper">
+            <div class="top-info-container">
+                <div class="star-icon">🔴</div>
+                <div id="xq-turn-info" class="turn-info">等待連線...</div>
+                <div id="xq-role-info" class="role-info">身份：未定</div>
+            </div>
+
+            <div id="xq-board-container">
+                <div id="xq-board"></div>
+            </div>
+
+            <div class="controls">
+                <button class="game-btn surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降</button>
+                <button class="game-btn end-btn" onclick="location.reload()">退出遊戲</button>
+            </div>
+        </div>
+    </div>
+
+    
 <script>
         // ================= 共用核心邏輯 =================
         let peer = null;
@@ -273,11 +339,11 @@
         function checkUrlForInvite() {
             const urlParams = new URLSearchParams(window.location.search);
             const roomCode = urlParams.get('room');
-            const gameType = urlParams.get('game') || 'darkchess'; // 預設暗棋
+            const gameType = urlParams.get('game') || 'darkchess'; 
 
             if (roomCode) { 
                 openApp(gameType);
-                let inputId = gameType === 'darkchess' ? 'dc-friend-id' : 'gm-friend-id';
+                let inputId = gameType === 'darkchess' ? 'dc-friend-id' : (gameType === 'gomoku' ? 'gm-friend-id' : 'xq-friend-id');
                 document.getElementById(inputId).value = roomCode.toUpperCase(); 
                 showMessage("✨ 已帶入好友代碼，請點擊加入遊戲！"); 
             }
@@ -292,14 +358,16 @@
             document.getElementById('portal-menu').style.display = 'none';
             document.getElementById('darkchess-app').style.display = 'none';
             document.getElementById('gomoku-app').style.display = 'none';
+            document.getElementById('xiangqi-app').style.display = 'none';
             
             if (appId === 'darkchess') document.getElementById('darkchess-app').style.display = 'flex';
             else if (appId === 'gomoku') document.getElementById('gomoku-app').style.display = 'flex';
+            else if (appId === 'xiangqi') document.getElementById('xiangqi-app').style.display = 'flex';
         }
 
         // 我主動去連別人 (我是 guest)
         function connectToFriend(gameType) {
-            let inputId = gameType === 'darkchess' ? 'dc-friend-id' : 'gm-friend-id';
+            let inputId = gameType === 'darkchess' ? 'dc-friend-id' : (gameType === 'gomoku' ? 'gm-friend-id' : 'xq-friend-id');
             let rawInput = document.getElementById(inputId).value.trim();
             if (!rawInput) return showMessage('請輸入代碼或貼上連結');
             
@@ -325,12 +393,13 @@
             
             if (currentGame === 'darkchess') initDarkchessAsHost();
             else if (currentGame === 'gomoku') initGomokuAsHost();
+            else if (currentGame === 'xiangqi') initXiangqiAsHost();
         }
 
         function setupConnection(isLocalAI = false) {
-            let lobbyId = currentGame === 'darkchess' ? 'dc-lobby' : 'gm-lobby';
-            let wrapperId = currentGame === 'darkchess' ? 'dc-game-wrapper' : 'gm-game-wrapper';
-            let boardId = currentGame === 'darkchess' ? 'dc-board' : 'gomoku-board';
+            let lobbyId = currentGame === 'darkchess' ? 'dc-lobby' : (currentGame === 'gomoku' ? 'gm-lobby' : 'xq-lobby');
+            let wrapperId = currentGame === 'darkchess' ? 'dc-game-wrapper' : (currentGame === 'gomoku' ? 'gm-game-wrapper' : 'xq-game-wrapper');
+            let boardId = currentGame === 'darkchess' ? 'dc-board' : (currentGame === 'gomoku' ? 'gomoku-board' : 'xq-board');
 
             document.getElementById(lobbyId).style.display = 'none'; 
             document.getElementById(wrapperId).style.display = 'flex';
@@ -342,11 +411,14 @@
                     if (data.type === 'surrender') {
                         let winnerColor = data.loserColor === 'black' ? 'red' : 'black';
                         if (currentGame === 'darkchess') winnerColor = data.loserColor === 'red' ? 'black' : 'red';
+                        else if (currentGame === 'xiangqi') winnerColor = data.loserColor === 'red' ? 'black' : 'red';
                         showVictoryModal(winnerColor, true);
                     } else if (currentGame === 'darkchess' && data.game === 'darkchess') {
                         handleDarkchessSync(data);
                     } else if (currentGame === 'gomoku' && data.game === 'gomoku') {
                         handleGomokuSync(data);
+                    } else if (currentGame === 'xiangqi' && data.game === 'xiangqi') {
+                        handleXiangqiSync(data);
                     }
                 });
             }
@@ -357,6 +429,7 @@
             let myAssignedColor = null;
             if (gameType === 'darkchess') myAssignedColor = myRole === 'host' ? dcHostColor : dcGuestColor;
             else if (gameType === 'gomoku') myAssignedColor = myRole === 'host' ? 'black' : 'white';
+            else if (gameType === 'xiangqi') myAssignedColor = myRole === 'host' ? 'red' : 'black';
 
             if (!myAssignedColor) return showMessage("遊戲還沒開始，無法投降！");
             
@@ -366,6 +439,7 @@
                 let winnerColor = null;
                 if (gameType === 'darkchess') winnerColor = myAssignedColor === 'red' ? 'black' : 'red';
                 else if (gameType === 'gomoku') winnerColor = myAssignedColor === 'black' ? 'white' : 'black';
+                else if (gameType === 'xiangqi') winnerColor = myAssignedColor === 'red' ? 'black' : 'red';
                 
                 showVictoryModal(winnerColor, true);
             }
@@ -375,6 +449,7 @@
             gameOver = true;
             document.getElementById('dc-board').classList.remove('active');
             document.getElementById('gomoku-board').classList.remove('active');
+            if (document.getElementById('xq-board')) document.getElementById('xq-board').classList.remove('active');
             
             const modal = document.getElementById('victory-modal');
             const title = document.getElementById('victory-title');
@@ -383,6 +458,7 @@
             let myAssignedColor = null;
             if (currentGame === 'darkchess') myAssignedColor = myRole === 'host' ? dcHostColor : dcGuestColor;
             else if (currentGame === 'gomoku') myAssignedColor = myRole === 'host' ? 'black' : 'white';
+            else if (currentGame === 'xiangqi') myAssignedColor = myRole === 'host' ? 'red' : 'black';
 
             let iWon = (winnerColor === myAssignedColor);
             
@@ -397,7 +473,6 @@
             }
             modal.style.display = 'flex';
         }
-
 
         // ================= 暗棋邏輯 (Darkchess) =================
         const DC_PIECES = [
@@ -793,6 +868,225 @@
                 endGMTurn();
             }
         }
+    // ================= 象棋邏輯 (Xiangqi) =================
+        let xqBoard = []; // 10列 9欄
+        let xqTurn = 'red'; // 紅方永遠先手
+        let xqSelectedIndex = null; // {r, c}
+        const XQ_INITIAL_STATE = [
+            ['車','馬','象','士','將','士','象','馬','車'], // 黑
+            [null,null,null,null,null,null,null,null,null],
+            [null,'包',null,null,null,null,null,'包',null],
+            ['卒',null,'卒',null,'卒',null,'卒',null,'卒'],
+            [null,null,null,null,null,null,null,null,null],
+            [null,null,null,null,null,null,null,null,null], // 楚河漢界
+            ['兵',null,'兵',null,'兵',null,'兵',null,'兵'],
+            [null,'炮',null,null,null,null,null,'炮',null],
+            [null,null,null,null,null,null,null,null,null],
+            ['俥','傌','相','仕','帥','仕','相','傌','俥']  // 紅
+        ];
+
+        function initXiangqiAsHost() {
+            xqBoard = JSON.parse(JSON.stringify(XQ_INITIAL_STATE));
+            // 轉換為物件儲存顏色
+            for(let r=0; r<10; r++){
+                for(let c=0; c<9; c++){
+                    if(xqBoard[r][c]) {
+                        xqBoard[r][c] = { name: xqBoard[r][c], color: r < 5 ? 'black' : 'red' };
+                    }
+                }
+            }
+            xqTurn = 'red'; xqSelectedIndex = null; gameOver = false;
+            syncXiangqi(); renderXiangqiBoard(); updateXQInfo();
+        }
+
+        function handleXiangqiSync(data) {
+            xqBoard = data.board; xqTurn = data.turn; gameOver = false; xqSelectedIndex = null;
+            renderXiangqiBoard(); updateXQInfo(); checkXQWinCondition();
+        }
+
+        function syncXiangqi() {
+            if (!isVsAI && conn && conn.open) conn.send({ game: 'xiangqi', type: 'sync', board: xqBoard, turn: xqTurn });
+        }
+
+        function updateXQInfo() {
+            let myColor = myRole === 'host' ? 'red' : 'black';
+            const turnInfoEl = document.getElementById('xq-turn-info');
+            if (xqTurn === myColor) {
+                turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00';
+            } else {
+                turnInfoEl.innerText = isVsAI ? '🤖 電腦思考中...' : '等待對手'; turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252';
+            }
+            document.getElementById('xq-role-info').innerText = `身份：${myColor === 'red' ? '🔴 紅方' : '⚫ 黑方'}`;
+        }
+
+        function renderXiangqiBoard() {
+            const boardEl = document.getElementById('xq-board'); boardEl.innerHTML = '';
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div'); cell.className = 'xq-cell';
+                    if (r === 0) cell.classList.add('top-edge'); if (r === 9) cell.classList.add('bottom-edge');
+                    if (c === 0) cell.classList.add('left-edge'); if (c === 8) cell.classList.add('right-edge');
+                    if (r === 4) cell.classList.add('river-top'); if (r === 5) cell.classList.add('river-bottom');
+
+                    if (xqSelectedIndex && xqSelectedIndex.r === r && xqSelectedIndex.c === c) cell.classList.add('selected');
+
+                    let piece = xqBoard[r][c];
+                    if (piece) {
+                        const pEl = document.createElement('div'); pEl.className = `xq-piece ${piece.color}`; pEl.innerText = piece.name;
+                        cell.appendChild(pEl);
+                    }
+                    cell.onclick = () => handleXiangqiClick(r, c); boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleXiangqiClick(r, c) {
+            if (gameOver) return;
+            let myColor = myRole === 'host' ? 'red' : 'black';
+            if (xqTurn !== myColor) return showMessage(isVsAI ? "⚠️ 還沒輪到你" : "⚠️ 現在是對手回合");
+
+            let targetPiece = xqBoard[r][c];
+            
+            if (targetPiece && targetPiece.color === myColor) {
+                xqSelectedIndex = (xqSelectedIndex && xqSelectedIndex.r === r && xqSelectedIndex.c === c) ? null : {r, c};
+                renderXiangqiBoard(); return;
+            }
+
+            if (xqSelectedIndex) {
+                if (isValidXiangqiMove(xqSelectedIndex.r, xqSelectedIndex.c, r, c, xqBoard)) {
+                    xqBoard[r][c] = xqBoard[xqSelectedIndex.r][xqSelectedIndex.c];
+                    xqBoard[xqSelectedIndex.r][xqSelectedIndex.c] = null;
+                    endXQTurn();
+                } else { showMessage("⚠️ 不符合走法規則"); }
+            }
+        }
+
+        function isValidXiangqiMove(fr, fc, tr, tc, board) {
+            let p = board[fr][fc];
+            if (!p) return false;
+            let dr = tr - fr, dc = tc - fc;
+            let name = p.name;
+            
+            // 將/帥 (只能在九宮格內走一步)
+            if (name === '帥' || name === '將') {
+                if (Math.abs(dr) + Math.abs(dc) !== 1) return false;
+                if (tc < 3 || tc > 5) return false;
+                if (p.color === 'red' && tr < 7) return false;
+                if (p.color === 'black' && tr > 2) return false;
+                return true;
+            }
+            // 士/仕 (九宮格內斜走一步)
+            if (name === '仕' || name === '士') {
+                if (Math.abs(dr) !== 1 || Math.abs(dc) !== 1) return false;
+                if (tc < 3 || tc > 5) return false;
+                if (p.color === 'red' && tr < 7) return false;
+                if (p.color === 'black' && tr > 2) return false;
+                return true;
+            }
+            // 象/相 (田字，不能過河，要檢查塞象眼)
+            if (name === '相' || name === '象') {
+                if (Math.abs(dr) !== 2 || Math.abs(dc) !== 2) return false;
+                if (p.color === 'red' && tr < 5) return false;
+                if (p.color === 'black' && tr > 4) return false;
+                if (board[fr + dr/2][fc + dc/2]) return false; // 塞象眼
+                return true;
+            }
+            // 馬/傌 (日字，檢查拐馬腳)
+            if (name === '傌' || name === '馬') {
+                if (Math.abs(dr) === 2 && Math.abs(dc) === 1) {
+                    if (board[fr + dr/2][fc]) return false; // 拐馬腳
+                    return true;
+                }
+                if (Math.abs(dr) === 1 && Math.abs(dc) === 2) {
+                    if (board[fr][fc + dc/2]) return false;
+                    return true;
+                }
+                return false;
+            }
+            // 車/俥 (直線，中間不能有子)
+            if (name === '俥' || name === '車') {
+                if (dr !== 0 && dc !== 0) return false;
+                let stepR = dr === 0 ? 0 : dr / Math.abs(dr);
+                let stepC = dc === 0 ? 0 : dc / Math.abs(dc);
+                for (let i = 1; i < Math.max(Math.abs(dr), Math.abs(dc)); i++) {
+                    if (board[fr + stepR * i][fc + stepC * i]) return false;
+                }
+                return true;
+            }
+            // 炮/包 (直線，吃子要隔一子)
+            if (name === '炮' || name === '包') {
+                if (dr !== 0 && dc !== 0) return false;
+                let stepR = dr === 0 ? 0 : dr / Math.abs(dr);
+                let stepC = dc === 0 ? 0 : dc / Math.abs(dc);
+                let piecesBetween = 0;
+                for (let i = 1; i < Math.max(Math.abs(dr), Math.abs(dc)); i++) {
+                    if (board[fr + stepR * i][fc + stepC * i]) piecesBetween++;
+                }
+                if (!board[tr][tc]) return piecesBetween === 0; // 移動
+                else return piecesBetween === 1; // 吃子
+            }
+            // 兵/卒 (過河前只能直走，過河後可平移)
+            if (name === '兵' || name === '卒') {
+                let dir = p.color === 'red' ? -1 : 1;
+                let crossedRiver = p.color === 'red' ? fr < 5 : fr > 4;
+                if (dr === dir && dc === 0) return true; // 向前
+                if (crossedRiver && dr === 0 && Math.abs(dc) === 1) return true; // 平移
+                return false;
+            }
+            return false;
+        }
+
+        function endXQTurn() {
+            xqTurn = xqTurn === 'red' ? 'black' : 'red'; xqSelectedIndex = null;
+            syncXiangqi(); renderXiangqiBoard(); updateXQInfo(); checkXQWinCondition();
+            
+            if (isVsAI && xqTurn === 'black' && !gameOver) setTimeout(makeXQAIMove, 800);
+        }
+
+        function checkXQWinCondition() {
+            if (gameOver) return;
+            let redGeneralAlive = false, blackGeneralAlive = false;
+            for(let r=0; r<10; r++){
+                for(let c=0; c<9; c++){
+                    if(xqBoard[r][c]?.name === '帥') redGeneralAlive = true;
+                    if(xqBoard[r][c]?.name === '將') blackGeneralAlive = true;
+                }
+            }
+            if(!redGeneralAlive) showVictoryModal('black', false);
+            else if(!blackGeneralAlive) showVictoryModal('red', false);
+        }
+
+        function makeXQAIMove() {
+            if (gameOver) return;
+            let actions = [];
+            for (let r = 0; r < 10; r++) {
+                for (let c = 0; c < 9; c++) {
+                    let p = xqBoard[r][c];
+                    if (p && p.color === 'black') {
+                        for (let tr = 0; tr < 10; tr++) {
+                            for (let tc = 0; tc < 9; tc++) {
+                                let target = xqBoard[tr][tc];
+                                if (!target || target.color !== 'black') {
+                                    if (isValidXiangqiMove(r, c, tr, tc, xqBoard)) {
+                                        let score = target ? 50 : 10; // 吃子優先
+                                        if (target?.name === '帥') score = 9999;
+                                        actions.push({fr: r, fc: c, tr: tr, tc: tc, score: score + Math.random()});
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (actions.length > 0) {
+                actions.sort((a, b) => b.score - a.score);
+                let best = actions[0];
+                xqBoard[best.tr][best.tc] = xqBoard[best.fr][best.fc];
+                xqBoard[best.fr][best.fc] = null;
+                endXQTurn();
+            }
+        }
+    
     </script>
 </body>
 </html>
