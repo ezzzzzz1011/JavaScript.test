@@ -319,6 +319,7 @@
         });
 
         // 接收別人的連線 (我是 host)
+        // 接收別人的連線 (我是 host)
         peer.on('connection', (c) => { 
             conn = c; 
             myRole = 'host'; 
@@ -333,6 +334,7 @@
                     
                     if (currentGame === 'darkchess') initDarkchessAsHost();
                     else if (currentGame === 'gomoku') initGomokuAsHost();
+                    else if (currentGame === 'xiangqi') initXiangqiAsHost(); // 就是漏了這行！
                 }
             });
         });
