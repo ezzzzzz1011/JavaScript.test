@@ -2,86 +2,125 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的網頁遊戲大廳 v.2.0</title>
+    <title>我的網頁遊戲大廳 v.3.0</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
+        /* ================= 全域樣式 ================= */
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #121212; color: #f0f0f0; margin: 0; padding-top: 20px; }
         
         #toast { visibility: hidden; min-width: 250px; background-color: rgba(50, 50, 50, 0.95); color: #fff; text-align: center; border-radius: 8px; padding: 12px 20px; position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: bold; opacity: 0; transition: opacity 0.3s, top 0.3s; box-shadow: 0 4px 8px rgba(0,0,0,0.3); pointer-events: none; }
         #toast.show { visibility: visible; opacity: 1; top: 40px; }
 
-        /* --- 主遊戲選單大廳 --- */
-        #portal-menu { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 40px 20px; }
-        #portal-menu h1 { font-size: 36px; margin-bottom: 40px; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
-        .game-cards-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
-        .game-card { 
-            background: #212121; border: 2px solid #333; border-radius: 15px; width: 280px; padding: 30px 20px; 
-            text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        .game-card:hover { border-color: #1976d2; transform: translateY(-5px); box-shadow: 0 8px 25px rgba(25, 118, 210, 0.4); }
-        .game-card h2 { margin: 0 0 10px 0; font-size: 28px; }
-        .game-card p { color: #aaa; font-size: 16px; margin: 0; }
-        .game-card.disabled { cursor: not-allowed; opacity: 0.6; }
-        .game-card.disabled:hover { border-color: #333; transform: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-
-        /* --- 暗棋應用程式區塊 (預設隱藏) --- */
-        #darkchess-app { display: none; flex-direction: column; align-items: center; width: 100%; }
-
+        /* 勝利結算彈窗 (共用) */
         #victory-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
         .modal-content { background: #212121; padding: 40px 60px; border-radius: 15px; text-align: center; border: 3px solid #a17f2d; box-shadow: 0 10px 30px rgba(0,0,0,0.8); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         .modal-content h1 { margin-top: 0; font-size: 40px; }
         .modal-content p { font-size: 20px; color: #ccc; margin-bottom: 30px; }
-        .modal-content button { padding: 12px 30px; font-size: 20px; cursor: pointer; background-color: #4caf50; color: white; border: none; border-radius: 8px; transition: 0.2s; font-weight: bold; }
+        .modal-content button { padding: 12px 30px; font-size: 20px; cursor: pointer; background-color: #4caf50; color: white; border: none; border-radius: 8px; transition: 0.2s; font-weight: bold; margin: 0 10px; }
         .modal-content button:hover { background-color: #388e3c; transform: scale(1.05); }
 
-        #lobby { background: #212121; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px; text-align: center; color: white; min-width: 350px; position: relative;}
-        
-        /* 返回主選單按鈕 */
+        /* 共用大廳樣式 */
+        .lobby-container { background: #212121; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px; text-align: center; color: white; min-width: 350px; position: relative;}
+        .lobby-container input { padding: 10px; font-size: 16px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; width: 200px; text-align: center; margin-bottom: 10px;}
         .back-btn { position: absolute; top: 15px; left: 15px; background: transparent; border: 1px solid #555; color: #aaa; padding: 5px 10px; border-radius: 5px; cursor: pointer; transition: 0.2s;}
         .back-btn:hover { background: #333; color: white; }
-
-        #lobby input { padding: 10px; font-size: 16px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; width: 200px; text-align: center; }
         .btn { padding: 10px 20px; font-size: 16px; cursor: pointer; color: white; border: none; border-radius: 4px; transition: 0.2s; font-weight: bold; margin: 5px; }
         .btn-primary { background-color: #1976d2; } .btn-primary:hover { background-color: #1565c0; }
         .btn-success { background-color: #2e7d32; padding: 8px 15px; font-size: 14px; margin-bottom: 20px; } .btn-success:hover { background-color: #1b5e20; }
         .btn-ai { background-color: #8e24aa; width: 100%; margin-top: 20px; padding: 12px; font-size: 18px; } .btn-ai:hover { background-color: #6a1b9a; transform: scale(1.02); }
 
-        #game-wrapper { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1200px; }
-        #top-info-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
-        #star-icon { font-size: 28px; margin-bottom: 5px; text-shadow: 0 0 10px #fdd835; }
-        #turn-info { font-size: 24px; font-weight: bold; color: #00ff00; text-shadow: 0 0 10px #00ff00; margin-bottom: 5px; }
-        #role-info { font-size: 18px; color: #aaa; }
-        #game-main-area { display: flex; align-items: flex-start; justify-content: center; width: 100%; }
+        /* ================= 主選單入口 ================= */
+        #portal-menu { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px; padding: 40px 20px; }
+        #portal-menu h1 { font-size: 36px; margin-bottom: 40px; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
+        .game-cards-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+        .game-card { background: #212121; border: 2px solid #333; border-radius: 15px; width: 280px; padding: 30px 20px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .game-card:hover { border-color: #1976d2; transform: translateY(-5px); box-shadow: 0 8px 25px rgba(25, 118, 210, 0.4); }
+        .game-card h2 { margin: 0 0 10px 0; font-size: 28px; }
+        .game-card p { color: #aaa; font-size: 16px; margin: 0; }
 
+        /* ================= 應用程式外框區塊 ================= */
+        .app-section { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1200px;}
+        .game-wrapper { display: none; flex-direction: column; align-items: center; width: 100%; }
+        .top-info-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+        .star-icon { font-size: 28px; margin-bottom: 5px; text-shadow: 0 0 10px #fdd835; }
+        .turn-info { font-size: 24px; font-weight: bold; color: #00ff00; text-shadow: 0 0 10px #00ff00; margin-bottom: 5px; }
+        .role-info { font-size: 18px; color: #aaa; }
+        .controls { margin-top: 30px; margin-bottom: 40px; display: flex; gap: 15px; }
+        .game-btn { color: white; border: none; border-radius: 20px; padding: 12px 30px; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; font-weight: bold; }
+        .surrender-btn { background-color: #d32f2f; } .surrender-btn:hover { background-color: #b71c1c; transform: scale(1.05); }
+        .end-btn { background-color: #424242; } .end-btn:hover { background-color: #616161; transform: scale(1.05); }
+
+        /* ================= 暗棋專屬樣式 ================= */
+        #darkchess-main-area { display: flex; align-items: flex-start; justify-content: center; width: 100%; }
         .killed-sidebar { display: flex; flex-direction: column; align-items: center; width: 140px; color: #aaa; font-size: 16px; }
         .sidebar-title { margin-bottom: 15px; font-weight: bold; }
         .killed-pieces { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-content: flex-start; width: 100%; }
         .killed-piece { width: 50px; height: 50px; border-radius: 50%; background-color: #eae4d1; border: 2px solid #3e2723; font-size: 24px; font-weight: bold; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        
+        #dc-board-container { display: flex; justify-content: center; margin: 0 30px; }
+        #dc-board-outer { background-color: #a17f2d; border: 10px solid #a17f2d; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.6); }
+        #dc-board { display: grid; grid-template-columns: repeat(4, 85px); grid-template-rows: repeat(8, 85px); gap: 2px; background-color: #5d4037; padding: 4px; pointer-events: none;}
+        #dc-board.active { pointer-events: auto; }
+        .dc-cell { width: 85px; height: 85px; background-color: #f1d382; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; transition: transform 0.1s; }
+        .dc-cell:active { transform: scale(0.95); }
+        .dc-cell.open { border-radius: 50%; background-color: #eae4d1; border: 3px solid #3e2723; font-size: 42px; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
+        .dc-cell.hidden { background-color: #ccc; border: 3px solid #3e2723; border-radius: 50%; color: transparent; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
+        .dc-cell.hidden::after { content: "？"; color: #333; font-size: 36px; opacity: 0.6; }
+        .dc-cell.empty { background-color: transparent; border: 1px solid rgba(255,255,255,0.1); cursor: default; }
+        .dc-cell.selected { background-color: #fff176; border-color: #fff176; box-shadow: 0 0 20px #fff176; }
+        .dc-cell.red, .killed-piece.red { color: #bf2121; } 
+        .dc-cell.black, .killed-piece.black { color: #004d40; } 
 
-        #board-container { display: flex; justify-content: center; margin: 0 30px; }
-        #board-outer { background-color: #a17f2d; border: 10px solid #a17f2d; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.6); }
-        #board { display: grid; grid-template-columns: repeat(4, 85px); grid-template-rows: repeat(8, 85px); gap: 2px; background-color: #5d4037; padding: 4px; }
-        #board.active { pointer-events: auto; }
-        .cell { width: 85px; height: 85px; background-color: #f1d382; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; transition: transform 0.1s; }
-        .cell:active { transform: scale(0.95); }
-        .cell.open { border-radius: 50%; background-color: #eae4d1; border: 3px solid #3e2723; font-size: 42px; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
-        .cell.hidden { background-color: #ccc; border: 3px solid #3e2723; border-radius: 50%; color: transparent; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
-        .cell.hidden::after { content: "？"; color: #333; font-size: 36px; opacity: 0.6; }
-        .cell.empty { background-color: transparent; border: 1px solid rgba(255,255,255,0.1); cursor: default; }
-        .cell.selected { background-color: #fff176; border-color: #fff176; box-shadow: 0 0 20px #fff176; }
-        .cell.red, .killed-piece.red { color: #bf2121; } 
-        .cell.black, .killed-piece.black { color: #004d40; } 
-
-        #controls { margin-top: 30px; margin-bottom: 40px; display: flex; gap: 15px; }
-        .game-btn { color: white; border: none; border-radius: 20px; padding: 12px 30px; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; font-weight: bold; }
-        #surrender-btn { background-color: #d32f2f; } #surrender-btn:hover { background-color: #b71c1c; transform: scale(1.05); }
-        #end-btn { background-color: #424242; } #end-btn:hover { background-color: #616161; transform: scale(1.05); }
+        /* ================= 五子棋專屬樣式 ================= */
+        #gomoku-board-container { display: flex; justify-content: center; align-items: center; margin: 10px; }
+        #gomoku-board { 
+            background: linear-gradient(135deg, #d4a373 0%, #b5835a 100%); /* 木紋漸層底色 */
+            padding: 15px; border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            display: grid; grid-template-columns: repeat(15, 36px); grid-template-rows: repeat(15, 36px);
+            position: relative; pointer-events: none;
+        }
+        #gomoku-board.active { pointer-events: auto; }
+        
+        /* 繪製五子棋格線 */
+        .gm-cell {
+            width: 36px; height: 36px; position: relative; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        }
+        .gm-cell::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background-color: #5d4037; z-index: 1; }
+        .gm-cell::after { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background-color: #5d4037; z-index: 1; }
+        /* 處理邊緣格線不要突出去 */
+        .gm-cell.top-edge::after { top: 50%; height: 50%; }
+        .gm-cell.bottom-edge::after { height: 50%; }
+        .gm-cell.left-edge::before { left: 50%; width: 50%; }
+        .gm-cell.right-edge::before { width: 50%; }
+        
+        /* 五子棋 3D 棋子 */
+        .gm-piece {
+            width: 30px; height: 30px; border-radius: 50%; z-index: 2; position: absolute;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5); transition: transform 0.2s;
+        }
+        .gm-piece.black { background: radial-gradient(circle at 10px 10px, #444, #000); }
+        .gm-piece.white { background: radial-gradient(circle at 10px 10px, #fff, #ccc); }
+        
+        /* 懸停預覽棋子 (半透明) */
+        .gm-cell:hover:empty::before { content: ''; width: 30px; height: 30px; border-radius: 50%; position: absolute; z-index: 2; opacity: 0.3; }
+        #gomoku-board.my-turn-black .gm-cell:not(.has-piece):hover::before { background: radial-gradient(circle at 10px 10px, #444, #000); }
+        #gomoku-board.my-turn-white .gm-cell:not(.has-piece):hover::before { background: radial-gradient(circle at 10px 10px, #fff, #ccc); }
     </style>
 </head>
 <body>
 
     <div id="toast">提示訊息</div>
+
+    <div id="victory-modal">
+        <div class="modal-content">
+            <h1 id="victory-title">🏆 恭喜獲勝！</h1>
+            <p id="victory-msg">你贏得了這場比賽</p>
+            <div>
+                <button onclick="location.reload()">🔙 回主選單</button>
+            </div>
+        </div>
+    </div>
 
     <div id="portal-menu">
         <h1>🎮 網頁遊戲大廳</h1>
@@ -90,97 +129,102 @@
                 <h2>♟️ 連線暗棋</h2>
                 <p>支援P2P連線對戰與單機AI</p>
             </div>
-            
-            <div class="game-card disabled" onclick="showMessage('努力開發中，敬請期待！')">
+            <div class="game-card" onclick="openApp('gomoku')">
                 <h2>⚫ 五子棋</h2>
-                <p>開發中...</p>
+                <p>經典 15x15，連線與AI對戰</p>
             </div>
         </div>
     </div>
 
-    <div id="darkchess-app">
-        
-        <div id="victory-modal">
-            <div class="modal-content">
-                <h1 id="victory-title">🏆 恭喜獲勝！</h1>
-                <p id="victory-msg">你殲滅了對手</p>
-                <button onclick="location.reload()">回到大廳 / 再來一局</button>
-            </div>
-        </div>
-
-        <div id="lobby">
-            <button class="back-btn" onclick="location.reload()">🔙 回主選單</button>
-            <h2 style="margin-top: 20px;">♟️ P2P 連線暗棋</h2>
-            <p style="font-size: 18px;">你的連線代碼</p>
-            <p><strong id="my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
-            <button class="btn btn-success" onclick="copyInviteLink()">🔗 複製邀請連結傳給朋友</button>
+    <div id="darkchess-app" class="app-section">
+        <div id="dc-lobby" class="lobby-container">
+            <button class="back-btn" onclick="location.reload()">🔙</button>
+            <h2 style="margin-top: 0;">♟️ P2P 連線暗棋</h2>
+            <p>你的連線代碼</p>
+            <p><strong id="dc-my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
+            <button class="btn btn-success" onclick="copyInviteLink('darkchess', 'dc-my-id')">🔗 複製邀請連結傳給朋友</button>
             <hr style="border: 0; border-top: 1px solid #444; margin-bottom: 20px;">
             <p style="font-size: 14px; color: #888; margin-bottom: 10px;">貼上代碼或完整連結：</p>
-            <input type="text" id="friend-id" placeholder="例如: 6KGC33 或 https://...">
-            <button class="btn btn-primary" onclick="connectToFriend()">加入遊戲</button>
-            
+            <input type="text" id="dc-friend-id" placeholder="例如: 6KGC33">
+            <button class="btn btn-primary" onclick="connectToFriend('darkchess')">加入遊戲</button>
             <hr style="border: 0; border-top: 1px dashed #666; margin: 25px 0;">
-            <p style="font-size: 14px; color: #ccc; margin-bottom: 5px;">朋友沒空嗎？</p>
-            <button class="btn btn-ai" onclick="startLocalAI()">🤖 單機模式 (跟電腦 PK)</button>
+            <button class="btn btn-ai" onclick="startLocalAI('darkchess')">🤖 單機模式 (跟電腦 PK)</button>
         </div>
 
-        <div id="game-wrapper">
-            <div id="top-info-container">
-                <div id="star-icon">⭐</div>
-                <div id="turn-info">等待連線...</div>
-                <div id="role-info">身份：未定</div>
+        <div id="dc-game-wrapper" class="game-wrapper">
+            <div class="top-info-container">
+                <div class="star-icon">⭐</div>
+                <div id="dc-turn-info" class="turn-info">等待連線...</div>
+                <div id="dc-role-info" class="role-info">身份：未定</div>
             </div>
 
-            <div id="game-main-area">
-                <div id="red-killed" class="killed-sidebar">
+            <div id="darkchess-main-area">
+                <div class="killed-sidebar">
                     <div class="sidebar-title">紅方陣亡</div>
-                    <div class="killed-pieces"></div>
+                    <div id="dc-red-killed" class="killed-pieces"></div>
                 </div>
 
-                <div id="board-container">
-                    <div id="board-outer">
-                        <div id="board"></div>
+                <div id="dc-board-container">
+                    <div id="dc-board-outer">
+                        <div id="dc-board"></div>
                     </div>
                 </div>
 
-                <div id="black-killed" class="killed-sidebar">
+                <div class="killed-sidebar">
                     <div class="sidebar-title">黑方陣亡</div>
-                    <div class="killed-pieces"></div>
+                    <div id="dc-black-killed" class="killed-pieces"></div>
                 </div>
             </div>
 
-            <div id="controls">
-                <button id="surrender-btn" class="game-btn" onclick="surrenderGame()">🏳️ 投降</button>
-                <button id="end-btn" class="game-btn" onclick="location.reload()">退出遊戲</button>
+            <div class="controls">
+                <button class="game-btn surrender-btn" onclick="surrenderGame('darkchess')">🏳️ 投降</button>
+                <button class="game-btn end-btn" onclick="location.reload()">退出遊戲</button>
             </div>
         </div>
-
     </div>
 
-    <script>
-        // --- 介面切換邏輯 ---
-        function openApp(appId) {
-            document.getElementById('portal-menu').style.display = 'none';
-            if (appId === 'darkchess') {
-                document.getElementById('darkchess-app').style.display = 'flex';
-            }
-        }
+    <div id="gomoku-app" class="app-section">
+        <div id="gm-lobby" class="lobby-container">
+            <button class="back-btn" onclick="location.reload()">🔙</button>
+            <h2 style="margin-top: 0;">⚫ P2P 五子棋</h2>
+            <p>你的連線代碼</p>
+            <p><strong id="gm-my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
+            <button class="btn btn-success" onclick="copyInviteLink('gomoku', 'gm-my-id')">🔗 複製邀請連結傳給朋友</button>
+            <hr style="border: 0; border-top: 1px solid #444; margin-bottom: 20px;">
+            <p style="font-size: 14px; color: #888; margin-bottom: 10px;">貼上代碼或完整連結：</p>
+            <input type="text" id="gm-friend-id" placeholder="例如: 6KGC33">
+            <button class="btn btn-primary" onclick="connectToFriend('gomoku')">加入遊戲</button>
+            <hr style="border: 0; border-top: 1px dashed #666; margin: 25px 0;">
+            <button class="btn btn-ai" onclick="startLocalAI('gomoku')">🤖 單機模式 (跟電腦 PK)</button>
+        </div>
 
-        const PIECES = [
-            { name: '帥', color: 'red', rank: 7 }, { name: '將', color: 'black', rank: 7 },
-            { name: '仕', color: 'red', rank: 6 }, { name: '仕', color: 'red', rank: 6 }, { name: '士', color: 'black', rank: 6 }, { name: '士', color: 'black', rank: 6 },
-            { name: '相', color: 'red', rank: 5 }, { name: '相', color: 'red', rank: 5 }, { name: '象', color: 'black', rank: 5 }, { name: '象', color: 'black', rank: 5 },
-            { name: '俥', color: 'red', rank: 4 }, { name: '俥', color: 'red', rank: 4 }, { name: '車', color: 'black', rank: 4 }, { name: '車', color: 'black', rank: 4 },
-            { name: '傌', color: 'red', rank: 3 }, { name: '傌', color: 'red', rank: 3 }, { name: '馬', color: 'black', rank: 3 }, { name: '馬', color: 'black', rank: 3 },
-            { name: '炮', color: 'red', rank: 2 }, { name: '炮', color: 'red', rank: 2 }, { name: '包', color: 'black', rank: 2 }, { name: '包', color: 'black', rank: 2 },
-            { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 },
-            { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }
-        ];
+        <div id="gm-game-wrapper" class="game-wrapper">
+            <div class="top-info-container">
+                <div class="star-icon">⚪</div>
+                <div id="gm-turn-info" class="turn-info">等待連線...</div>
+                <div id="gm-role-info" class="role-info">身份：未定</div>
+            </div>
 
-        let boardData = []; let redKilled = []; let blackKilled = []; 
-        let myRole = null; let currentTurn = 'host'; let hostColor = null; let guestColor = null; 
-        let selectedIndex = -1; let conn = null; let myShortId = ""; let gameOver = false;
-        let isVsAI = false; 
+            <div id="gomoku-board-container">
+                <div id="gomoku-board">
+                    </div>
+            </div>
+
+            <div class="controls">
+                <button class="game-btn surrender-btn" onclick="surrenderGame('gomoku')">🏳️ 投降</button>
+                <button class="game-btn end-btn" onclick="location.reload()">退出遊戲</button>
+            </div>
+        </div>
+    </div>
+<script>
+        // ================= 共用核心邏輯 =================
+        let peer = null;
+        let conn = null;
+        let myShortId = "";
+        let currentGame = null; // 'darkchess' 或 'gomoku'
+        let myRole = null;      // 'host' 或 'guest'
+        let isVsAI = false;
+        let gameOver = false;
 
         function generateShortCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let result = '';
@@ -193,316 +237,358 @@
             setTimeout(() => t.classList.remove("show"), 2000);
         }
 
+        // 初始化 PeerJS
         myShortId = generateShortCode();
-        const peer = new Peer(myShortId);
+        peer = new Peer(myShortId);
 
-        peer.on('open', id => { document.getElementById('my-id').innerText = id; checkUrlForInvite(); });
-        peer.on('connection', (c) => { conn = c; myRole = 'host'; isVsAI = false; setupConnection(); initGameAsHost(); });
+        peer.on('open', id => {
+            document.getElementById('dc-my-id').innerText = id;
+            document.getElementById('gm-my-id').innerText = id;
+            checkUrlForInvite(); 
+        });
+
+        // 接收別人的連線 (我是 host)
+        peer.on('connection', (c) => { 
+            conn = c; 
+            myRole = 'host'; 
+            isVsAI = false; 
+            
+            // 當別人連進來時，決定是哪個遊戲
+            conn.on('data', (data) => {
+                if (data.type === 'initGame' && !currentGame) {
+                    currentGame = data.gameType;
+                    openApp(currentGame);
+                    setupConnection();
+                    
+                    if (currentGame === 'darkchess') initDarkchessAsHost();
+                    else if (currentGame === 'gomoku') initGomokuAsHost();
+                }
+            });
+        });
 
         function checkUrlForInvite() {
-            const roomCode = new URLSearchParams(window.location.search).get('room');
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+            const gameType = urlParams.get('game') || 'darkchess'; // 預設暗棋
+
             if (roomCode) { 
-                // 如果是透過邀請連結進來的，自動打開暗棋大廳並帶入代碼
-                openApp('darkchess');
-                document.getElementById('friend-id').value = roomCode.toUpperCase(); 
-                showMessage("✨ 已帶入好友代碼，請加入遊戲！"); 
+                openApp(gameType);
+                let inputId = gameType === 'darkchess' ? 'dc-friend-id' : 'gm-friend-id';
+                document.getElementById(inputId).value = roomCode.toUpperCase(); 
+                showMessage("✨ 已帶入好友代碼，請點擊加入遊戲！"); 
             }
         }
 
-        function copyInviteLink() {
-            // 清除現有的查詢參數再重新加上 room
-            const baseUrl = window.location.origin + window.location.pathname;
-            const inviteUrl = `${baseUrl}?room=${myShortId}`;
+        function copyInviteLink(gameType, idElement) {
+            const inviteUrl = `${window.location.origin}${window.location.pathname}?game=${gameType}&room=${myShortId}`;
             navigator.clipboard.writeText(inviteUrl).then(() => showMessage("✅ 邀請連結已複製！")).catch(() => showMessage("❌ 複製失敗"));
         }
 
-        function connectToFriend() {
-            let rawInput = document.getElementById('friend-id').value.trim();
+        function openApp(appId) {
+            document.getElementById('portal-menu').style.display = 'none';
+            document.getElementById('darkchess-app').style.display = 'none';
+            document.getElementById('gomoku-app').style.display = 'none';
+            
+            if (appId === 'darkchess') document.getElementById('darkchess-app').style.display = 'flex';
+            else if (appId === 'gomoku') document.getElementById('gomoku-app').style.display = 'flex';
+        }
+
+        // 我主動去連別人 (我是 guest)
+        function connectToFriend(gameType) {
+            let inputId = gameType === 'darkchess' ? 'dc-friend-id' : 'gm-friend-id';
+            let rawInput = document.getElementById(inputId).value.trim();
             if (!rawInput) return showMessage('請輸入代碼或貼上連結');
+            
             let friendId = rawInput;
             if (rawInput.includes('room=')) { const match = rawInput.match(/room=([a-zA-Z0-9]{6})/i); if(match) friendId = match[1]; }
-            conn = peer.connect(friendId.toUpperCase().slice(0, 6)); 
-            myRole = 'guest'; isVsAI = false; setupConnection();
-        }
-
-        function startLocalAI() {
-            isVsAI = true; myRole = 'host';
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('game-wrapper').style.display = 'flex';
-            document.getElementById('board').classList.add('active');
-            showMessage("🤖 單機模式開啟！由你先發");
-            initGameAsHost();
-        }
-
-        function setupConnection() {
-            conn.on('open', () => {
-                document.getElementById('lobby').style.display = 'none'; document.getElementById('game-wrapper').style.display = 'flex';
-                document.getElementById('board').classList.add('active'); updateInfo(); showMessage("✅ 連線成功！");
-            });
-
-            conn.on('data', (data) => {
-                if (data.type === 'sync') {
-                    boardData = data.board; currentTurn = data.turn; hostColor = data.hostColor; guestColor = data.guestColor;
-                    redKilled = data.redKilled || []; blackKilled = data.blackKilled || []; selectedIndex = -1;
-                    renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
-                } else if (data.type === 'surrender') {
-                    let winnerColor = data.loserColor === 'red' ? 'black' : 'red';
-                    showVictoryModal(winnerColor, true);
-                }
-            });
-        }
-
-        function initGameAsHost() {
-            let shuffled = [...PIECES].sort(() => Math.random() - 0.5);
-            boardData = shuffled.map(p => ({ ...p, isOpen: false, isEmpty: false }));
-            currentTurn = 'host'; hostColor = null; guestColor = null; redKilled = []; blackKilled = []; gameOver = false;
-            syncGame(); renderBoard(); renderKilledPieces(); updateInfo();
-        }
-
-        function syncGame() { 
-            if (!isVsAI && conn && conn.open) {
-                conn.send({ type: 'sync', board: boardData, turn: currentTurn, hostColor, guestColor, redKilled, blackKilled }); 
-            }
-        }
-
-        function updateInfo() {
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-            let colorStr = myAssignedColor === 'red' ? '🔴 紅方' : (myAssignedColor === 'black' ? '⚫ 黑方' : '⚪ 未定');
-            const turnInfoEl = document.getElementById('turn-info');
-            if (currentTurn === myRole) { 
-                turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00'; 
-            } else { 
-                turnInfoEl.innerText = isVsAI ? '🤖 電腦思考中...' : '等待對手'; 
-                turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252'; 
-            }
-            document.getElementById('role-info').innerText = `身份：${colorStr}`;
-        }
-
-        function renderKilledPieces() {
-            const redContainer = document.querySelector('#red-killed .killed-pieces'); const blackContainer = document.querySelector('#black-killed .killed-pieces');
-            redContainer.innerHTML = ''; blackContainer.innerHTML = '';
-            redKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece red'; div.innerText = p.name; redContainer.appendChild(div); });
-            blackKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.name; blackContainer.appendChild(div); });
-        }
-
-        function renderBoard() {
-            const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
-            boardData.forEach((piece, index) => {
-                const cell = document.createElement('div'); cell.className = 'cell';
-                if (piece.isEmpty) cell.classList.add('empty');
-                else if (!piece.isOpen) cell.classList.add('hidden');
-                else { cell.classList.add('open'); cell.classList.add(piece.color); cell.innerText = piece.name; }
-                if (index === selectedIndex) cell.classList.add('selected');
-                cell.onclick = () => handleCellClick(index); boardEl.appendChild(cell);
-            });
-        }
-
-        function handleCellClick(index) {
-            if (gameOver) return;
-            if (currentTurn !== myRole) return showMessage(isVsAI ? "⚠️ 還沒輪到你！" : "⚠️ 現在是對手的回合");
-            const target = boardData[index]; let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-
-            if (!target.isEmpty && target.isOpen && target.color === myAssignedColor) {
-                selectedIndex = selectedIndex === index ? -1 : index; renderBoard(); return;
-            }
-
-            if (selectedIndex !== -1) {
-                const attacker = boardData[selectedIndex];
-                if (!target.isEmpty && !target.isOpen && attacker.rank !== 2) {
-                    selectedIndex = -1; 
-                } else {
-                    if (tryMoveOrCapture(selectedIndex, index)) return; else return; 
-                }
-            }
-
-            if (!target.isEmpty && !target.isOpen) {
-                boardData[index].isOpen = true;
-                if (!hostColor && !guestColor) {
-                    if (myRole === 'host') { hostColor = target.color; guestColor = target.color === 'red' ? 'black' : 'red'; } 
-                    else { guestColor = target.color; hostColor = target.color === 'red' ? 'black' : 'red'; }
-                    showMessage(`你抽到了 ${hostColor === 'red' ? '紅方' : '黑方'}！`);
-                }
-                endTurn();
-            }
-        }
-
-        function tryMoveOrCapture(fromIdx, toIdx) {
-            const attacker = boardData[fromIdx]; const target = boardData[toIdx];
-            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
-            const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
-
-            if (attacker.rank === 2) { 
-                if (target.isEmpty) { 
-                    if (isAdjacent) { doMove(fromIdx, toIdx); return true; } 
-                    else { showMessage("⚠️ 炮移動空地只能走一步"); return false; } 
-                } 
-                else { 
-                    if (!target.isOpen) { showMessage("⚠️ 炮不能直接打暗棋"); return false; }
-                    if (isValidCannonJump(fromIdx, toIdx)) { doMove(fromIdx, toIdx); return true; } 
-                    else { showMessage("⚠️ 炮必須剛好隔一顆棋子"); return false; } 
-                }
-            } else {
-                if (!isAdjacent) { showMessage("⚠️ 只能移動一格"); return false; }
-                if (target.isEmpty) { doMove(fromIdx, toIdx); return true; } 
-                else if (!target.isOpen) { showMessage("⚠️ 一般棋子不能吃暗棋"); return false; } 
-                else { if (canCapture(attacker, target)) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 階級不足，無法吃子"); return false; } }
-            }
-        }
-
-        function canCapture(attacker, target) {
-            if (attacker.rank === 1 && target.rank === 7) return true; 
-            if (attacker.rank === 7 && target.rank === 1) return false; 
-            return attacker.rank >= target.rank;
-        }
-
-        function isValidCannonJump(fromIdx, toIdx) {
-            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
-            if (r1 !== r2 && c1 !== c2) return false; 
-            let piecesBetween = 0;
-            if (r1 === r2) { 
-                const min = Math.min(c1, c2), max = Math.max(c1, c2);
-                for (let i = min + 1; i < max; i++) if (!boardData[r1 * 4 + i].isEmpty) piecesBetween++;
-            } else { 
-                const min = Math.min(r1, r2), max = Math.max(r1, r2);
-                for (let i = min + 1; i < max; i++) if (!boardData[i * 4 + c1].isEmpty) piecesBetween++;
-            }
-            return piecesBetween === 1; 
-        }
-
-        function doMove(fromIdx, toIdx) {
-            const target = boardData[toIdx];
-            if (!target.isEmpty) {
-                if (target.color === 'red') redKilled.push(target);
-                else if (target.color === 'black') blackKilled.push(target);
-            }
-            boardData[toIdx] = boardData[fromIdx]; boardData[fromIdx] = { isEmpty: true }; 
-            endTurn();
-        }
-
-        function endTurn() {
-            currentTurn = currentTurn === 'host' ? 'guest' : 'host'; selectedIndex = -1;
-            syncGame(); renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
             
-            if (isVsAI && currentTurn === 'guest' && !gameOver) {
-                setTimeout(makeAIMove, 800); 
+            currentGame = gameType;
+            conn = peer.connect(friendId.toUpperCase().slice(0, 6)); 
+            myRole = 'guest'; 
+            isVsAI = false; 
+            
+            conn.on('open', () => {
+                // 告訴對方我們玩什麼遊戲
+                conn.send({ type: 'initGame', gameType: currentGame });
+                setupConnection();
+            });
+        }
+
+        function startLocalAI(gameType) {
+            currentGame = gameType;
+            isVsAI = true; myRole = 'host';
+            setupConnection(true); // 傳入 true 代表是 AI 模式，不需處理網路事件
+            
+            if (currentGame === 'darkchess') initDarkchessAsHost();
+            else if (currentGame === 'gomoku') initGomokuAsHost();
+        }
+
+        function setupConnection(isLocalAI = false) {
+            let lobbyId = currentGame === 'darkchess' ? 'dc-lobby' : 'gm-lobby';
+            let wrapperId = currentGame === 'darkchess' ? 'dc-game-wrapper' : 'gm-game-wrapper';
+            let boardId = currentGame === 'darkchess' ? 'dc-board' : 'gomoku-board';
+
+            document.getElementById(lobbyId).style.display = 'none'; 
+            document.getElementById(wrapperId).style.display = 'flex';
+            document.getElementById(boardId).classList.add('active'); 
+            showMessage(isLocalAI ? "🤖 單機模式開啟！由你先發" : "✅ 連線成功！");
+
+            if (!isLocalAI && conn) {
+                conn.on('data', (data) => {
+                    if (data.type === 'surrender') {
+                        let winnerColor = data.loserColor === 'black' ? 'red' : 'black';
+                        if (currentGame === 'darkchess') winnerColor = data.loserColor === 'red' ? 'black' : 'red';
+                        showVictoryModal(winnerColor, true);
+                    } else if (currentGame === 'darkchess' && data.game === 'darkchess') {
+                        handleDarkchessSync(data);
+                    } else if (currentGame === 'gomoku' && data.game === 'gomoku') {
+                        handleGomokuSync(data);
+                    }
+                });
             }
         }
 
-        function checkWinCondition() {
+        function surrenderGame(gameType) {
             if (gameOver) return;
-            if (redKilled.length === 16) { showVictoryModal('black', false); } 
-            else if (blackKilled.length === 16) { showVictoryModal('red', false); }
-        }
+            let myAssignedColor = null;
+            if (gameType === 'darkchess') myAssignedColor = myRole === 'host' ? dcHostColor : dcGuestColor;
+            else if (gameType === 'gomoku') myAssignedColor = myRole === 'host' ? 'black' : 'white';
 
-        function surrenderGame() {
-            if (gameOver) return;
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-            if (!myAssignedColor) return showMessage("遊戲還沒決定陣營，無法投降！");
+            if (!myAssignedColor) return showMessage("遊戲還沒開始，無法投降！");
             
             if (confirm("確定要舉白旗投降嗎？")) {
                 if (!isVsAI && conn && conn.open) conn.send({ type: 'surrender', loserColor: myAssignedColor });
-                let winnerColor = myAssignedColor === 'red' ? 'black' : 'red';
+                
+                let winnerColor = null;
+                if (gameType === 'darkchess') winnerColor = myAssignedColor === 'red' ? 'black' : 'red';
+                else if (gameType === 'gomoku') winnerColor = myAssignedColor === 'black' ? 'white' : 'black';
+                
                 showVictoryModal(winnerColor, true);
             }
         }
 
         function showVictoryModal(winnerColor, bySurrender) {
             gameOver = true;
+            document.getElementById('dc-board').classList.remove('active');
+            document.getElementById('gomoku-board').classList.remove('active');
+            
             const modal = document.getElementById('victory-modal');
             const title = document.getElementById('victory-title');
             const msg = document.getElementById('victory-msg');
             
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
+            let myAssignedColor = null;
+            if (currentGame === 'darkchess') myAssignedColor = myRole === 'host' ? dcHostColor : dcGuestColor;
+            else if (currentGame === 'gomoku') myAssignedColor = myRole === 'host' ? 'black' : 'white';
+
             let iWon = (winnerColor === myAssignedColor);
             
             if (iWon) {
                 title.innerText = "🏆 恭喜獲勝！";
-                msg.innerText = bySurrender ? "對手舉白旗投降了！" : "你成功殲滅了對手所有棋子！";
+                msg.innerText = bySurrender ? "對手舉白旗投降了！" : "你贏得了這場比賽！";
                 title.style.color = "#4caf50";
             } else {
                 title.innerText = isVsAI ? "🤖 你被電腦打敗了" : "💀 挑戰失敗...";
-                msg.innerText = bySurrender ? "你選擇了投降。" : "你的棋子被全數殲滅了...";
+                msg.innerText = bySurrender ? "你選擇了投降。" : "你輸了這場比賽...";
                 title.style.color = "#f44336";
             }
             modal.style.display = 'flex';
         }
 
-        /* --- AI 邏輯 --- */
-        function isSquareThreatened(targetIdx, pieceRank, aiColor) {
-            let playerColor = aiColor === 'red' ? 'black' : 'red';
-            for (let i = 0; i < 32; i++) {
-                let enemy = boardData[i];
-                if (!enemy.isEmpty && enemy.isOpen && enemy.color === playerColor) {
-                    const r1 = Math.floor(i / 4), c1 = i % 4; const r2 = Math.floor(targetIdx / 4), c2 = targetIdx % 4;
-                    const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
-                    if (enemy.rank === 2) {
-                        if (isValidCannonJump(i, targetIdx)) return true;
-                    } else {
-                        if (isAdjacent) {
-                            if (enemy.rank === 1 && pieceRank === 7) return true;
-                            if (enemy.rank === 7 && pieceRank === 1) continue;
-                            if (enemy.rank >= pieceRank) return true;
-                        }
-                    }
-                }
-            }
-            return false;
+
+        // ================= 暗棋邏輯 (Darkchess) =================
+        const DC_PIECES = [
+            { name: '帥', color: 'red', rank: 7 }, { name: '將', color: 'black', rank: 7 },
+            { name: '仕', color: 'red', rank: 6 }, { name: '仕', color: 'red', rank: 6 }, { name: '士', color: 'black', rank: 6 }, { name: '士', color: 'black', rank: 6 },
+            { name: '相', color: 'red', rank: 5 }, { name: '相', color: 'red', rank: 5 }, { name: '象', color: 'black', rank: 5 }, { name: '象', color: 'black', rank: 5 },
+            { name: '俥', color: 'red', rank: 4 }, { name: '俥', color: 'red', rank: 4 }, { name: '車', color: 'black', rank: 4 }, { name: '車', color: 'black', rank: 4 },
+            { name: '傌', color: 'red', rank: 3 }, { name: '傌', color: 'red', rank: 3 }, { name: '馬', color: 'black', rank: 3 }, { name: '馬', color: 'black', rank: 3 },
+            { name: '炮', color: 'red', rank: 2 }, { name: '炮', color: 'red', rank: 2 }, { name: '包', color: 'black', rank: 2 }, { name: '包', color: 'black', rank: 2 },
+            { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 },
+            { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }
+        ];
+        let dcBoardData = []; let dcRedKilled = []; let dcBlackKilled = []; 
+        let dcTurn = 'host'; let dcHostColor = null; let dcGuestColor = null; let dcSelectedIndex = -1;
+
+        function initDarkchessAsHost() {
+            let shuffled = [...DC_PIECES].sort(() => Math.random() - 0.5);
+            dcBoardData = shuffled.map(p => ({ ...p, isOpen: false, isEmpty: false }));
+            dcTurn = 'host'; dcHostColor = null; dcGuestColor = null; dcRedKilled = []; dcBlackKilled = []; gameOver = false;
+            syncDarkchess(); renderDarkchessBoard(); renderDCKilledPieces(); updateDCInfo();
         }
 
-        function makeAIMove() {
+        function handleDarkchessSync(data) {
+            dcBoardData = data.board; dcTurn = data.turn; dcHostColor = data.hostColor; dcGuestColor = data.guestColor;
+            dcRedKilled = data.redKilled || []; dcBlackKilled = data.blackKilled || []; dcSelectedIndex = -1;
+            renderDarkchessBoard(); renderDCKilledPieces(); updateDCInfo(); checkDCWinCondition();
+        }
+
+        function syncDarkchess() { 
+            if (!isVsAI && conn && conn.open) {
+                conn.send({ game: 'darkchess', type: 'sync', board: dcBoardData, turn: dcTurn, hostColor: dcHostColor, guestColor: dcGuestColor, redKilled: dcRedKilled, blackKilled: dcBlackKilled }); 
+            }
+        }
+
+        function updateDCInfo() {
+            let myAssignedColor = myRole === 'host' ? dcHostColor : dcGuestColor;
+            let colorStr = myAssignedColor === 'red' ? '🔴 紅方' : (myAssignedColor === 'black' ? '⚫ 黑方' : '⚪ 未定');
+            const turnInfoEl = document.getElementById('dc-turn-info');
+            if (dcTurn === myRole) { 
+                turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00'; 
+            } else { 
+                turnInfoEl.innerText = isVsAI ? '🤖 電腦思考中...' : '等待對手'; 
+                turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252'; 
+            }
+            document.getElementById('dc-role-info').innerText = `身份：${colorStr}`;
+        }
+
+        function renderDCKilledPieces() {
+            const redContainer = document.getElementById('dc-red-killed'); const blackContainer = document.getElementById('dc-black-killed');
+            redContainer.innerHTML = ''; blackContainer.innerHTML = '';
+            dcRedKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece red'; div.innerText = p.name; redContainer.appendChild(div); });
+            dcBlackKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.name; blackContainer.appendChild(div); });
+        }
+
+        function renderDarkchessBoard() {
+            const boardEl = document.getElementById('dc-board'); boardEl.innerHTML = '';
+            dcBoardData.forEach((piece, index) => {
+                const cell = document.createElement('div'); cell.className = 'dc-cell';
+                if (piece.isEmpty) cell.classList.add('empty');
+                else if (!piece.isOpen) cell.classList.add('hidden');
+                else { cell.classList.add('open'); cell.classList.add(piece.color); cell.innerText = piece.name; }
+                if (index === dcSelectedIndex) cell.classList.add('selected');
+                cell.onclick = () => handleDCCellClick(index); boardEl.appendChild(cell);
+            });
+        }
+
+        function handleDCCellClick(index) {
             if (gameOver) return;
-            let aiAssignedColor = guestColor;
+            if (dcTurn !== myRole) return showMessage(isVsAI ? "⚠️ 還沒輪到你！" : "⚠️ 現在是對手的回合");
+            const target = dcBoardData[index]; let myAssignedColor = myRole === 'host' ? dcHostColor : dcGuestColor;
+
+            if (!target.isEmpty && target.isOpen && target.color === myAssignedColor) {
+                dcSelectedIndex = dcSelectedIndex === index ? -1 : index; renderDarkchessBoard(); return;
+            }
+
+            if (dcSelectedIndex !== -1) {
+                const attacker = dcBoardData[dcSelectedIndex];
+                if (!target.isEmpty && !target.isOpen && attacker.rank !== 2) {
+                    dcSelectedIndex = -1; 
+                } else {
+                    if (tryDCMoveOrCapture(dcSelectedIndex, index)) return; else return; 
+                }
+            }
+
+            if (!target.isEmpty && !target.isOpen) {
+                dcBoardData[index].isOpen = true;
+                if (!dcHostColor && !dcGuestColor) {
+                    if (myRole === 'host') { dcHostColor = target.color; dcGuestColor = target.color === 'red' ? 'black' : 'red'; } 
+                    else { dcGuestColor = target.color; dcHostColor = target.color === 'red' ? 'black' : 'red'; }
+                    showMessage(`你抽到了 ${dcHostColor === 'red' ? '紅方' : '黑方'}！`);
+                }
+                endDCTurn();
+            }
+        }
+
+        function tryDCMoveOrCapture(fromIdx, toIdx) {
+            const attacker = dcBoardData[fromIdx]; const target = dcBoardData[toIdx];
+            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
+            const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
+
+            if (attacker.rank === 2) { 
+                if (target.isEmpty) { 
+                    if (isAdjacent) { doDCMove(fromIdx, toIdx); return true; } 
+                    else { showMessage("⚠️ 炮移動空地只能走一步"); return false; } 
+                } else { 
+                    if (!target.isOpen) { showMessage("⚠️ 炮不能直接打暗棋"); return false; }
+                    if (isValidDCCannonJump(fromIdx, toIdx)) { doDCMove(fromIdx, toIdx); return true; } 
+                    else { showMessage("⚠️ 炮必須剛好隔一顆棋子"); return false; } 
+                }
+            } else {
+                if (!isAdjacent) { showMessage("⚠️ 只能移動一格"); return false; }
+                if (target.isEmpty) { doDCMove(fromIdx, toIdx); return true; } 
+                else if (!target.isOpen) { showMessage("⚠️ 一般棋子不能吃暗棋"); return false; } 
+                else { if (canDCCapture(attacker, target)) { doDCMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 階級不足，無法吃子"); return false; } }
+            }
+        }
+
+        function canDCCapture(attacker, target) {
+            if (attacker.rank === 1 && target.rank === 7) return true; 
+            if (attacker.rank === 7 && target.rank === 1) return false; 
+            return attacker.rank >= target.rank;
+        }
+
+        function isValidDCCannonJump(fromIdx, toIdx) {
+            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
+            if (r1 !== r2 && c1 !== c2) return false; 
+            let piecesBetween = 0;
+            if (r1 === r2) { 
+                const min = Math.min(c1, c2), max = Math.max(c1, c2);
+                for (let i = min + 1; i < max; i++) if (!dcBoardData[r1 * 4 + i].isEmpty) piecesBetween++;
+            } else { 
+                const min = Math.min(r1, r2), max = Math.max(r1, r2);
+                for (let i = min + 1; i < max; i++) if (!dcBoardData[i * 4 + c1].isEmpty) piecesBetween++;
+            }
+            return piecesBetween === 1; 
+        }
+
+        function doDCMove(fromIdx, toIdx) {
+            const target = dcBoardData[toIdx];
+            if (!target.isEmpty) {
+                if (target.color === 'red') dcRedKilled.push(target);
+                else if (target.color === 'black') dcBlackKilled.push(target);
+            }
+            dcBoardData[toIdx] = dcBoardData[fromIdx]; dcBoardData[fromIdx] = { isEmpty: true }; 
+            endDCTurn();
+        }
+
+        function endDCTurn() {
+            dcTurn = dcTurn === 'host' ? 'guest' : 'host'; dcSelectedIndex = -1;
+            syncDarkchess(); renderDarkchessBoard(); renderDCKilledPieces(); updateDCInfo(); checkDCWinCondition();
+            
+            if (isVsAI && dcTurn === 'guest' && !gameOver) {
+                setTimeout(makeDCAIMove, 800); 
+            }
+        }
+
+        function checkDCWinCondition() {
+            if (gameOver) return;
+            if (dcRedKilled.length === 16) { showVictoryModal('black', false); } 
+            else if (dcBlackKilled.length === 16) { showVictoryModal('red', false); }
+        }
+
+        // 暗棋 AI (與前一版相同)
+        function makeDCAIMove() {
+            if (gameOver) return;
+            let aiAssignedColor = dcGuestColor;
             let actions = [];
 
             for (let i = 0; i < 32; i++) {
-                let p = boardData[i];
+                let p = dcBoardData[i];
                 if (!p.isEmpty && !p.isOpen) {
                     let score = (!aiAssignedColor) ? 1000 : 40 + Math.random() * 10;
                     actions.push({ type: 'flip', target: i, score: score });
                     continue;
                 }
-
                 if (aiAssignedColor && !p.isEmpty && p.isOpen && p.color === aiAssignedColor) {
-                    let currentlyThreatened = isSquareThreatened(i, p.rank, aiAssignedColor);
-                    
                     for (let j = 0; j < 32; j++) {
                         if (i === j) continue;
-                        let target = boardData[j];
+                        let target = dcBoardData[j];
                         let isValid = false;
-                        
                         const r1 = Math.floor(i / 4), c1 = i % 4; const r2 = Math.floor(j / 4), c2 = j % 4;
                         const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
 
                         if (p.rank === 2) {
                             if (target.isEmpty && isAdjacent) isValid = true;
-                            else if (!target.isEmpty && target.isOpen && target.color !== aiAssignedColor && isValidCannonJump(i, j)) isValid = true;
+                            else if (!target.isEmpty && target.isOpen && target.color !== aiAssignedColor && isValidDCCannonJump(i, j)) isValid = true;
                         } else {
                             if (isAdjacent) {
                                 if (target.isEmpty) isValid = true;
-                                else if (target.isOpen && target.color !== aiAssignedColor && canCapture(p, target)) isValid = true;
+                                else if (target.isOpen && target.color !== aiAssignedColor && canDCCapture(p, target)) isValid = true;
                             }
                         }
 
                         if (isValid) {
-                            let score = 0;
-                            if (target.isEmpty) {
-                                score = 15 + Math.random() * 5; 
-                                let futureThreatened = isSquareThreatened(j, p.rank, aiAssignedColor);
-                                if (currentlyThreatened && !futureThreatened) {
-                                    score += p.rank * 100; 
-                                } else if (!currentlyThreatened && futureThreatened) {
-                                    score -= 500; 
-                                }
-                            } else {
-                                let targetVal = target.rank;
-                                if (p.rank === 1 && target.rank === 7) targetVal = 15; 
-                                score = targetVal * 100 + (10 - p.rank); 
-                                
-                                let futureThreatened = isSquareThreatened(j, p.rank, aiAssignedColor);
-                                if (futureThreatened) {
-                                    score -= p.rank * 80; 
-                                }
-                            }
+                            let score = target.isEmpty ? (15 + Math.random() * 5) : (target.rank * 100 + (10 - p.rank));
                             actions.push({ type: 'move', from: i, to: j, score: score });
                         }
                     }
@@ -512,20 +598,199 @@
             if (actions.length > 0) {
                 actions.sort((a, b) => b.score - a.score);
                 let bestAction = actions[0];
-                
                 if (bestAction.type === 'flip') {
-                    boardData[bestAction.target].isOpen = true;
-                    if (!hostColor) {
-                        guestColor = boardData[bestAction.target].color;
-                        hostColor = guestColor === 'red' ? 'black' : 'red';
-                        showMessage(`電腦抽到了 ${guestColor === 'red' ? '紅方' : '黑方'}！`);
+                    dcBoardData[bestAction.target].isOpen = true;
+                    if (!dcHostColor) {
+                        dcGuestColor = dcBoardData[bestAction.target].color;
+                        dcHostColor = dcGuestColor === 'red' ? 'black' : 'red';
                     }
-                    endTurn(); 
-                } else {
-                    doMove(bestAction.from, bestAction.to); 
+                    endDCTurn(); 
+                } else { doDCMove(bestAction.from, bestAction.to); }
+            }
+        }
+
+
+        // ================= 五子棋邏輯 (Gomoku) =================
+        const GM_SIZE = 15;
+        let gmBoard = []; // 二維陣列 15x15，儲存 null, 'black', 'white'
+        let gmTurn = 'black'; // 永遠黑子先手 (Host是黑子，Guest是白子)
+
+        function initGomokuAsHost() {
+            gmBoard = Array(GM_SIZE).fill(null).map(() => Array(GM_SIZE).fill(null));
+            gmTurn = 'black'; gameOver = false;
+            syncGomoku(); renderGomokuBoard(); updateGMInfo();
+        }
+
+        function handleGomokuSync(data) {
+            gmBoard = data.board; gmTurn = data.turn; gameOver = false;
+            renderGomokuBoard(); updateGMInfo(); checkGomokuWinCondition();
+        }
+
+        function syncGomoku() {
+            if (!isVsAI && conn && conn.open) {
+                conn.send({ game: 'gomoku', type: 'sync', board: gmBoard, turn: gmTurn });
+            }
+        }
+
+        function updateGMInfo() {
+            let myColor = myRole === 'host' ? 'black' : 'white';
+            const boardEl = document.getElementById('gomoku-board');
+            
+            // 處理懸停特效
+            boardEl.classList.remove('my-turn-black', 'my-turn-white');
+            if (gmTurn === myColor && !gameOver) {
+                boardEl.classList.add(`my-turn-${myColor}`);
+            }
+
+            const turnInfoEl = document.getElementById('gm-turn-info');
+            if (gmTurn === myColor) {
+                turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00';
+            } else {
+                turnInfoEl.innerText = isVsAI ? '🤖 電腦思考中...' : '等待對手';
+                turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252';
+            }
+            document.getElementById('gm-role-info').innerText = `身份：${myColor === 'black' ? '⚫ 黑方 (先手)' : '⚪ 白方 (後手)'}`;
+        }
+
+        function renderGomokuBoard() {
+            const boardEl = document.getElementById('gomoku-board');
+            boardEl.innerHTML = '';
+            for (let r = 0; r < GM_SIZE; r++) {
+                for (let c = 0; c < GM_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'gm-cell';
+                    
+                    // 邊緣處理 (讓線不要超出棋盤)
+                    if (r === 0) cell.classList.add('top-edge');
+                    if (r === GM_SIZE - 1) cell.classList.add('bottom-edge');
+                    if (c === 0) cell.classList.add('left-edge');
+                    if (c === GM_SIZE - 1) cell.classList.add('right-edge');
+
+                    if (gmBoard[r][c]) {
+                        cell.classList.add('has-piece');
+                        const piece = document.createElement('div');
+                        piece.className = `gm-piece ${gmBoard[r][c]}`;
+                        cell.appendChild(piece);
+                    }
+
+                    cell.onclick = () => handleGomokuClick(r, c);
+                    boardEl.appendChild(cell);
                 }
+            }
+        }
+
+        function handleGomokuClick(r, c) {
+            if (gameOver) return;
+            let myColor = myRole === 'host' ? 'black' : 'white';
+            if (gmTurn !== myColor) return showMessage(isVsAI ? "⚠️ 還沒輪到你！" : "⚠️ 現在是對手的回合");
+            if (gmBoard[r][c]) return; // 已經有子
+
+            gmBoard[r][c] = myColor;
+            endGMTurn();
+        }
+
+        function endGMTurn() {
+            gmTurn = gmTurn === 'black' ? 'white' : 'black';
+            syncGomoku(); renderGomokuBoard(); updateGMInfo(); checkGomokuWinCondition();
+            
+            // 觸發五子棋 AI 行動
+            if (isVsAI && gmTurn === 'white' && !gameOver) {
+                setTimeout(makeGMAIMove, 600);
+            }
+        }
+
+        function checkGomokuWinCondition() {
+            if (gameOver) return;
+            const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]]; // 橫、直、右斜、左斜
+            
+            for (let r = 0; r < GM_SIZE; r++) {
+                for (let c = 0; c < GM_SIZE; c++) {
+                    let color = gmBoard[r][c];
+                    if (!color) continue;
+                    
+                    for (let [dr, dc] of dirs) {
+                        let count = 1;
+                        for (let i = 1; i < 5; i++) {
+                            let nr = r + dr * i, nc = c + dc * i;
+                            if (nr >= 0 && nr < GM_SIZE && nc >= 0 && nc < GM_SIZE && gmBoard[nr][nc] === color) {
+                                count++;
+                            } else { break; }
+                        }
+                        if (count >= 5) {
+                            showVictoryModal(color, false);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // 檢查平局 (盤滿)
+            let isFull = true;
+            for (let r = 0; r < GM_SIZE; r++) {
+                for (let c = 0; c < GM_SIZE; c++) {
+                    if (!gmBoard[r][c]) isFull = false;
+                }
+            }
+            if (isFull) {
+                gameOver = true;
+                showMessage("平手！");
+            }
+        }
+
+        // 五子棋 簡易評分 AI
+        function makeGMAIMove() {
+            if (gameOver) return;
+            let bestScore = -Infinity;
+            let bestMoves = [];
+
+            // 簡單防禦/進攻評估：找周圍有棋子的空位下，如果是第一步下中間
+            let hasPiece = false;
+            for (let r=0; r<GM_SIZE; r++) {
+                for (let c=0; c<GM_SIZE; c++) {
+                    if (gmBoard[r][c]) hasPiece = true;
+                }
+            }
+            if (!hasPiece) {
+                gmBoard[7][7] = 'white'; endGMTurn(); return;
+            }
+
+            for (let r = 0; r < GM_SIZE; r++) {
+                for (let c = 0; c < GM_SIZE; c++) {
+                    if (!gmBoard[r][c]) {
+                        // 簡單分數計算：靠近現有棋子
+                        let score = 0;
+                        for (let dr = -1; dr <= 1; dr++) {
+                            for (let dc = -1; dc <= 1; dc++) {
+                                if (dr===0 && dc===0) continue;
+                                let nr = r+dr, nc = c+dc;
+                                if (nr>=0 && nr<GM_SIZE && nc>=0 && nc<GM_SIZE && gmBoard[nr][nc]) {
+                                    score += 1;
+                                    // 粗略攔截：如果旁邊是黑子(對手)，分數加高一點去擋
+                                    if(gmBoard[nr][nc] === 'black') score += 2;
+                                }
+                            }
+                        }
+                        // 加上一點隨機避免每次走一樣
+                        score += Math.random() * 0.5; 
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMoves = [{r, c}];
+                        } else if (score === bestScore) {
+                            bestMoves.push({r, c});
+                        }
+                    }
+                }
+            }
+
+            if (bestMoves.length > 0) {
+                let move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                gmBoard[move.r][move.c] = 'white';
+                endGMTurn();
             }
         }
     </script>
 </body>
 </html>
+
+*(接下來，我會發送【下半部】的 JavaScript 核心邏輯)*
