@@ -176,6 +176,10 @@
                 <p>楚河漢界，完整走法判定與AI對戰</p>
             </div>
         </div>
+        <div class="game-card" onclick="openApp('bigtwo')">
+                <h2>🃏 大老二</h2>
+                <p>支援 1~4 人連線與電腦混戰</p>
+            </div>
     </div>
 
     <div id="darkchess-app" class="app-section">
@@ -291,6 +295,65 @@
         </div>
     </div>
 
+    <div id="bigtwo-app" class="app-section">
+        <div id="bt-lobby" class="lobby-container" style="max-width: 500px;">
+            <button class="back-btn" onclick="location.reload()">🔙</button>
+            <h2 style="margin-top: 0;">🃏 P2P 大老二大廳</h2>
+            
+            <div id="bt-host-panel">
+                <p>你的連線代碼 (房主)</p>
+                <p><strong id="bt-my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
+                <button class="btn btn-success" onclick="copyInviteLink('bigtwo', 'bt-my-id')">🔗 複製邀請連結傳給朋友</button>
+                <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+            </div>
+
+            <div id="bt-join-section">
+                <p style="font-size: 14px; color: #888; margin-bottom: 10px;">或輸入房主代碼加入朋友的房間：</p>
+                <input type="text" id="bt-friend-id" placeholder="例如: 6KGC33">
+                <button class="btn btn-primary" onclick="connectToFriend('bigtwo')">加入房間</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #444; margin: 20px 0;">
+
+            <h3>房間狀態 (等候玩家/電腦)</h3>
+            <div id="bt-seats" style="display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%;">
+                <div style="background: #333; padding: 10px; border-radius: 8px; width: 90%; display: flex; justify-content: space-between;">
+                    <span>👑 玩家 1 (你)</span>
+                    <span style="color: #4caf50;">已準備</span>
+                </div>
+                <div style="background: #333; padding: 10px; border-radius: 8px; width: 90%; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="bt-seat-2">玩家 2: 等待連線...</span>
+                    <button id="bt-ai-btn-2" class="btn btn-ai" style="margin: 0; padding: 5px 10px; font-size: 12px; width: auto;" onclick="addBigTwoAI(2)">+ 加電腦</button>
+                </div>
+                <div style="background: #333; padding: 10px; border-radius: 8px; width: 90%; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="bt-seat-3">玩家 3: 等待連線...</span>
+                    <button id="bt-ai-btn-3" class="btn btn-ai" style="margin: 0; padding: 5px 10px; font-size: 12px; width: auto;" onclick="addBigTwoAI(3)">+ 加電腦</button>
+                </div>
+                <div style="background: #333; padding: 10px; border-radius: 8px; width: 90%; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="bt-seat-4">玩家 4: 等待連線...</span>
+                    <button id="bt-ai-btn-4" class="btn btn-ai" style="margin: 0; padding: 5px 10px; font-size: 12px; width: auto;" onclick="addBigTwoAI(4)">+ 加電腦</button>
+                </div>
+            </div>
+
+            <button id="bt-start-btn" class="btn btn-primary" style="width: 100%; margin-top: 20px; font-size: 20px; background-color: #555; cursor: not-allowed;" disabled onclick="startBigTwoGame()">🚀 人數未滿 (1/4)</button>
+        </div>
+
+        <div id="bt-game-wrapper" class="game-wrapper">
+            <div class="top-info-container">
+                <div class="star-icon">🃏</div>
+                <div id="bt-turn-info" class="turn-info">準備發牌...</div>
+            </div>
+            
+            <div id="bt-game-area" style="width: 100%; max-width: 800px; height: 400px; border: 2px dashed #555; display: flex; justify-content: center; align-items: center; color: #888; font-size: 20px; border-radius: 10px; margin-bottom: 20px;">
+                撲克牌桌 (第二階段建置)
+            </div>
+
+            <div class="controls">
+                <button class="game-btn surrender-btn" onclick="location.reload()">🏳️ 離開房間</button>
+            </div>
+        </div>
+    </div>
+
     
 <script>
         // ================= 共用核心邏輯 =================
@@ -320,11 +383,11 @@
         peer.on('open', id => {
             document.getElementById('dc-my-id').innerText = id;
             document.getElementById('gm-my-id').innerText = id;
-            document.getElementById('xq-my-id').innerText = id; 
+            if (document.getElementById('xq-my-id')) document.getElementById('xq-my-id').innerText = id; 
+            if (document.getElementById('bt-my-id')) document.getElementById('bt-my-id').innerText = id; // 新增大老二代碼派發
             checkUrlForInvite(); 
         });
 
-        // 接收別人的連線 (我是 host)
         // 接收別人的連線 (我是 host)
         peer.on('connection', (c) => { 
             conn = c; 
@@ -340,7 +403,8 @@
                     
                     if (currentGame === 'darkchess') initDarkchessAsHost();
                     else if (currentGame === 'gomoku') initGomokuAsHost();
-                    else if (currentGame === 'xiangqi') initXiangqiAsHost(); // 就是漏了這行！
+                    else if (currentGame === 'xiangqi') initXiangqiAsHost(); 
+                    // 註：大老二的邏輯比較特殊，連線進來後房主還要按「開始遊戲」，所以這裡先不自動初始化大老二
                 }
             });
         });
@@ -352,7 +416,11 @@
 
             if (roomCode) { 
                 openApp(gameType);
-                let inputId = gameType === 'darkchess' ? 'dc-friend-id' : (gameType === 'gomoku' ? 'gm-friend-id' : 'xq-friend-id');
+                let inputId = 'dc-friend-id';
+                if (gameType === 'gomoku') inputId = 'gm-friend-id';
+                else if (gameType === 'xiangqi') inputId = 'xq-friend-id';
+                else if (gameType === 'bigtwo') inputId = 'bt-friend-id'; // 支援大老二自動帶入代碼
+
                 document.getElementById(inputId).value = roomCode.toUpperCase(); 
                 showMessage("✨ 已帶入好友代碼，請點擊加入遊戲！"); 
             }
@@ -367,16 +435,22 @@
             document.getElementById('portal-menu').style.display = 'none';
             document.getElementById('darkchess-app').style.display = 'none';
             document.getElementById('gomoku-app').style.display = 'none';
-            document.getElementById('xiangqi-app').style.display = 'none';
+            if (document.getElementById('xiangqi-app')) document.getElementById('xiangqi-app').style.display = 'none';
+            if (document.getElementById('bigtwo-app')) document.getElementById('bigtwo-app').style.display = 'none'; // 隱藏大老二
             
             if (appId === 'darkchess') document.getElementById('darkchess-app').style.display = 'flex';
             else if (appId === 'gomoku') document.getElementById('gomoku-app').style.display = 'flex';
             else if (appId === 'xiangqi') document.getElementById('xiangqi-app').style.display = 'flex';
+            else if (appId === 'bigtwo') document.getElementById('bigtwo-app').style.display = 'flex'; // 打開大老二
         }
 
         // 我主動去連別人 (我是 guest)
         function connectToFriend(gameType) {
-            let inputId = gameType === 'darkchess' ? 'dc-friend-id' : (gameType === 'gomoku' ? 'gm-friend-id' : 'xq-friend-id');
+            let inputId = 'dc-friend-id';
+            if (gameType === 'gomoku') inputId = 'gm-friend-id';
+            else if (gameType === 'xiangqi') inputId = 'xq-friend-id';
+            else if (gameType === 'bigtwo') inputId = 'bt-friend-id';
+
             let rawInput = document.getElementById(inputId).value.trim();
             if (!rawInput) return showMessage('請輸入代碼或貼上連結');
             
@@ -403,25 +477,29 @@
             if (currentGame === 'darkchess') initDarkchessAsHost();
             else if (currentGame === 'gomoku') initGomokuAsHost();
             else if (currentGame === 'xiangqi') initXiangqiAsHost();
+            // 註：大老二的 AI 加入由專屬大廳控制，不在這裡初始化
         }
 
         function setupConnection(isLocalAI = false) {
-            let lobbyId = currentGame === 'darkchess' ? 'dc-lobby' : (currentGame === 'gomoku' ? 'gm-lobby' : 'xq-lobby');
-            let wrapperId = currentGame === 'darkchess' ? 'dc-game-wrapper' : (currentGame === 'gomoku' ? 'gm-game-wrapper' : 'xq-game-wrapper');
-            let boardId = currentGame === 'darkchess' ? 'dc-board' : (currentGame === 'gomoku' ? 'gomoku-board' : 'xq-board');
-            let boardEl = document.getElementById(boardId); // 抓到棋盤元素
+            let lobbyId = 'dc-lobby'; let wrapperId = 'dc-game-wrapper'; let boardId = 'dc-board';
+            
+            if (currentGame === 'gomoku') { lobbyId = 'gm-lobby'; wrapperId = 'gm-game-wrapper'; boardId = 'gomoku-board'; }
+            else if (currentGame === 'xiangqi') { lobbyId = 'xq-lobby'; wrapperId = 'xq-game-wrapper'; boardId = 'xq-board'; }
+            else if (currentGame === 'bigtwo') { lobbyId = 'bt-lobby'; wrapperId = 'bt-game-wrapper'; boardId = 'bt-game-area'; } // 加入大老二判斷
 
-            // 新增：如果是象棋且我是 GUEST (黑方)，把棋盤視覺翻轉
+            let boardEl = document.getElementById(boardId); 
+
+            // 象棋視角翻轉
             if (currentGame === 'xiangqi' && myRole === 'guest') {
-                boardEl.classList.add('xq-flipped-board');
+                if(boardEl) boardEl.classList.add('xq-flipped-board');
             } else {
-                // 防呆：如果是其他模式或我是 HOST (紅方)，確保沒有翻轉樣式
-                boardEl.classList.remove('xq-flipped-board');
+                if(boardEl) boardEl.classList.remove('xq-flipped-board');
             }
 
             document.getElementById(lobbyId).style.display = 'none'; 
             document.getElementById(wrapperId).style.display = 'flex';
-            boardEl.classList.add('active'); // 使用剛抓到的 boardEl 
+            if (boardEl && currentGame !== 'bigtwo') boardEl.classList.add('active'); // 大老二目前沒有 active 樣式
+            
             showMessage(isLocalAI ? "🤖 單機模式開啟！由你先發" : "✅ 連線成功！");
 
             if (!isLocalAI && conn) {
@@ -438,9 +516,11 @@
                     } else if (currentGame === 'xiangqi' && data.game === 'xiangqi') {
                         handleXiangqiSync(data);
                     }
+                    // 大老二的資料同步會在後續階段加入
                 });
             }
         }
+
         function surrenderGame(gameType) {
             if (gameOver) return;
             let myAssignedColor = null;
@@ -448,7 +528,7 @@
             else if (gameType === 'gomoku') myAssignedColor = myRole === 'host' ? 'black' : 'white';
             else if (gameType === 'xiangqi') myAssignedColor = myRole === 'host' ? 'red' : 'black';
 
-            if (!myAssignedColor) return showMessage("遊戲還沒開始，無法投降！");
+            if (!myAssignedColor && gameType !== 'bigtwo') return showMessage("遊戲還沒開始，無法投降！");
             
             if (confirm("確定要舉白旗投降嗎？")) {
                 if (!isVsAI && conn && conn.open) conn.send({ type: 'surrender', loserColor: myAssignedColor });
@@ -1102,6 +1182,54 @@
                 xqBoard[best.fr][best.fc] = null;
                 endXQTurn();
             }
+        }
+
+    // ================= 大老二邏輯 (Big Two) - 第一階段 =================
+        let btPlayers = [
+            { id: 'host', type: 'human', name: '👑 玩家 1 (你)', ready: true },
+            { id: null, type: 'empty', name: '等待連線...', ready: false },
+            { id: null, type: 'empty', name: '等待連線...', ready: false },
+            { id: null, type: 'empty', name: '等待連線...', ready: false }
+        ];
+        let btCurrentPlayerCount = 1;
+
+        // 房主點擊「+ 加電腦」按鈕
+        function addBigTwoAI(seatIndex) {
+            let realIndex = seatIndex - 1; // 陣列從 0 開始
+            if (btPlayers[realIndex].type !== 'empty') return;
+
+            btPlayers[realIndex] = { id: `AI_${seatIndex}`, type: 'ai', name: `🤖 電腦 ${seatIndex}`, ready: true };
+            btCurrentPlayerCount++;
+            
+            // 更新畫面
+            document.getElementById(`bt-seat-${seatIndex}`).innerText = btPlayers[realIndex].name;
+            document.getElementById(`bt-seat-${seatIndex}`).style.color = '#ff9800';
+            document.getElementById(`bt-ai-btn-${seatIndex}`).style.display = 'none'; // 隱藏按鈕
+
+            checkBigTwoReady();
+        }
+
+        // 檢查是否滿 4 人可以開始遊戲
+        function checkBigTwoReady() {
+            let startBtn = document.getElementById('bt-start-btn');
+            if (btCurrentPlayerCount === 4) {
+                startBtn.innerText = "🚀 開始遊戲";
+                startBtn.style.backgroundColor = "#1976d2";
+                startBtn.style.cursor = "pointer";
+                startBtn.disabled = false;
+            } else {
+                startBtn.innerText = `🚀 人數未滿 (${btCurrentPlayerCount}/4)`;
+                startBtn.style.backgroundColor = "#555";
+                startBtn.style.cursor = "not-allowed";
+                startBtn.disabled = true;
+            }
+        }
+
+        // 點擊開始遊戲
+        function startBigTwoGame() {
+            document.getElementById('bt-lobby').style.display = 'none';
+            document.getElementById('bt-game-wrapper').style.display = 'flex';
+            showMessage("開始洗牌發牌！(即將進入第二階段)");
         }
     
     </script>
