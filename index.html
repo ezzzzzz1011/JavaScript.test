@@ -861,55 +861,81 @@ function isXQAttacked(tr, tc, attC, b) {
     return false;
 }
 
-function makeXQAIMove() {
-    let moves=[], best=-99999, bm=[];
-    let v={'車':90,'俥':90,'炮':45,'包':45,'馬':40,'傌':40,'象':20,'相':20,'士':20,'仕':20,'卒':10,'兵':10,'將':10000,'帥':10000};
-    
-    for(let r=0;r<10;r++)for(let c=0;c<9;c++)if(xqBoard[r][c]?.c==='black'){
-        for(let tr=0;tr<10;tr++)for(let tc=0;tc<9;tc++)if(xqBoard[tr][tc]?.c!=='black'&&valXQMv(r,c,tr,tc,xqBoard)){
-            let target = xqBoard[tr][tc];
-            let piece = xqBoard[r][c];
-            
-            // 基礎吃子分數 + 推進分數
-            let s = (target ? v[target.n] : 0) + (tr * 0.1); 
-            
-            // 如果這顆棋子正在被紅方威脅，走開就加分 (逃跑機制)
-            if (isXQAttacked(r, c, 'red', xqBoard)) {
-                s += v[piece.n] * 0.8; 
-            }
-            
-            // 假裝移動過去，測試會不會被吃掉 (避免送頭)
-            xqBoard[tr][tc] = piece; xqBoard[r][c] = null;
-            if (isXQAttacked(tr, tc, 'red', xqBoard)) {
-                s -= v[piece.n]; 
-            }
-            // 復原棋盤
-            xqBoard[r][c] = piece; xqBoard[tr][tc] = target;
-
-            // 【修復】嚴厲懲罰來回跳恰恰！如果跟上一步完全相反，直接大扣分
-            if (xqLastAIMove && xqLastAIMove.f.r === tr && xqLastAIMove.f.c === tc && xqLastAIMove.t.r === r && xqLastAIMove.t.c === c) {
-                s -= 100; 
-            }
-
-            s += (Math.random() * 0.2); // 亂數避免平分死循環
-            
-            if(s>best){best=s; bm=[{f:{r,c},t:{r:tr,c:tc}}];}
-            else if(Math.abs(s-best)<0.05) {bm.push({f:{r,c},t:{r:tr,c:tc}});}
+// 輔助函數：尋找棋盤上特定顏色的「將/帥」位置 (這個要放在 makeXQAIMove 上面)
+function findXiangqiKing(color, b) {
+    for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+            if (b[r][c]?.c === color && (b[r][c]?.n === '將' || b[r][c]?.n === '帥')) return { r, c };
         }
     }
-    if(bm.length > 0){
-        let chosen = bm[Math.floor(Math.random()*bm.length)];
-        
-        // 紀錄這一步，供下次避免跳舞
-        xqLastAIMove = {f:{r:chosen.f.r, c:chosen.f.c}, t:{r:chosen.t.r, c:chosen.t.c}};
+    return null;
+}
 
+// 這是你要整段替換的 AI 函數
+function makeXQAIMove() {
+    let best = -999999, bm = [];
+    let v = { '車': 95, '俥': 95, '炮': 50, '包': 50, '馬': 45, '傌': 45, '象': 20, '相': 20, '士': 20, '仕': 20, '卒': 15, '兵': 15, '將': 100000, '帥': 100000 };
+
+    for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 9; c++) {
+            if (xqBoard[r][c]?.c === 'black') {
+                for (let tr = 0; tr < 10; tr++) {
+                    for (let tc = 0; tc < 9; tc++) {
+                        if (xqBoard[tr][tc]?.c !== 'black' && valXQMv(r, c, tr, tc, xqBoard)) {
+                            let target = xqBoard[tr][tc];
+                            let piece = xqBoard[r][c];
+
+                            // --- 1. 模擬移動 ---
+                            xqBoard[tr][tc] = piece; 
+                            xqBoard[r][c] = null;
+
+                            // 基礎得分 (吃子價值 + 推進獎勵)
+                            let s = (target ? v[target.n] : 0) + (tr * 0.2);
+
+                            // --- 2. 【保王雷達】檢查走完這步後，黑將是否會被將軍 ---
+                            let myKing = findXiangqiKing('black', xqBoard);
+                            if (myKing && isXQAttacked(myKing.r, myKing.c, 'red', xqBoard)) {
+                                s -= 80000; // 給予超大扣分，強制電腦不能這樣走
+                            }
+
+                            // --- 3. 防守：避免移動過去送頭 ---
+                            if (isXQAttacked(tr, tc, 'red', xqBoard)) {
+                                s -= v[piece.n] * 0.9;
+                            }
+
+                            // --- 4. 防止來回跳舞：如果走回上一動，扣分 ---
+                            if (xqLastAIMove && xqLastAIMove.f.r === tr && xqLastAIMove.f.c === tc && xqLastAIMove.t.r === r && xqLastAIMove.t.c === c) {
+                                s -= 1000;
+                            }
+
+                            // --- 5. 復原棋盤 ---
+                            xqBoard[r][c] = piece; 
+                            xqBoard[tr][tc] = target;
+
+                            s += (Math.random() * 0.5); // 增加隨機性
+
+                            if (s > best) { 
+                                best = s; 
+                                bm = [{ f: { r, c }, t: { r: tr, c: tc } }]; 
+                            } else if (Math.abs(s - best) < 0.1) { 
+                                bm.push({ f: { r, c }, t: { r: tr, c: tc } }); 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (bm.length > 0) {
+        let chosen = bm[Math.floor(Math.random() * bm.length)];
+        xqLastAIMove = { f: { r: chosen.f.r, c: chosen.f.c }, t: { r: chosen.t.r, c: chosen.t.c } };
         let target = xqBoard[chosen.t.r][chosen.t.c];
         if (target) { if (target.c === 'red') xqRedKilled.push(target); else xqBlackKilled.push(target); }
-
-        xqBoard[chosen.t.r][chosen.t.c] = xqBoard[chosen.f.r][chosen.f.c]; 
+        xqBoard[chosen.t.r][chosen.t.c] = xqBoard[chosen.f.r][chosen.f.c];
         xqBoard[chosen.f.r][chosen.f.c] = null;
     }
-    xqTurn='red'; syncXQ(); renXQ(); renderXQKilledPieces(); chkXQWin();
+    xqTurn = 'red'; syncXQ(); renXQ(); renderXQKilledPieces(); chkXQWin();
 }
 
 
