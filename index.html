@@ -1,352 +1,1674 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <title>GitHub 連線暗棋 v.1.7</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #121212; color: #f0f0f0; margin: 0; padding-top: 20px; }
-        
-        /* 提示訊息 */
-        #toast { visibility: hidden; min-width: 250px; background-color: rgba(50, 50, 50, 0.95); color: #fff; text-align: center; border-radius: 8px; padding: 12px 20px; position: fixed; z-index: 1000; top: 20px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: bold; opacity: 0; transition: opacity 0.3s, top 0.3s; box-shadow: 0 4px 8px rgba(0,0,0,0.3); pointer-events: none; }
-        #toast.show { visibility: visible; opacity: 1; top: 40px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>暗域征途 — 3D RPG</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=MedievalSharp&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{overflow:hidden;background:#0a0a0f;font-family:'Noto Sans TC',sans-serif;color:#e0d6c2;cursor:default;user-select:none;}
+canvas{display:block;}
 
-        /* 勝利結算彈出視窗 */
-        #victory-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .modal-content { background: #212121; padding: 40px 60px; border-radius: 15px; text-align: center; border: 3px solid #a17f2d; box-shadow: 0 10px 30px rgba(0,0,0,0.8); animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .modal-content h1 { margin-top: 0; font-size: 40px; }
-        .modal-content p { font-size: 20px; color: #ccc; margin-bottom: 30px; }
-        .modal-content button { padding: 12px 30px; font-size: 20px; cursor: pointer; background-color: #4caf50; color: white; border: none; border-radius: 8px; transition: 0.2s; font-weight: bold; }
-        .modal-content button:hover { background-color: #388e3c; transform: scale(1.05); }
+/* ── Shared UI layer ── */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;transition:opacity .5s;}
+.screen.hidden{opacity:0;pointer-events:none;}
+.title-text{font-family:'MedievalSharp',cursive;font-size:clamp(2.5rem,6vw,5rem);color:#f4e8c1;text-shadow:0 0 40px rgba(255,180,60,.4),0 4px 12px rgba(0,0,0,.8);letter-spacing:.05em;margin-bottom:.3em;}
+.subtitle{font-size:1rem;color:#8a7e6b;margin-bottom:2.5em;letter-spacing:.15em;}
 
-        /* 連線大廳 */
-        #lobby { background: #212121; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); margin-bottom: 20px; text-align: center; color: white; min-width: 350px; }
-        #lobby input { padding: 10px; font-size: 16px; background: #333; border: 1px solid #555; color: white; border-radius: 4px; width: 200px; text-align: center; }
-        .btn-primary { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #1976d2; color: white; border: none; border-radius: 4px; transition: 0.2s; }
-        .btn-primary:hover { background-color: #1565c0; }
-        .btn-success { padding: 8px 15px; font-size: 14px; cursor: pointer; background-color: #2e7d32; color: white; border: none; border-radius: 4px; margin-bottom: 20px; transition: 0.2s; }
-        .btn-success:hover { background-color: #1b5e20; }
+/* ── Character Select ── */
+#selectScreen{background:radial-gradient(ellipse at 50% 40%,#1a1520 0%,#0a0a0f 70%);}
+.class-cards{display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;perspective:800px;}
+.class-card{width:220px;padding:1.8rem 1.4rem;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:16px;text-align:center;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;}
+.class-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,var(--accent),.05),transparent);opacity:0;transition:opacity .35s;}
+.class-card:hover{transform:translateY(-8px) scale(1.03);border-color:var(--accent);box-shadow:0 12px 40px rgba(0,0,0,.5),0 0 30px color-mix(in srgb,var(--accent) 25%,transparent);}
+.class-card:hover::before{opacity:1;}
+.class-card .icon{font-size:3.5rem;margin-bottom:.6rem;filter:drop-shadow(0 0 12px var(--accent));}
+.class-card h3{font-size:1.2rem;margin-bottom:.4rem;color:#f4e8c1;}
+.class-card p{font-size:.78rem;color:#8a7e6b;line-height:1.5;margin-bottom:.8rem;}
+.class-card .stats{font-size:.7rem;color:#6b6358;line-height:1.7;}
+.card-warrior{--accent:#e84040;}
+.card-mage{--accent:#5b7fff;}
+.card-archer{--accent:#3cc43c;}
 
-        /* 遊戲區域 */
-        #game-wrapper { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1200px; }
-        #top-info-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
-        #star-icon { font-size: 28px; margin-bottom: 5px; text-shadow: 0 0 10px #fdd835; }
-        #turn-info { font-size: 24px; font-weight: bold; color: #00ff00; text-shadow: 0 0 10px #00ff00; margin-bottom: 5px; }
-        #role-info { font-size: 18px; color: #aaa; }
-        #game-main-area { display: flex; align-items: flex-start; justify-content: center; width: 100%; }
+/* ── HUD ── */
+#hud{position:fixed;top:0;left:0;right:0;padding:14px 20px;display:flex;align-items:center;gap:16px;z-index:20;pointer-events:none;opacity:0;transition:opacity .4s;}
+#hud.show{opacity:1;}
+.hud-bar-wrap{flex:1;max-width:260px;height:18px;background:rgba(0,0,0,.6);border-radius:9px;border:1px solid rgba(255,255,255,.1);overflow:hidden;position:relative;}
+.hud-bar{height:100%;border-radius:9px;transition:width .3s;}
+.bar-hp{background:linear-gradient(90deg,#c0392b,#e74c3c);}
+.bar-xp{background:linear-gradient(90deg,#8e44ad,#a855f7);}
+.hud-bar-wrap .bar-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+#hudLevel{font-family:'MedievalSharp',cursive;font-size:1.4rem;color:#f4e8c1;text-shadow:0 0 10px rgba(255,180,60,.5);min-width:70px;text-align:center;}
+#hudKills{font-size:.75rem;color:#8a7e6b;min-width:80px;text-align:right;}
+#hudWave{font-size:.75rem;color:#b8860b;min-width:80px;text-align:center;}
 
-        /* 陣亡區 */
-        .killed-sidebar { display: flex; flex-direction: column; align-items: center; width: 140px; color: #aaa; font-size: 16px; }
-        .sidebar-title { margin-bottom: 15px; font-weight: bold; }
-        .killed-pieces { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-content: flex-start; width: 100%; }
-        .killed-piece { width: 50px; height: 50px; border-radius: 50%; background-color: #eae4d1; border: 2px solid #3e2723; font-size: 24px; font-weight: bold; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+/* ── Level Up Modal ── */
+#levelUpModal{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:30;opacity:0;pointer-events:none;transition:opacity .4s;}
+#levelUpModal.show{opacity:1;pointer-events:auto;}
+#levelUpModal h2{font-family:'MedievalSharp',cursive;font-size:2.2rem;color:#f4e8c1;text-shadow:0 0 30px rgba(255,180,60,.5);margin-bottom:.3em;}
+#levelUpModal .lv-sub{color:#8a7e6b;margin-bottom:2rem;font-size:.9rem;}
+.upgrade-cards{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;}
+.upgrade-card{width:200px;padding:1.6rem 1.2rem;background:linear-gradient(170deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.1);border-radius:14px;text-align:center;cursor:pointer;transition:all .3s;}
+.upgrade-card:hover{transform:translateY(-6px);border-color:#f4e8c1;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.upgrade-card .up-icon{font-size:2.4rem;margin-bottom:.5rem;}
+.upgrade-card h4{font-size:1rem;color:#f4e8c1;margin-bottom:.4rem;}
+.upgrade-card p{font-size:.72rem;color:#8a7e6b;line-height:1.5;}
 
-        /* 棋盤 */
-        #board-container { display: flex; justify-content: center; margin: 0 30px; }
-        #board-outer { background-color: #a17f2d; border: 10px solid #a17f2d; border-radius: 8px; box-shadow: 0 6px 15px rgba(0,0,0,0.6); }
-        #board { display: grid; grid-template-columns: repeat(4, 85px); grid-template-rows: repeat(8, 85px); gap: 2px; background-color: #5d4037; padding: 4px; }
-        #board.active { pointer-events: auto; }
-        .cell { width: 85px; height: 85px; background-color: #f1d382; display: flex; justify-content: center; align-items: center; cursor: pointer; user-select: none; transition: transform 0.1s; }
-        .cell:active { transform: scale(0.95); }
-        .cell.open { border-radius: 50%; background-color: #eae4d1; border: 3px solid #3e2723; font-size: 42px; font-weight: bold; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
-        .cell.hidden { background-color: #ccc; border: 3px solid #3e2723; border-radius: 50%; color: transparent; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
-        .cell.hidden::after { content: "？"; color: #333; font-size: 36px; opacity: 0.6; }
-        .cell.empty { background-color: transparent; border: 1px solid rgba(255,255,255,0.1); cursor: default; }
-        .cell.selected { background-color: #fff176; border-color: #fff176; box-shadow: 0 0 20px #fff176; }
-        .cell.red, .killed-piece.red { color: #bf2121; } 
-        .cell.black, .killed-piece.black { color: #004d40; } 
+/* ── Game Over ── */
+#gameOverScreen{background:rgba(5,5,10,.9);backdrop-filter:blur(6px);}
+#gameOverScreen .title-text{color:#e84040;}
+.go-stats{margin:1.5rem 0 2rem;font-size:.9rem;color:#8a7e6b;line-height:2;}
+.btn-restart{padding:.8rem 2.5rem;font-family:'Noto Sans TC',sans-serif;font-size:1rem;font-weight:700;color:#f4e8c1;background:linear-gradient(135deg,#8e44ad,#c0392b);border:none;border-radius:10px;cursor:pointer;transition:all .3s;}
+.btn-restart:hover{transform:scale(1.05);box-shadow:0 0 25px rgba(200,60,60,.4);}
 
-        /* 控制按鈕 */
-        #controls { margin-top: 30px; margin-bottom: 40px; display: flex; gap: 15px; }
-        .game-btn { color: white; border: none; border-radius: 20px; padding: 12px 30px; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: 0.2s; font-weight: bold; }
-        #surrender-btn { background-color: #d32f2f; }
-        #surrender-btn:hover { background-color: #b71c1c; transform: scale(1.05); }
-        #end-btn { background-color: #424242; }
-        #end-btn:hover { background-color: #616161; transform: scale(1.05); }
-    </style>
+/* ── Wave Banner ── */
+#waveBanner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'MedievalSharp',cursive;font-size:2.5rem;color:#f4e8c1;text-shadow:0 0 30px rgba(255,180,60,.6);z-index:25;opacity:0;pointer-events:none;transition:opacity .6s;}
+
+/* ── Damage Numbers ── */
+.dmg-num{position:fixed;pointer-events:none;font-weight:900;font-size:1rem;z-index:22;animation:dmgFloat 1s ease-out forwards;}
+.dmg-num.crit{font-size:1.4rem;color:#ff4444 !important;}
+@keyframes dmgFloat{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-60px) scale(.7);}}
+
+/* ── Controls hint ── */
+#controlsHint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);font-size:.7rem;color:rgba(255,255,255,.25);z-index:20;pointer-events:none;opacity:0;transition:opacity .4s;}
+#controlsHint.show{opacity:1;}
+</style>
 </head>
 <body>
 
-    <div id="toast">提示訊息</div>
-
-    <div id="victory-modal">
-        <div class="modal-content">
-            <h1 id="victory-title">🏆 恭喜獲勝！</h1>
-            <p id="victory-msg">你殲滅了對手</p>
-            <button onclick="location.reload()">再來一局</button>
-        </div>
+<!-- Character Select -->
+<div id="selectScreen" class="screen">
+  <div class="title-text">暗域征途</div>
+  <div class="subtitle">選擇你的英雄</div>
+  <div class="class-cards">
+    <div class="class-card card-warrior" onclick="startGame('warrior')">
+      <div class="icon">⚔️</div>
+      <h3>近戰戰士</h3>
+      <p>揮舞巨劍，在怪物群中橫衝直撞的鋼鐵猛獸</p>
+      <div class="stats">攻擊力 ★★★★☆<br>血量 ★★★★★<br>速度 ★★★☆☆</div>
     </div>
-
-    <div id="lobby">
-        <h2 style="margin-top: 0;">♟️ P2P 連線暗棋 v.1.7</h2>
-        <p style="font-size: 18px;">你的連線代碼</p>
-        <p><strong id="my-id" style="color: #4fc3f7; font-size: 36px; letter-spacing: 2px; user-select: all;">載入中...</strong></p>
-        <button class="btn-success" onclick="copyInviteLink()">🔗 複製邀請連結傳給朋友</button>
-        <hr style="border: 0; border-top: 1px solid #444; margin-bottom: 20px;">
-        <p style="font-size: 14px; color: #888; margin-bottom: 10px;">貼上代碼或完整連結：</p>
-        <input type="text" id="friend-id" placeholder="例如: 6KGC33 或 https://...">
-        <button class="btn-primary" onclick="connectToFriend()">加入遊戲</button>
+    <div class="class-card card-mage" onclick="startGame('mage')">
+      <div class="icon">🔮</div>
+      <h3>法師</h3>
+      <p>操控元素之力，以火球轟炸一切敢於靠近的敵人</p>
+      <div class="stats">攻擊力 ★★★★★<br>血量 ★★☆☆☆<br>速度 ★★★☆☆</div>
     </div>
-
-    <div id="game-wrapper">
-        <div id="top-info-container">
-            <div id="star-icon">⭐</div>
-            <div id="turn-info">等待連線...</div>
-            <div id="role-info">身份：未定</div>
-        </div>
-
-        <div id="game-main-area">
-            <div id="red-killed" class="killed-sidebar">
-                <div class="sidebar-title">紅方陣亡</div>
-                <div class="killed-pieces"></div>
-            </div>
-
-            <div id="board-container">
-                <div id="board-outer">
-                    <div id="board"></div>
-                </div>
-            </div>
-
-            <div id="black-killed" class="killed-sidebar">
-                <div class="sidebar-title">黑方陣亡</div>
-                <div class="killed-pieces"></div>
-            </div>
-        </div>
-
-        <div id="controls">
-            <button id="surrender-btn" class="game-btn" onclick="surrenderGame()">🏳️ 投降</button>
-            <button id="end-btn" class="game-btn" onclick="location.reload()">重新開始</button>
-        </div>
+    <div class="class-card card-archer" onclick="startGame('archer')">
+      <div class="icon">🏹</div>
+      <h3>射手</h3>
+      <p>百步穿楊的神射手，在遠處精準收割每一條性命</p>
+      <div class="stats">攻擊力 ★★★☆☆<br>血量 ★★★☆☆<br>速度 ★★★★★</div>
     </div>
+  </div>
+</div>
 
-    <script>
-        const PIECES = [
-            { name: '帥', color: 'red', rank: 7 }, { name: '將', color: 'black', rank: 7 },
-            { name: '仕', color: 'red', rank: 6 }, { name: '仕', color: 'red', rank: 6 }, { name: '士', color: 'black', rank: 6 }, { name: '士', color: 'black', rank: 6 },
-            { name: '相', color: 'red', rank: 5 }, { name: '相', color: 'red', rank: 5 }, { name: '象', color: 'black', rank: 5 }, { name: '象', color: 'black', rank: 5 },
-            { name: '俥', color: 'red', rank: 4 }, { name: '俥', color: 'red', rank: 4 }, { name: '車', color: 'black', rank: 4 }, { name: '車', color: 'black', rank: 4 },
-            { name: '傌', color: 'red', rank: 3 }, { name: '傌', color: 'red', rank: 3 }, { name: '馬', color: 'black', rank: 3 }, { name: '馬', color: 'black', rank: 3 },
-            { name: '炮', color: 'red', rank: 2 }, { name: '炮', color: 'red', rank: 2 }, { name: '包', color: 'black', rank: 2 }, { name: '包', color: 'black', rank: 2 },
-            { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 }, { name: '兵', color: 'red', rank: 1 },
-            { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }, { name: '卒', color: 'black', rank: 1 }
-        ];
+<!-- HUD -->
+<div id="hud">
+  <div id="hudLevel">Lv.1</div>
+  <div class="hud-bar-wrap"><div class="hud-bar bar-hp" id="hpBar" style="width:100%"></div><div class="bar-label" id="hpLabel">100/100</div></div>
+  <div class="hud-bar-wrap"><div class="hud-bar bar-xp" id="xpBar" style="width:0%"></div><div class="bar-label" id="xpLabel">0/20</div></div>
+  <div id="hudWave">波次 1</div>
+  <div id="hudKills">擊殺 0</div>
+</div>
 
-        let boardData = []; let redKilled = []; let blackKilled = []; 
-        let myRole = null; let currentTurn = 'host'; let hostColor = null; let guestColor = null; 
-        let selectedIndex = -1; let conn = null; let myShortId = ""; let gameOver = false;
+<!-- Level Up -->
+<div id="levelUpModal">
+  <h2>⚡ 升級！</h2>
+  <div class="lv-sub" id="lvSubText">選擇一項強化</div>
+  <div class="upgrade-cards" id="upgradeCards"></div>
+</div>
 
-        function generateShortCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let result = '';
-            for (let i=0; i<6; i++) result += chars.charAt(Math.floor(Math.random()*chars.length));
-            return result;
+<!-- Game Over -->
+<div id="gameOverScreen" class="screen hidden">
+  <div class="title-text">你倒下了</div>
+  <div class="go-stats" id="goStats"></div>
+  <button class="btn-restart" onclick="location.reload()">再戰一次</button>
+</div>
+
+<!-- Wave Banner -->
+<div id="waveBanner"></div>
+
+<!-- Controls Hint -->
+<div id="controlsHint">WASD 移動 ｜ 滑鼠左鍵 攻擊 ｜ 消滅怪物升級獲取技能</div>
+
+<script>
+// ══════════════════════════════════════
+// GAME CONSTANTS & STATE
+// ══════════════════════════════════════
+const CLASS_DATA = {
+  warrior: {
+    name: '近戰戰士', hp: 150, atk: 25, atkSpeed: 0.8, speed: 3.5, range: 2.5,
+    color: 0xe84040, bodyColor: 0xc0392b, atkType: 'melee'
+  },
+  mage: {
+    name: '法師', hp: 80, atk: 35, atkSpeed: 1.2, speed: 3.5, range: 12,
+    color: 0x5b7fff, bodyColor: 0x3a5fcc, atkType: 'projectile'
+  },
+  archer: {
+    name: '射手', hp: 100, atk: 18, atkSpeed: 0.5, speed: 4.5, range: 14,
+    color: 0x3cc43c, bodyColor: 0x2a8a2a, atkType: 'projectile'
+  }
+};
+
+const UPGRADE_POOL = [
+  { id:'atk', icon:'⚔️', name:'攻擊強化', desc:'攻擊力 +15%', apply: p => p.atk *= 1.15 },
+  { id:'atkSpd', icon:'⚡', name:'疾風連斬', desc:'攻擊速度 +20%', apply: p => p.atkSpeed *= 0.8 },
+  { id:'hp', icon:'❤️', name:'生命強化', desc:'最大血量 +25%', apply: p => { p.maxHp *= 1.25; p.hp = p.maxHp; }},
+  { id:'spd', icon:'💨', name:'迅捷之風', desc:'移動速度 +15%', apply: p => p.speed *= 1.15 },
+  { id:'area', icon:'💥', name:'範圍爆破', desc:'攻擊範圍 +30%', apply: p => p.areaScale *= 1.3 },
+  { id:'life', icon:'🩸', name:'生命汲取', desc:'攻擊回復 8% 傷害', apply: p => p.lifesteal += 0.08 },
+  { id:'crit', icon:'🎯', name:'致命一擊', desc:'暴擊率 +12%', apply: p => p.critChance += 0.12 },
+  { id:'critDmg', icon:'💀', name:'暴擊傷害', desc:'暴擊傷害 +40%', apply: p => p.critDmg += 0.4 },
+  { id:'regen', icon:'🌿', name:'自然回復', desc:'每秒回復 2 點生命', apply: p => p.regen += 2 },
+  { id:'armor', icon:'🛡️', name:'鋼鐵之膚', desc:'受到傷害 -12%', apply: p => p.damageReduction += 0.12 },
+  { id:'thorns', icon:'🌹', name:'荊棘反甲', desc:'反彈 20% 傷害', apply: p => p.thorns += 0.20 },
+  { id:'xpBoost', icon:'📖', name:'博學多聞', desc:'經驗獲取 +25%', apply: p => p.xpMult *= 1.25 },
+];
+const CLASS_UPGRADES = {
+  warrior: [
+    { id:'cleave', icon:'🌀', name:'旋風斬', desc:'攻擊範圍大幅增加 +50%', apply: p => p.areaScale *= 1.5 },
+    { id:'rage', icon:'🔥', name:'狂戰之怒', desc:'血量越低攻擊越高(最多+80%)', apply: p => p.hasRage = true },
+  ],
+  mage: [
+    { id:'bigSpell', icon:'☄️', name:'隕石強化', desc:'火球體積與傷害 +40%', apply: p => { p.areaScale *= 1.4; p.atk *= 1.15; }},
+    { id:'chain', icon:'⛓️', name:'連鎖閃電', desc:'攻擊額外彈射 1 個目標', apply: p => p.chainCount += 1 },
+  ],
+  archer: [
+    { id:'multi', icon:'🎆', name:'多重射擊', desc:'額外發射 1 支箭矢', apply: p => p.multiShot += 1 },
+    { id:'pierce', icon:'🔱', name:'穿透之矢', desc:'箭矢穿透所有敵人', apply: p => p.pierce = true },
+  ]
+};
+
+let scene, camera, renderer, clock;
+let player = null;
+let monsters = [];
+let projectiles = [];
+let particles = [];
+let keys = {};
+let mousePos = new THREE.Vector2();
+let gameState = 'select'; // select | playing | levelup | gameover
+let wave = 1;
+let killCount = 0;
+let monstersToSpawn = 0;
+let spawnTimer = 0;
+let waveCleared = true;
+let groundMesh;
+let ambLight, dirLight, ptLight, gridHelper;
+let envObjects = []; // track environment meshes for cleanup
+let currentBiome = 'forest';
+const BIOMES = {
+  forest: {
+    name: '幽暗森林', bg: 0x0a120a, fog: 0x0a120a, fogNear: 25, fogFar: 60,
+    ground: 0x1a2a15, grid1: 0x1a3318, grid2: 0x0f1f0e,
+    amb: 0x224422, ambI: 0.55, dir: 0xccddaa, dirI: 0.7, pt: 0x44aa22, ptI: 0.25,
+    pillarColor: 0x3b2510, pillarEmissive: 0x110800
+  },
+  cave: {
+    name: '深淵洞窟', bg: 0x08080e, fog: 0x08080e, fogNear: 20, fogFar: 50,
+    ground: 0x15151e, grid1: 0x1e1e2e, grid2: 0x10101a,
+    amb: 0x223344, ambI: 0.4, dir: 0x8899bb, dirI: 0.5, pt: 0x4466cc, ptI: 0.4,
+    pillarColor: 0x2a2a35, pillarEmissive: 0x111122
+  },
+  volcano: {
+    name: '熔岩火山', bg: 0x1a0800, fog: 0x1a0800, fogNear: 22, fogFar: 55,
+    ground: 0x1a1210, grid1: 0x332211, grid2: 0x1a0e08,
+    amb: 0x442211, ambI: 0.5, dir: 0xffaa66, dirI: 0.8, pt: 0xff4400, ptI: 0.5,
+    pillarColor: 0x2a1a10, pillarEmissive: 0x331100
+  },
+  underwater: {
+    name: '深海遺跡', bg: 0x040a18, fog: 0x040a18, fogNear: 18, fogFar: 48,
+    ground: 0x0e1a28, grid1: 0x142233, grid2: 0x0a1520,
+    amb: 0x224466, ambI: 0.5, dir: 0x66aadd, dirI: 0.5, pt: 0x22ccff, ptI: 0.35,
+    pillarColor: 0x1a2a35, pillarEmissive: 0x0a1520
+  }
+};
+const BIOME_ORDER = ['forest', 'cave', 'volcano', 'underwater'];
+
+// ══════════════════════════════════════
+// THREE.JS SETUP
+// ══════════════════════════════════════
+function initThree() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0a0f);
+  scene.fog = new THREE.Fog(0x0a0a0f, 30, 65);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 22, 16);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.prepend(renderer.domElement);
+
+  // Lights
+  ambLight = new THREE.AmbientLight(0x334455, 0.6);
+  scene.add(ambLight);
+  dirLight = new THREE.DirectionalLight(0xffeedd, 0.8);
+  dirLight.position.set(10, 20, 10);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(1024, 1024);
+  dirLight.shadow.camera.near = 1; dirLight.shadow.camera.far = 50;
+  dirLight.shadow.camera.left = -25; dirLight.shadow.camera.right = 25;
+  dirLight.shadow.camera.top = 25; dirLight.shadow.camera.bottom = -25;
+  scene.add(dirLight);
+  ptLight = new THREE.PointLight(0xff6600, 0.3, 30);
+  ptLight.position.set(0, 5, 0);
+  scene.add(ptLight);
+
+  // Ground
+  const groundGeo = new THREE.PlaneGeometry(60, 60, 30, 30);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a1a24, roughness: 0.9 });
+  groundMesh = new THREE.Mesh(groundGeo, groundMat);
+  groundMesh.rotation.x = -Math.PI / 2;
+  groundMesh.receiveShadow = true;
+  scene.add(groundMesh);
+
+  // Grid lines
+  gridHelper = new THREE.GridHelper(60, 30, 0x222233, 0x181825);
+  scene.add(gridHelper);
+
+  // Arena boundary markers (will be rebuilt per biome)
+  // Initial environment built by switchBiome() after init
+
+  clock = new THREE.Clock();
+  window.addEventListener('resize', onResize);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ══════════════════════════════════════
+// BIOME / ENVIRONMENT SYSTEM
+// ══════════════════════════════════════
+function switchBiome(biomeKey) {
+  currentBiome = biomeKey;
+  const b = BIOMES[biomeKey];
+
+  // Clear old environment objects
+  envObjects.forEach(obj => scene.remove(obj));
+  envObjects = [];
+
+  // Scene colors
+  scene.background.set(b.bg);
+  scene.fog = new THREE.Fog(b.fog, b.fogNear, b.fogFar);
+
+  // Lights
+  ambLight.color.set(b.amb); ambLight.intensity = b.ambI;
+  dirLight.color.set(b.dir); dirLight.intensity = b.dirI;
+  ptLight.color.set(b.pt); ptLight.intensity = b.ptI;
+
+  // Ground
+  groundMesh.material.color.set(b.ground);
+
+  // Grid
+  scene.remove(gridHelper);
+  gridHelper = new THREE.GridHelper(60, 30, b.grid1, b.grid2);
+  scene.add(gridHelper);
+
+  // Boundary pillars
+  for (let i = 0; i < 40; i++) {
+    const angle = (i / 40) * Math.PI * 2;
+    const r = 27;
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.15, 0.18, 1.5 + Math.random() * 1.5, 6),
+      new THREE.MeshStandardMaterial({ color: b.pillarColor, emissive: b.pillarEmissive, emissiveIntensity: 0.3 })
+    );
+    pillar.position.set(Math.cos(angle) * r, 0.75, Math.sin(angle) * r);
+    pillar.castShadow = true;
+    scene.add(pillar);
+    envObjects.push(pillar);
+  }
+
+  // Build biome-specific decorations
+  if (biomeKey === 'forest') buildForest();
+  else if (biomeKey === 'cave') buildCave();
+  else if (biomeKey === 'volcano') buildVolcano();
+  else if (biomeKey === 'underwater') buildUnderwater();
+}
+
+function addEnv(mesh) { scene.add(mesh); envObjects.push(mesh); }
+
+function buildForest() {
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3b2510, roughness: 0.85 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x1a5c1a, roughness: 0.7 });
+  const leafDark = new THREE.MeshStandardMaterial({ color: 0x0e3a0e, roughness: 0.7 });
+  const mossMat = new THREE.MeshStandardMaterial({ color: 0x2a5a20, roughness: 0.9 });
+
+  // Trees scattered around the arena edges
+  for (let i = 0; i < 30; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 14 + Math.random() * 14;
+    const tree = new THREE.Group();
+    const h = 2 + Math.random() * 3;
+    // Trunk
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, h, 6), trunkMat);
+    trunk.position.y = h / 2; trunk.castShadow = true; tree.add(trunk);
+    // Canopy layers
+    const layers = 2 + Math.floor(Math.random() * 2);
+    for (let l = 0; l < layers; l++) {
+      const r = (1.2 - l * 0.25) * (0.7 + Math.random() * 0.5);
+      const canopy = new THREE.Mesh(
+        new THREE.ConeGeometry(r, 1.5, 7),
+        Math.random() > 0.5 ? leafMat : leafDark
+      );
+      canopy.position.y = h * 0.6 + l * 0.9;
+      canopy.castShadow = true;
+      tree.add(canopy);
+    }
+    tree.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    addEnv(tree);
+  }
+
+  // Mushrooms
+  for (let i = 0; i < 15; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 5 + Math.random() * 20;
+    const mush = new THREE.Group();
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.3, 5),
+      new THREE.MeshStandardMaterial({ color: 0xddccaa }));
+    stem.position.y = 0.15; mush.add(stem);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      new THREE.MeshStandardMaterial({ color: 0xcc2222, emissive: 0x440000, emissiveIntensity: 0.2 }));
+    cap.position.y = 0.3; mush.add(cap);
+    mush.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    addEnv(mush);
+  }
+
+  // Rocks
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 6 + Math.random() * 18;
+    const s = 0.3 + Math.random() * 0.6;
+    const rock = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(s, 0),
+      mossMat
+    );
+    rock.position.set(Math.cos(angle) * dist, s * 0.4, Math.sin(angle) * dist);
+    rock.rotation.set(Math.random(), Math.random(), Math.random());
+    rock.castShadow = true;
+    addEnv(rock);
+  }
+
+  // Grass tufts
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 3 + Math.random() * 22;
+    const grass = new THREE.Mesh(
+      new THREE.ConeGeometry(0.08, 0.35 + Math.random() * 0.2, 4),
+      new THREE.MeshStandardMaterial({ color: 0x2a6a1a })
+    );
+    grass.position.set(Math.cos(angle) * dist, 0.15, Math.sin(angle) * dist);
+    addEnv(grass);
+  }
+
+  // Fireflies (small emissive spheres)
+  for (let i = 0; i < 20; i++) {
+    const fly = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 4, 4),
+      new THREE.MeshBasicMaterial({ color: 0xaaff44 })
+    );
+    fly.position.set((Math.random() - 0.5) * 40, 1 + Math.random() * 3, (Math.random() - 0.5) * 40);
+    fly.userData.floatSeed = Math.random() * 100;
+    addEnv(fly);
+  }
+}
+
+function buildCave() {
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.85 });
+  const stoneDark = new THREE.MeshStandardMaterial({ color: 0x1a1a25, roughness: 0.9 });
+  const crystalMat = new THREE.MeshStandardMaterial({ color: 0x4466ff, emissive: 0x2244cc, emissiveIntensity: 0.7, transparent: true, opacity: 0.85 });
+  const crystalPurple = new THREE.MeshStandardMaterial({ color: 0x8844cc, emissive: 0x6622aa, emissiveIntensity: 0.6, transparent: true, opacity: 0.85 });
+
+  // Stalactites (hanging from above) — cones pointing down
+  for (let i = 0; i < 35; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 5 + Math.random() * 22;
+    const h = 1 + Math.random() * 2.5;
+    const stal = new THREE.Mesh(
+      new THREE.ConeGeometry(0.15 + Math.random() * 0.2, h, 5),
+      stoneMat
+    );
+    stal.rotation.x = Math.PI;
+    stal.position.set(Math.cos(angle) * dist, 6 + Math.random() * 3, Math.sin(angle) * dist);
+    addEnv(stal);
+  }
+
+  // Stalagmites (from ground up)
+  for (let i = 0; i < 25; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 6 + Math.random() * 20;
+    const h = 0.5 + Math.random() * 2;
+    const stag = new THREE.Mesh(
+      new THREE.ConeGeometry(0.12 + Math.random() * 0.2, h, 5),
+      stoneDark
+    );
+    stag.position.set(Math.cos(angle) * dist, h / 2, Math.sin(angle) * dist);
+    stag.castShadow = true;
+    addEnv(stag);
+  }
+
+  // Crystal clusters
+  for (let i = 0; i < 18; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 4 + Math.random() * 22;
+    const cluster = new THREE.Group();
+    const count = 2 + Math.floor(Math.random() * 3);
+    for (let c = 0; c < count; c++) {
+      const ch = 0.4 + Math.random() * 1.2;
+      const crystal = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.08 + Math.random() * 0.08, ch, 5),
+        Math.random() > 0.4 ? crystalMat : crystalPurple
+      );
+      crystal.position.set((Math.random() - 0.5) * 0.3, ch / 2, (Math.random() - 0.5) * 0.3);
+      crystal.rotation.z = (Math.random() - 0.5) * 0.4;
+      crystal.rotation.x = (Math.random() - 0.5) * 0.3;
+      cluster.add(crystal);
+    }
+    cluster.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    addEnv(cluster);
+  }
+
+  // Boulders
+  for (let i = 0; i < 15; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 5 + Math.random() * 20;
+    const s = 0.4 + Math.random() * 0.8;
+    const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), stoneDark);
+    boulder.position.set(Math.cos(angle) * dist, s * 0.35, Math.sin(angle) * dist);
+    boulder.rotation.set(Math.random(), Math.random(), Math.random());
+    boulder.castShadow = true;
+    addEnv(boulder);
+  }
+
+  // Glowing floor cracks (flat emissive planes)
+  for (let i = 0; i < 10; i++) {
+    const crack = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.1, 1.5 + Math.random() * 2),
+      new THREE.MeshBasicMaterial({ color: 0x3344aa, transparent: true, opacity: 0.3 })
+    );
+    crack.rotation.x = -Math.PI / 2;
+    crack.rotation.z = Math.random() * Math.PI;
+    crack.position.set((Math.random() - 0.5) * 35, 0.02, (Math.random() - 0.5) * 35);
+    addEnv(crack);
+  }
+}
+
+function buildVolcano() {
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.9 });
+  const lavaMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 1.0 });
+  const magmaMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.6 });
+  const ashMat = new THREE.MeshStandardMaterial({ color: 0x1a1210, roughness: 0.95 });
+
+  // Lava pools (glowing circles on ground)
+  for (let i = 0; i < 8; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 6 + Math.random() * 18;
+    const pool = new THREE.Group();
+    const r = 0.8 + Math.random() * 1.5;
+    const glow = new THREE.Mesh(
+      new THREE.CircleGeometry(r, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.4 })
+    );
+    glow.rotation.x = -Math.PI / 2; glow.position.y = 0.02;
+    pool.add(glow);
+    const surface = new THREE.Mesh(
+      new THREE.CircleGeometry(r * 0.7, 12),
+      magmaMat
+    );
+    surface.rotation.x = -Math.PI / 2; surface.position.y = 0.03;
+    pool.add(surface);
+    // Ring of rocks around pool
+    for (let j = 0; j < 8; j++) {
+      const a = (j / 8) * Math.PI * 2;
+      const rk = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.15 + Math.random() * 0.15, 0), rockMat
+      );
+      rk.position.set(Math.cos(a) * r, 0.1, Math.sin(a) * r);
+      pool.add(rk);
+    }
+    pool.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    addEnv(pool);
+  }
+
+  // Volcanic rocks / formations
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 5 + Math.random() * 22;
+    const s = 0.3 + Math.random() * 1.0;
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockMat);
+    rock.position.set(Math.cos(angle) * dist, s * 0.35, Math.sin(angle) * dist);
+    rock.rotation.set(Math.random(), Math.random(), Math.random());
+    rock.castShadow = true;
+    addEnv(rock);
+  }
+
+  // Obsidian spires
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 8 + Math.random() * 18;
+    const h = 1.5 + Math.random() * 3;
+    const spire = new THREE.Mesh(
+      new THREE.ConeGeometry(0.2 + Math.random() * 0.15, h, 5),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.4 })
+    );
+    spire.position.set(Math.cos(angle) * dist, h / 2, Math.sin(angle) * dist);
+    spire.castShadow = true;
+    addEnv(spire);
+  }
+
+  // Embers (floating particles - small glowing spheres)
+  for (let i = 0; i < 30; i++) {
+    const ember = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 4, 4),
+      new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff4400 : 0xff8800 })
+    );
+    ember.position.set((Math.random() - 0.5) * 40, 0.5 + Math.random() * 5, (Math.random() - 0.5) * 40);
+    ember.userData.floatSeed = Math.random() * 100;
+    addEnv(ember);
+  }
+
+  // Ash ground patches
+  for (let i = 0; i < 15; i++) {
+    const patch = new THREE.Mesh(
+      new THREE.CircleGeometry(0.5 + Math.random() * 1, 8),
+      new THREE.MeshStandardMaterial({ color: 0x0e0a08, roughness: 1.0 })
+    );
+    patch.rotation.x = -Math.PI / 2; patch.position.y = 0.01;
+    patch.position.set((Math.random() - 0.5) * 35, 0.01, (Math.random() - 0.5) * 35);
+    addEnv(patch);
+  }
+}
+
+function buildUnderwater() {
+  const coralMat1 = new THREE.MeshStandardMaterial({ color: 0xff4488, emissive: 0x661133, emissiveIntensity: 0.3 });
+  const coralMat2 = new THREE.MeshStandardMaterial({ color: 0xff8844, emissive: 0x663311, emissiveIntensity: 0.3 });
+  const coralMat3 = new THREE.MeshStandardMaterial({ color: 0x44ddaa, emissive: 0x116644, emissiveIntensity: 0.3 });
+  const sandMat = new THREE.MeshStandardMaterial({ color: 0x2a3545, roughness: 0.9 });
+  const ruinMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.75 });
+
+  // Coral formations
+  for (let i = 0; i < 25; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 5 + Math.random() * 21;
+    const coral = new THREE.Group();
+    const branches = 2 + Math.floor(Math.random() * 4);
+    const mat = [coralMat1, coralMat2, coralMat3][Math.floor(Math.random() * 3)];
+    for (let b = 0; b < branches; b++) {
+      const h = 0.4 + Math.random() * 1.2;
+      const branch = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.08 + Math.random() * 0.06, h, 5),
+        mat
+      );
+      branch.position.set((Math.random() - 0.5) * 0.3, h / 2, (Math.random() - 0.5) * 0.3);
+      branch.rotation.z = (Math.random() - 0.5) * 0.5;
+      branch.rotation.x = (Math.random() - 0.5) * 0.4;
+      coral.add(branch);
+      // Bulb tip
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06 + Math.random() * 0.06, 5, 5), mat);
+      tip.position.copy(branch.position); tip.position.y += h / 2;
+      coral.add(tip);
+    }
+    coral.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    addEnv(coral);
+  }
+
+  // Seaweed (tall thin swaying objects)
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 4 + Math.random() * 22;
+    const weed = new THREE.Group();
+    const segments = 3 + Math.floor(Math.random() * 3);
+    const weedMat = new THREE.MeshStandardMaterial({ color: 0x115533, transparent: true, opacity: 0.8 });
+    for (let s = 0; s < segments; s++) {
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.03), weedMat);
+      seg.position.y = 0.25 + s * 0.45;
+      seg.rotation.z = Math.sin(s * 0.8) * 0.2;
+      weed.add(seg);
+    }
+    weed.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    weed.userData.floatSeed = Math.random() * 100;
+    addEnv(weed);
+  }
+
+  // Ruin pillars (broken columns)
+  for (let i = 0; i < 8; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 8 + Math.random() * 16;
+    const pillar = new THREE.Group();
+    const h = 1.5 + Math.random() * 2.5;
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, h, 8), ruinMat);
+    col.position.y = h / 2; col.castShadow = true; pillar.add(col);
+    // Capital / base plates
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.12, 8), ruinMat);
+    plate.position.y = h; pillar.add(plate);
+    const baseP = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.12, 8), ruinMat);
+    baseP.position.y = 0.06; pillar.add(baseP);
+    // Some are broken / tilted
+    if (Math.random() > 0.5) pillar.rotation.z = (Math.random() - 0.5) * 0.3;
+    pillar.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+    addEnv(pillar);
+  }
+
+  // Bubbles
+  for (let i = 0; i < 25; i++) {
+    const bubble = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05 + Math.random() * 0.08, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.35 })
+    );
+    bubble.position.set((Math.random() - 0.5) * 40, 0.5 + Math.random() * 5, (Math.random() - 0.5) * 40);
+    bubble.userData.floatSeed = Math.random() * 100;
+    addEnv(bubble);
+  }
+
+  // Sand mounds
+  for (let i = 0; i < 10; i++) {
+    const mound = new THREE.Mesh(
+      new THREE.SphereGeometry(0.6 + Math.random() * 0.8, 7, 4, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      sandMat
+    );
+    mound.rotation.x = 0;
+    mound.position.set((Math.random() - 0.5) * 35, 0, (Math.random() - 0.5) * 35);
+    addEnv(mound);
+  }
+
+  // Glowing shells
+  for (let i = 0; i < 6; i++) {
+    const shell = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x22ccff, emissive: 0x1199cc, emissiveIntensity: 0.6 })
+    );
+    shell.position.set((Math.random() - 0.5) * 30, 0.12, (Math.random() - 0.5) * 30);
+    shell.scale.y = 0.5;
+    addEnv(shell);
+  }
+}
+
+// Animate floating env objects (fireflies, embers, bubbles, seaweed)
+function updateEnvironment(dt) {
+  const t = clock.elapsedTime;
+  envObjects.forEach(obj => {
+    if (obj.userData.floatSeed !== undefined) {
+      const seed = obj.userData.floatSeed;
+      obj.position.y += Math.sin(t * 1.5 + seed) * 0.003;
+      obj.position.x += Math.sin(t * 0.7 + seed * 2) * 0.002;
+      obj.position.z += Math.cos(t * 0.5 + seed * 3) * 0.002;
+    }
+    // Seaweed sway for groups with floatSeed
+    if (obj.isGroup && obj.userData.floatSeed !== undefined) {
+      obj.rotation.z = Math.sin(t * 1.2 + obj.userData.floatSeed) * 0.08;
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// PLAYER
+// ══════════════════════════════════════
+function createPlayer(className) {
+  const cd = CLASS_DATA[className];
+  const group = new THREE.Group();
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf0d0a0, roughness: 0.6 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+  const classMat = new THREE.MeshStandardMaterial({ color: cd.bodyColor, roughness: 0.45 });
+  const classMatLight = new THREE.MeshStandardMaterial({ color: cd.color, roughness: 0.4 });
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.85, roughness: 0.15 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xdaa520, metalness: 0.7, roughness: 0.25 });
+
+  // ── Feet ──
+  const footG = new THREE.BoxGeometry(0.22, 0.18, 0.35);
+  const footL = new THREE.Mesh(footG, darkMat); footL.position.set(-0.18, 0.09, 0.05); footL.castShadow = true; group.add(footL);
+  const footR = new THREE.Mesh(footG, darkMat); footR.position.set(0.18, 0.09, 0.05); footR.castShadow = true; group.add(footR);
+
+  // ── Legs ──
+  const legG = new THREE.CylinderGeometry(0.1, 0.12, 0.55, 6);
+  const legL = new THREE.Mesh(legG, classMat); legL.position.set(-0.18, 0.45, 0); legL.castShadow = true; group.add(legL);
+  const legR = new THREE.Mesh(legG, classMat); legR.position.set(0.18, 0.45, 0); legR.castShadow = true; group.add(legR);
+
+  // ── Torso ──
+  const torsoG = new THREE.BoxGeometry(0.65, 0.7, 0.4);
+  const torso = new THREE.Mesh(torsoG, classMat); torso.position.y = 1.05; torso.castShadow = true; group.add(torso);
+
+  // ── Belt ──
+  const beltG = new THREE.BoxGeometry(0.68, 0.1, 0.42);
+  const belt = new THREE.Mesh(beltG, darkMat); belt.position.y = 0.72; group.add(belt);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.05), goldMat); buckle.position.set(0, 0.72, 0.22); group.add(buckle);
+
+  // ── Shoulders ──
+  const shoulderG = new THREE.SphereGeometry(0.16, 6, 6);
+  const shL = new THREE.Mesh(shoulderG, classMatLight); shL.position.set(-0.42, 1.3, 0); shL.castShadow = true; group.add(shL);
+  const shR = new THREE.Mesh(shoulderG, classMatLight); shR.position.set(0.42, 1.3, 0); shR.castShadow = true; group.add(shR);
+
+  // ── Arms ──
+  const armG = new THREE.CylinderGeometry(0.08, 0.09, 0.5, 6);
+  const armL = new THREE.Mesh(armG, skinMat); armL.position.set(-0.45, 0.98, 0); group.add(armL);
+  const armR = new THREE.Mesh(armG, skinMat); armR.position.set(0.45, 0.98, 0); group.add(armR);
+
+  // ── Neck ──
+  const neckG = new THREE.CylinderGeometry(0.1, 0.12, 0.15, 6);
+  const neck = new THREE.Mesh(neckG, skinMat); neck.position.y = 1.47; group.add(neck);
+
+  // ── Head ──
+  const headG = new THREE.BoxGeometry(0.4, 0.42, 0.38, 1, 1, 1);
+  const head = new THREE.Mesh(headG, skinMat); head.position.y = 1.78; head.castShadow = true; group.add(head);
+
+  // ── Eyes ──
+  const eyeG = new THREE.SphereGeometry(0.05, 6, 6);
+  const eyeWhite = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const eyePupil = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  const ew1 = new THREE.Mesh(eyeG, eyeWhite); ew1.position.set(-0.1, 1.8, 0.19); group.add(ew1);
+  const ew2 = new THREE.Mesh(eyeG, eyeWhite); ew2.position.set(0.1, 1.8, 0.19); group.add(ew2);
+  const pupG = new THREE.SphereGeometry(0.03, 6, 6);
+  const ep1 = new THREE.Mesh(pupG, eyePupil); ep1.position.set(-0.1, 1.8, 0.23); group.add(ep1);
+  const ep2 = new THREE.Mesh(pupG, eyePupil); ep2.position.set(0.1, 1.8, 0.23); group.add(ep2);
+
+  // ── Class-specific gear ──
+  if (className === 'warrior') {
+    // Helmet with visor
+    const helmetG = new THREE.BoxGeometry(0.48, 0.3, 0.45);
+    const helmet = new THREE.Mesh(helmetG, metalMat); helmet.position.y = 1.95; group.add(helmet);
+    const visorG = new THREE.BoxGeometry(0.42, 0.08, 0.06);
+    const visor = new THREE.Mesh(visorG, new THREE.MeshStandardMaterial({ color: 0x333333 })); visor.position.set(0, 1.85, 0.22); group.add(visor);
+    const crestG = new THREE.BoxGeometry(0.06, 0.25, 0.35);
+    const crest = new THREE.Mesh(crestG, new THREE.MeshStandardMaterial({ color: 0xcc2222 })); crest.position.set(0, 2.15, 0); group.add(crest);
+    // Chest plate
+    const chestG = new THREE.BoxGeometry(0.55, 0.5, 0.15);
+    const chest = new THREE.Mesh(chestG, metalMat); chest.position.set(0, 1.1, 0.22); group.add(chest);
+    // Shield on left arm
+    const shieldG = new THREE.BoxGeometry(0.08, 0.6, 0.5);
+    const shield = new THREE.Mesh(shieldG, new THREE.MeshStandardMaterial({ color: 0x8b0000, metalness: 0.3 })); shield.position.set(-0.55, 1.0, 0); group.add(shield);
+    const shieldBoss = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), goldMat); shieldBoss.position.set(-0.6, 1.0, 0); group.add(shieldBoss);
+    // Greatsword on right
+    const bladeG = new THREE.BoxGeometry(0.14, 1.6, 0.04);
+    const blade = new THREE.Mesh(bladeG, metalMat); blade.position.set(0.58, 1.3, 0); blade.rotation.z = -0.2; blade.castShadow = true; group.add(blade);
+    const guardG = new THREE.BoxGeometry(0.45, 0.06, 0.1);
+    const guard = new THREE.Mesh(guardG, goldMat); guard.position.set(0.52, 0.6, 0); group.add(guard);
+    const gripG = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6);
+    const grip = new THREE.Mesh(gripG, new THREE.MeshStandardMaterial({ color: 0x5c3a1e })); grip.position.set(0.5, 0.42, 0); group.add(grip);
+    // Shoulder armor pads
+    const padG = new THREE.BoxGeometry(0.25, 0.12, 0.2);
+    const padL = new THREE.Mesh(padG, metalMat); padL.position.set(-0.42, 1.38, 0); group.add(padL);
+    const padR = new THREE.Mesh(padG, metalMat); padR.position.set(0.42, 1.38, 0); group.add(padR);
+  } else if (className === 'mage') {
+    // Wizard hat
+    const hatBrimG = new THREE.CylinderGeometry(0.45, 0.45, 0.06, 8);
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0x1a1060 });
+    const hatBrim = new THREE.Mesh(hatBrimG, hatMat); hatBrim.position.y = 1.98; group.add(hatBrim);
+    const hatTopG = new THREE.ConeGeometry(0.28, 0.7, 8);
+    const hatTop = new THREE.Mesh(hatTopG, hatMat); hatTop.position.y = 2.35; hatTop.rotation.z = 0.15; group.add(hatTop);
+    const hatTip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 0.8 }));
+    hatTip.position.set(0.08, 2.7, 0); group.add(hatTip);
+    // Robe trim
+    const robeG = new THREE.CylinderGeometry(0.35, 0.5, 0.4, 8);
+    const robe = new THREE.Mesh(robeG, new THREE.MeshStandardMaterial({ color: 0x1a1060 })); robe.position.y = 0.5; group.add(robe);
+    // Staff
+    const staffG = new THREE.CylinderGeometry(0.04, 0.06, 2.4, 6);
+    const staffMat = new THREE.MeshStandardMaterial({ color: 0x5c3a1e });
+    const staff = new THREE.Mesh(staffG, staffMat); staff.position.set(0.55, 1.2, 0); staff.castShadow = true; group.add(staff);
+    // Staff crystal
+    const crystalG = new THREE.OctahedronGeometry(0.18, 0);
+    const crystalMat = new THREE.MeshStandardMaterial({ color: 0x5b7fff, emissive: 0x3355ff, emissiveIntensity: 1.0, transparent: true, opacity: 0.9 });
+    const crystal = new THREE.Mesh(crystalG, crystalMat); crystal.position.set(0.55, 2.5, 0); group.add(crystal);
+    group.userData.crystal = crystal;
+    // Staff ring
+    const sRingG = new THREE.TorusGeometry(0.15, 0.02, 6, 12);
+    const sRing = new THREE.Mesh(sRingG, goldMat); sRing.position.set(0.55, 2.3, 0); group.add(sRing);
+    // Glowing amulet
+    const amuletG = new THREE.OctahedronGeometry(0.06, 0);
+    const amulet = new THREE.Mesh(amuletG, new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.8 }));
+    amulet.position.set(0, 1.35, 0.22); group.add(amulet);
+    // Cape
+    const capeG = new THREE.BoxGeometry(0.55, 0.65, 0.06);
+    const cape = new THREE.Mesh(capeG, new THREE.MeshStandardMaterial({ color: 0x220066 })); cape.position.set(0, 1.0, -0.22); group.add(cape);
+  } else { // archer
+    // Hood
+    const hoodG = new THREE.SphereGeometry(0.3, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    const hoodMat = new THREE.MeshStandardMaterial({ color: 0x1a3a1a, side: THREE.DoubleSide });
+    const hood = new THREE.Mesh(hoodG, hoodMat); hood.position.y = 1.88; hood.scale.set(1, 1, 1.3); group.add(hood);
+    // Quiver on back
+    const quiverG = new THREE.CylinderGeometry(0.08, 0.1, 0.7, 6);
+    const quiver = new THREE.Mesh(quiverG, new THREE.MeshStandardMaterial({ color: 0x5c3a1e })); quiver.position.set(0.15, 1.15, -0.3); quiver.rotation.z = 0.15; group.add(quiver);
+    // Arrows in quiver
+    for (let a = 0; a < 4; a++) {
+      const arrowStick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.85, 4),
+        new THREE.MeshStandardMaterial({ color: 0x8b7355 }));
+      arrowStick.position.set(0.15 + (a - 1.5) * 0.04, 1.25, -0.3);
+      arrowStick.rotation.z = 0.15;
+      group.add(arrowStick);
+      const fG = new THREE.ConeGeometry(0.03, 0.08, 4);
+      const feather = new THREE.Mesh(fG, metalMat); feather.position.set(0.15 + (a - 1.5) * 0.04, 1.7, -0.3); group.add(feather);
+    }
+    // Bow on left hand
+    const bowG = new THREE.TorusGeometry(0.45, 0.035, 6, 16, Math.PI * 0.85);
+    const bowMat = new THREE.MeshStandardMaterial({ color: 0x6b4226 });
+    const bow = new THREE.Mesh(bowG, bowMat); bow.position.set(-0.55, 1.1, 0.1); bow.rotation.y = Math.PI / 2; bow.rotation.x = 0.1; group.add(bow);
+    // Bowstring
+    const strG = new THREE.CylinderGeometry(0.008, 0.008, 0.82, 4);
+    const strMat = new THREE.MeshStandardMaterial({ color: 0xccccaa });
+    const bStr = new THREE.Mesh(strG, strMat); bStr.position.set(-0.55, 1.1, 0.1); group.add(bStr);
+    // Cape/cloak
+    const capeG = new THREE.BoxGeometry(0.5, 0.75, 0.05);
+    const cape = new THREE.Mesh(capeG, new THREE.MeshStandardMaterial({ color: 0x1a3a1a })); cape.position.set(0, 0.95, -0.22); group.add(cape);
+    // Bracer on right arm
+    const bracerG = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 6);
+    const bracer = new THREE.Mesh(bracerG, new THREE.MeshStandardMaterial({ color: 0x5c3a1e })); bracer.position.set(0.45, 0.85, 0); group.add(bracer);
+  }
+
+  // ── Glow ring under player ──
+  const ringGeo = new THREE.RingGeometry(0.7, 0.9, 32);
+  const ringMat = new THREE.MeshBasicMaterial({ color: cd.color, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05;
+  group.add(ring);
+  group.userData.ring = ring;
+
+  scene.add(group);
+
+  player = {
+    mesh: group, className,
+    hp: cd.hp, maxHp: cd.hp,
+    atk: cd.atk, atkSpeed: cd.atkSpeed, speed: cd.speed, range: cd.range,
+    atkType: cd.atkType,
+    level: 1, xp: 0, xpToNext: 20,
+    atkCooldown: 0, areaScale: 1,
+    lifesteal: 0, critChance: 0.05, critDmg: 2.0,
+    regen: 0, damageReduction: 0, thorns: 0, xpMult: 1,
+    hasRage: false, chainCount: 0, multiShot: 0, pierce: false,
+    color: cd.color, invincibleTimer: 0
+  };
+}
+
+// ══════════════════════════════════════
+// MONSTERS
+// ══════════════════════════════════════
+function createMonster(type, pos) {
+  const group = new THREE.Group();
+  const lvScale = 1 + (wave - 1) * 0.12;
+  let hp, atk, spd, xpVal, col, size;
+
+  if (type === 'melee') {
+    hp = 30 * lvScale; atk = 8 * lvScale; spd = 2.0 + wave * 0.05; xpVal = 8; col = 0x8b0000; size = 1;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x6b1010, roughness: 0.65 });
+    const matDark = new THREE.MeshStandardMaterial({ color: 0x3a0808, roughness: 0.7 });
+    const boneMat = new THREE.MeshStandardMaterial({ color: 0xd4c9a8, roughness: 0.5 });
+    // Feet
+    const fG = new THREE.BoxGeometry(0.25, 0.15, 0.3);
+    const f1 = new THREE.Mesh(fG, matDark); f1.position.set(-0.18, 0.08, 0.05); group.add(f1);
+    const f2 = new THREE.Mesh(fG, matDark); f2.position.set(0.18, 0.08, 0.05); group.add(f2);
+    // Legs
+    const lG = new THREE.CylinderGeometry(0.1, 0.13, 0.45, 5);
+    const l1 = new THREE.Mesh(lG, mat); l1.position.set(-0.18, 0.38, 0); group.add(l1);
+    const l2 = new THREE.Mesh(lG, mat); l2.position.set(0.18, 0.38, 0); group.add(l2);
+    // Body — hunched beast
+    const bG = new THREE.BoxGeometry(0.7, 0.65, 0.55);
+    const b = new THREE.Mesh(bG, mat); b.position.y = 0.85; b.rotation.x = 0.15; b.castShadow = true; group.add(b);
+    // Spine ridges
+    for (let s = 0; s < 3; s++) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.25, 4), boneMat);
+      spike.position.set(0, 1.15 + s * 0.12, -0.2 - s * 0.05); spike.rotation.x = -0.4; group.add(spike);
+    }
+    // Head
+    const hG = new THREE.BoxGeometry(0.4, 0.35, 0.4);
+    const h = new THREE.Mesh(hG, mat); h.position.set(0, 1.15, 0.25); h.rotation.x = 0.2; group.add(h);
+    // Jaw
+    const jawG = new THREE.BoxGeometry(0.3, 0.1, 0.25);
+    const jaw = new THREE.Mesh(jawG, matDark); jaw.position.set(0, 0.98, 0.35); group.add(jaw);
+    // Teeth
+    for (let t = 0; t < 4; t++) {
+      const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.1, 4), boneMat);
+      tooth.position.set(-0.09 + t * 0.06, 0.95, 0.42); tooth.rotation.x = Math.PI; group.add(tooth);
+    }
+    // Glowing eyes
+    const eyeG = new THREE.SphereGeometry(0.06, 6, 6);
+    const eyeM = new THREE.MeshBasicMaterial({ color: 0xff2200 });
+    const e1 = new THREE.Mesh(eyeG, eyeM); e1.position.set(-0.1, 1.2, 0.42); group.add(e1);
+    const e2 = new THREE.Mesh(eyeG, eyeM); e2.position.set(0.1, 1.2, 0.42); group.add(e2);
+    // Claws
+    const clawG = new THREE.ConeGeometry(0.03, 0.15, 4);
+    const clawMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    for (let c = 0; c < 3; c++) {
+      const cl = new THREE.Mesh(clawG, clawMat); cl.position.set(-0.45 + c * 0.06, 0.55, 0.2); cl.rotation.x = 0.5; group.add(cl);
+      const cr = new THREE.Mesh(clawG, clawMat); cr.position.set(0.33 + c * 0.06, 0.55, 0.2); cr.rotation.x = 0.5; group.add(cr);
+    }
+
+  } else if (type === 'ranged') {
+    hp = 20 * lvScale; atk = 12 * lvScale; spd = 1.4 + wave * 0.03; xpVal = 12; col = 0x4a0080; size = 1;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x3a0066, roughness: 0.5 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: 0xaa55ff, emissive: 0x7733cc, emissiveIntensity: 0.6 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033 });
+    // Floating base — spectral wraith
+    const baseG = new THREE.ConeGeometry(0.4, 0.8, 6);
+    const base = new THREE.Mesh(baseG, mat); base.position.y = 0.4; base.rotation.x = Math.PI; group.add(base);
+    // Robe body — tapered
+    const robeG = new THREE.CylinderGeometry(0.2, 0.42, 0.9, 6);
+    const robe = new THREE.Mesh(robeG, mat); robe.position.y = 0.9; robe.castShadow = true; group.add(robe);
+    // Robe flare strips
+    for (let s = 0; s < 4; s++) {
+      const stripG = new THREE.BoxGeometry(0.06, 0.5, 0.04);
+      const strip = new THREE.Mesh(stripG, new THREE.MeshStandardMaterial({ color: 0x2a0044, transparent: true, opacity: 0.7 }));
+      const a = (s / 4) * Math.PI * 2;
+      strip.position.set(Math.cos(a) * 0.35, 0.25, Math.sin(a) * 0.35);
+      strip.rotation.z = (Math.random() - 0.5) * 0.3;
+      group.add(strip);
+    }
+    // Shoulders
+    const shG = new THREE.BoxGeometry(0.18, 0.1, 0.18);
+    const sh1 = new THREE.Mesh(shG, darkMat); sh1.position.set(-0.3, 1.25, 0); group.add(sh1);
+    const sh2 = new THREE.Mesh(shG, darkMat); sh2.position.set(0.3, 1.25, 0); group.add(sh2);
+    // Ghostly arms
+    const armG = new THREE.CylinderGeometry(0.05, 0.07, 0.5, 5);
+    const arm1 = new THREE.Mesh(armG, new THREE.MeshStandardMaterial({ color: 0x3a0066, transparent: true, opacity: 0.8 }));
+    arm1.position.set(-0.32, 0.95, 0.15); arm1.rotation.z = 0.5; arm1.rotation.x = -0.3; group.add(arm1);
+    const arm2 = arm1.clone(); arm2.position.set(0.32, 0.95, 0.15); arm2.rotation.z = -0.5; group.add(arm2);
+    // Hood
+    const hoodG = new THREE.SphereGeometry(0.26, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const hood = new THREE.Mesh(hoodG, darkMat); hood.position.y = 1.42; hood.scale.set(1.1, 1, 1.3); group.add(hood);
+    // Face void
+    const faceG = new THREE.PlaneGeometry(0.2, 0.15);
+    const face = new THREE.Mesh(faceG, new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    face.position.set(0, 1.35, 0.25); group.add(face);
+    // Eyes — glowing orbs floating in void
+    const eyeG = new THREE.SphereGeometry(0.05, 6, 6);
+    const eyeM = new THREE.MeshBasicMaterial({ color: 0xcc66ff });
+    const e1 = new THREE.Mesh(eyeG, eyeM); e1.position.set(-0.07, 1.37, 0.28); group.add(e1);
+    const e2 = new THREE.Mesh(eyeG, eyeM); e2.position.set(0.07, 1.37, 0.28); group.add(e2);
+    // Floating orb in hands
+    const orbG = new THREE.SphereGeometry(0.14, 8, 8);
+    const orb = new THREE.Mesh(orbG, glowMat); orb.position.set(0, 0.8, 0.3); group.add(orb);
+    // Orbiting runes (small cubes)
+    for (let r = 0; r < 3; r++) {
+      const runeG = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+      const rune = new THREE.Mesh(runeG, new THREE.MeshBasicMaterial({ color: 0xaa55ff }));
+      const ra = (r / 3) * Math.PI * 2;
+      rune.position.set(Math.cos(ra) * 0.55, 1.0, Math.sin(ra) * 0.55);
+      group.add(rune);
+    }
+
+  } else { // boss
+    hp = 200 * lvScale; atk = 20 * lvScale; spd = 1.2 + wave * 0.02; xpVal = 60; col = 0xcc3300; size = 2.2;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x881100, roughness: 0.45, emissive: 0x330000, emissiveIntensity: 0.3 });
+    const matDark = new THREE.MeshStandardMaterial({ color: 0x440800, roughness: 0.5 });
+    const boneMat = new THREE.MeshStandardMaterial({ color: 0xd4c9a8, roughness: 0.4 });
+    const fireMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 0.9 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.7, roughness: 0.3 });
+    // Massive legs
+    const legG = new THREE.CylinderGeometry(0.2, 0.28, 0.9, 6);
+    const leg1 = new THREE.Mesh(legG, matDark); leg1.position.set(-0.4, 0.45, 0); leg1.castShadow = true; group.add(leg1);
+    const leg2 = new THREE.Mesh(legG, matDark); leg2.position.set(0.4, 0.45, 0); leg2.castShadow = true; group.add(leg2);
+    // Hooves
+    const hoofG = new THREE.BoxGeometry(0.35, 0.2, 0.4);
+    const hoof1 = new THREE.Mesh(hoofG, new THREE.MeshStandardMaterial({ color: 0x222222 })); hoof1.position.set(-0.4, 0.1, 0.05); group.add(hoof1);
+    const hoof2 = hoof1.clone(); hoof2.position.set(0.4, 0.1, 0.05); group.add(hoof2);
+    // Massive torso
+    const torsoG = new THREE.BoxGeometry(1.3, 1.1, 0.9);
+    const torso = new THREE.Mesh(torsoG, mat); torso.position.y = 1.5; torso.castShadow = true; group.add(torso);
+    // Belly/chest plate
+    const chestG = new THREE.BoxGeometry(0.8, 0.6, 0.2);
+    const chest = new THREE.Mesh(chestG, metalMat); chest.position.set(0, 1.5, 0.45); group.add(chest);
+    // Shoulder pauldrons
+    const pauldG = new THREE.SphereGeometry(0.3, 6, 6);
+    const pL = new THREE.Mesh(pauldG, metalMat); pL.position.set(-0.8, 1.9, 0); group.add(pL);
+    const pR = new THREE.Mesh(pauldG, metalMat); pR.position.set(0.8, 1.9, 0); group.add(pR);
+    // Spikes on shoulders
+    for (let s = 0; s < 3; s++) {
+      const spikeG = new THREE.ConeGeometry(0.06, 0.35, 4);
+      const spL = new THREE.Mesh(spikeG, boneMat); spL.position.set(-0.8 - 0.1 * s, 2.15 + s * 0.05, 0); spL.rotation.z = 0.5 + s * 0.15; group.add(spL);
+      const spR = new THREE.Mesh(spikeG, boneMat); spR.position.set(0.8 + 0.1 * s, 2.15 + s * 0.05, 0); spR.rotation.z = -0.5 - s * 0.15; group.add(spR);
+    }
+    // Arms
+    const armG = new THREE.CylinderGeometry(0.15, 0.18, 0.7, 6);
+    const armL = new THREE.Mesh(armG, mat); armL.position.set(-0.85, 1.35, 0.1); armL.rotation.z = 0.3; group.add(armL);
+    const armR = new THREE.Mesh(armG, mat); armR.position.set(0.85, 1.35, 0.1); armR.rotation.z = -0.3; group.add(armR);
+    // Fists
+    const fistG = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+    const fistL = new THREE.Mesh(fistG, matDark); fistL.position.set(-0.95, 0.9, 0.15); group.add(fistL);
+    const fistR = new THREE.Mesh(fistG, matDark); fistR.position.set(0.95, 0.9, 0.15); group.add(fistR);
+    // Head — demon skull
+    const headG = new THREE.BoxGeometry(0.65, 0.55, 0.55);
+    const head = new THREE.Mesh(headG, mat); head.position.y = 2.3; head.castShadow = true; group.add(head);
+    // Jaw
+    const jawG = new THREE.BoxGeometry(0.5, 0.15, 0.35);
+    const jaw = new THREE.Mesh(jawG, matDark); jaw.position.set(0, 2.0, 0.1); group.add(jaw);
+    // Teeth
+    for (let t = 0; t < 6; t++) {
+      const tG = new THREE.ConeGeometry(0.03, 0.12, 4);
+      const tooth = new THREE.Mesh(tG, boneMat);
+      tooth.position.set(-0.15 + t * 0.06, 2.0, 0.25); tooth.rotation.x = Math.PI;
+      group.add(tooth);
+    }
+    // Horns — large curved
+    const hornG1 = new THREE.ConeGeometry(0.12, 0.7, 5);
+    const h1 = new THREE.Mesh(hornG1, boneMat); h1.position.set(-0.35, 2.7, -0.05); h1.rotation.z = 0.4; h1.rotation.x = -0.2; group.add(h1);
+    const h2 = new THREE.Mesh(hornG1, boneMat); h2.position.set(0.35, 2.7, -0.05); h2.rotation.z = -0.4; h2.rotation.x = -0.2; group.add(h2);
+    // Inner horns
+    const hornG2 = new THREE.ConeGeometry(0.07, 0.4, 5);
+    const h3 = new THREE.Mesh(hornG2, boneMat); h3.position.set(-0.2, 2.6, 0.05); h3.rotation.z = 0.2; group.add(h3);
+    const h4 = new THREE.Mesh(hornG2, boneMat); h4.position.set(0.2, 2.6, 0.05); h4.rotation.z = -0.2; group.add(h4);
+    // Burning eyes
+    const eyeG = new THREE.SphereGeometry(0.1, 6, 6);
+    const e1 = new THREE.Mesh(eyeG, fireMat); e1.position.set(-0.15, 2.35, 0.28); group.add(e1);
+    const e2 = new THREE.Mesh(eyeG, fireMat); e2.position.set(0.15, 2.35, 0.28); group.add(e2);
+    // Fire aura ring
+    const auraG = new THREE.RingGeometry(1.0, 1.2, 24);
+    const auraMat = new THREE.MeshBasicMaterial({ color: 0xff3300, side: THREE.DoubleSide, transparent: true, opacity: 0.2 });
+    const aura = new THREE.Mesh(auraG, auraMat); aura.rotation.x = -Math.PI / 2; aura.position.y = 0.05; group.add(aura);
+    // Back spikes
+    for (let s = 0; s < 4; s++) {
+      const spG = new THREE.ConeGeometry(0.08, 0.45, 4);
+      const sp = new THREE.Mesh(spG, boneMat); sp.position.set(0, 1.6 + s * 0.25, -0.5); sp.rotation.x = -0.5; group.add(sp);
+    }
+    // Tail
+    const tailG = new THREE.CylinderGeometry(0.05, 0.1, 1.2, 5);
+    const tail = new THREE.Mesh(tailG, matDark); tail.position.set(0, 0.6, -0.7); tail.rotation.x = -0.8; group.add(tail);
+    const tailTipG = new THREE.ConeGeometry(0.1, 0.2, 4);
+    const tailTip = new THREE.Mesh(tailTipG, fireMat); tailTip.position.set(0, 0.25, -1.2); group.add(tailTip);
+  }
+
+  // HP bar above monster
+  const barY = type === 'boss' ? 3.3 : 1.8;
+  const barW = 1.2 * (type === 'boss' ? 1.8 : 1);
+  const hpBarBg = new THREE.Mesh(
+    new THREE.PlaneGeometry(barW, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide })
+  );
+  hpBarBg.position.y = barY;
+  group.add(hpBarBg);
+
+  const hpBarFill = new THREE.Mesh(
+    new THREE.PlaneGeometry(barW, 0.1),
+    new THREE.MeshBasicMaterial({ color: type === 'boss' ? 0xff4400 : 0xe74c3c, side: THREE.DoubleSide })
+  );
+  hpBarFill.position.y = barY;
+  hpBarFill.position.z = 0.01;
+  group.add(hpBarFill);
+
+  group.position.copy(pos);
+  scene.add(group);
+
+  const mon = {
+    mesh: group, type, hp, maxHp: hp, atk, speed: spd, xpVal,
+    hpBarFill, hpBarBg,
+    atkCooldown: 0, size, alive: true,
+    barWidth: barW
+  };
+  monsters.push(mon);
+  return mon;
+}
+
+function spawnWave() {
+  waveCleared = false;
+
+  // Switch biome every 5 waves
+  const biomeIndex = Math.floor((wave - 1) / 5) % BIOME_ORDER.length;
+  const newBiome = BIOME_ORDER[biomeIndex];
+  if (newBiome !== currentBiome) {
+    switchBiome(newBiome);
+  }
+
+  const numMelee = Math.min(3 + wave * 2, 25);
+  const numRanged = wave >= 2 ? Math.min(Math.floor(wave * 0.8), 10) : 0;
+  const hasBoss = wave % 5 === 0;
+
+  monstersToSpawn = numMelee + numRanged + (hasBoss ? 1 : 0);
+  spawnTimer = 0;
+
+  // Show wave banner with biome name
+  const banner = document.getElementById('waveBanner');
+  const b = BIOMES[currentBiome];
+  if (hasBoss) {
+    banner.textContent = `⚠️ 波次 ${wave} — ${b.name} BOSS 來襲！`;
+  } else if ((wave - 1) % 5 === 0) {
+    banner.textContent = `🌍 ${b.name} — 波次 ${wave}`;
+  } else {
+    banner.textContent = `波次 ${wave}`;
+  }
+  banner.style.opacity = '1';
+  setTimeout(() => banner.style.opacity = '0', 2500);
+
+  // Queue spawn data
+  player._spawnQueue = [];
+  for (let i = 0; i < numMelee; i++) player._spawnQueue.push('melee');
+  for (let i = 0; i < numRanged; i++) player._spawnQueue.push('ranged');
+  if (hasBoss) player._spawnQueue.push('boss');
+
+  document.getElementById('hudWave').textContent = `波次 ${wave}`;
+}
+
+function getSpawnPos() {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 18 + Math.random() * 6;
+  return new THREE.Vector3(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+}
+
+// ══════════════════════════════════════
+// COMBAT
+// ══════════════════════════════════════
+function playerAttack() {
+  if (player.atkCooldown > 0 || gameState !== 'playing') return;
+  player.atkCooldown = player.atkSpeed;
+
+  const dir = new THREE.Vector3(mousePos.x, 0, mousePos.y).sub(player.mesh.position).normalize();
+  player.mesh.lookAt(player.mesh.position.x + dir.x, player.mesh.position.y, player.mesh.position.z + dir.z);
+
+  if (player.atkType === 'melee') {
+    // Melee slash — hit all in cone
+    const slashRange = player.range * player.areaScale;
+    spawnSlashEffect(player.mesh.position, dir, slashRange, player.color);
+    monsters.forEach(m => {
+      if (!m.alive) return;
+      const toM = m.mesh.position.clone().sub(player.mesh.position);
+      const dist = toM.length();
+      if (dist < slashRange) {
+        const dot = toM.normalize().dot(dir);
+        if (dot > 0.3) {
+          dealDamage(m, calcDamage());
         }
+      }
+    });
+  } else {
+    // Projectile
+    const shots = 1 + (player.className === 'archer' ? player.multiShot : 0);
+    for (let i = 0; i < shots; i++) {
+      const spread = shots > 1 ? (i - (shots - 1) / 2) * 0.2 : 0;
+      const d = dir.clone();
+      d.applyAxisAngle(new THREE.Vector3(0, 1, 0), spread);
+      spawnProjectile(player.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), d, true);
+    }
+  }
+}
 
-        function showMessage(msg) {
-            const t = document.getElementById("toast"); t.innerText = msg; t.classList.add("show");
-            setTimeout(() => t.classList.remove("show"), 2000);
+function calcDamage() {
+  let dmg = player.atk;
+  if (player.hasRage) {
+    const hpRatio = player.hp / player.maxHp;
+    dmg *= 1 + (1 - hpRatio) * 0.8;
+  }
+  let crit = false;
+  if (Math.random() < player.critChance) {
+    dmg *= player.critDmg;
+    crit = true;
+  }
+  return { dmg: Math.round(dmg), crit };
+}
+
+function dealDamage(monster, { dmg, crit }) {
+  monster.hp -= dmg;
+  // Lifesteal
+  if (player.lifesteal > 0) {
+    player.hp = Math.min(player.maxHp, player.hp + dmg * player.lifesteal);
+  }
+  // Thorns visual (thorns applies when monster attacks player, handled elsewhere)
+  // Update HP bar
+  const ratio = Math.max(0, monster.hp / monster.maxHp);
+  monster.hpBarFill.scale.x = ratio;
+  monster.hpBarFill.position.x = -(1 - ratio) * monster.barWidth * 0.5;
+
+  // Damage number
+  showDamageNumber(monster.mesh.position, dmg, crit);
+  // Hit particle
+  spawnHitParticles(monster.mesh.position, player.color);
+
+  if (monster.hp <= 0) {
+    killMonster(monster);
+  }
+}
+
+function killMonster(m) {
+  m.alive = false;
+  spawnDeathParticles(m.mesh.position, m.type === 'boss' ? 30 : 10);
+  scene.remove(m.mesh);
+  killCount++;
+  const xpGain = Math.round(m.xpVal * player.xpMult);
+  player.xp += xpGain;
+  document.getElementById('hudKills').textContent = `擊殺 ${killCount}`;
+  checkLevelUp();
+  // Chain lightning
+  if (player.chainCount > 0 && player.atkType === 'projectile') {
+    let chainLeft = player.chainCount;
+    let lastPos = m.mesh.position.clone();
+    monsters.forEach(cm => {
+      if (!cm.alive || chainLeft <= 0) return;
+      if (cm.mesh.position.distanceTo(lastPos) < 6) {
+        dealDamage(cm, { dmg: Math.round(player.atk * 0.6), crit: false });
+        chainLeft--;
+        lastPos = cm.mesh.position.clone();
+      }
+    });
+  }
+}
+
+function monsterAttack(m, dt) {
+  m.atkCooldown -= dt;
+  if (m.atkCooldown > 0) return;
+  const dist = m.mesh.position.distanceTo(player.mesh.position);
+
+  if (m.type === 'ranged') {
+    if (dist < 12) {
+      m.atkCooldown = 2.0;
+      const dir = player.mesh.position.clone().sub(m.mesh.position).normalize();
+      spawnProjectile(m.mesh.position.clone().add(new THREE.Vector3(0, 1.2, 0)), dir, false);
+    }
+  } else {
+    if (dist < 1.8 * (m.type === 'boss' ? 2 : 1)) {
+      m.atkCooldown = 1.2;
+      let dmg = m.atk;
+      dmg *= (1 - player.damageReduction);
+      player.hp -= dmg;
+      if (player.thorns > 0) {
+        m.hp -= dmg * player.thorns;
+        const ratio = Math.max(0, m.hp / m.maxHp);
+        m.hpBarFill.scale.x = ratio;
+        if (m.hp <= 0) killMonster(m);
+      }
+      player.invincibleTimer = 0.15;
+      showDamageNumber(player.mesh.position, Math.round(dmg), false, '#ff4444');
+      if (player.hp <= 0) gameOver();
+    }
+  }
+}
+
+// ══════════════════════════════════════
+// PROJECTILES
+// ══════════════════════════════════════
+function spawnProjectile(pos, dir, isPlayer) {
+  const geo = new THREE.SphereGeometry(isPlayer ? 0.2 * player.areaScale : 0.18, 8, 8);
+  let col;
+  if (isPlayer) {
+    col = player.className === 'mage' ? 0xff6600 : 0x88ff44;
+  } else {
+    col = 0xaa44ff;
+  }
+  const mat = new THREE.MeshBasicMaterial({ color: col });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(pos);
+  scene.add(mesh);
+
+  projectiles.push({
+    mesh, dir: dir.clone(), speed: isPlayer ? 18 : 10, isPlayer,
+    life: 2.0, dmg: isPlayer ? calcDamage() : { dmg: 0, crit: false },
+    hitTargets: []
+  });
+}
+
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed * dt));
+    p.life -= dt;
+
+    if (p.isPlayer) {
+      for (let j = monsters.length - 1; j >= 0; j--) {
+        const m = monsters[j];
+        if (!m.alive || p.hitTargets.includes(m)) continue;
+        const dx = p.mesh.position.x - m.mesh.position.x;
+        const dz = p.mesh.position.z - m.mesh.position.z;
+        const hDist = Math.sqrt(dx * dx + dz * dz);
+        if (hDist < 1.2 * m.size) {
+          dealDamage(m, p.dmg);
+          p.hitTargets.push(m);
+          if (!player.pierce) { p.life = 0; break; }
         }
+      }
+    } else {
+      const dx2 = p.mesh.position.x - player.mesh.position.x;
+      const dz2 = p.mesh.position.z - player.mesh.position.z;
+      const hDist2 = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+      if (hDist2 < 1.0 && player.invincibleTimer <= 0) {
+        let dmg = 10 * (1 + (wave - 1) * 0.12);
+        dmg *= (1 - player.damageReduction);
+        player.hp -= dmg;
+        showDamageNumber(player.mesh.position, Math.round(dmg), false, '#ff4444');
+        player.invincibleTimer = 0.3;
+        if (player.hp <= 0) gameOver();
+        p.life = 0;
+      }
+    }
 
-        myShortId = generateShortCode();
-        const peer = new Peer(myShortId);
+    if (p.life <= 0 || p.mesh.position.length() > 35) {
+      scene.remove(p.mesh);
+      projectiles.splice(i, 1);
+    }
+  }
+}
 
-        peer.on('open', id => { document.getElementById('my-id').innerText = id; checkUrlForInvite(); });
-        peer.on('connection', (c) => { conn = c; myRole = 'host'; setupConnection(); initGameAsHost(); });
+// ══════════════════════════════════════
+// EFFECTS
+// ══════════════════════════════════════
+function spawnSlashEffect(pos, dir, range, color) {
+  const geo = new THREE.RingGeometry(0.3, range, 16, 1, -0.8, 1.6);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(pos.x, 0.5, pos.z);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = -Math.atan2(dir.z, dir.x);
+  scene.add(mesh);
+  particles.push({ mesh, life: 0.3, maxLife: 0.3, type: 'slash' });
+}
 
-        function checkUrlForInvite() {
-            const roomCode = new URLSearchParams(window.location.search).get('room');
-            if (roomCode) { document.getElementById('friend-id').value = roomCode.toUpperCase(); showMessage("✨ 已帶入好友代碼，請加入！"); }
-        }
+function spawnHitParticles(pos, color) {
+  for (let i = 0; i < 5; i++) {
+    const geo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const mat = new THREE.MeshBasicMaterial({ color });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos.x + (Math.random() - 0.5), pos.y + 1 + Math.random(), pos.z + (Math.random() - 0.5));
+    scene.add(mesh);
+    particles.push({
+      mesh, life: 0.5, maxLife: 0.5, type: 'hit',
+      vel: new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 5, (Math.random() - 0.5) * 4)
+    });
+  }
+}
 
-        function copyInviteLink() {
-            const inviteUrl = `${window.location.origin}${window.location.pathname}?room=${myShortId}`;
-            navigator.clipboard.writeText(inviteUrl).then(() => showMessage("✅ 邀請連結已複製！")).catch(() => showMessage("❌ 複製失敗"));
-        }
+function spawnDeathParticles(pos, count) {
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random() * 0.1, 0.8, 0.5) });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos.x, 0.5, pos.z);
+    scene.add(mesh);
+    particles.push({
+      mesh, life: 1.0, maxLife: 1.0, type: 'hit',
+      vel: new THREE.Vector3((Math.random() - 0.5) * 8, Math.random() * 8 + 2, (Math.random() - 0.5) * 8)
+    });
+  }
+}
 
-        function connectToFriend() {
-            let rawInput = document.getElementById('friend-id').value.trim();
-            if (!rawInput) return showMessage('請輸入代碼或貼上連結');
-            let friendId = rawInput;
-            if (rawInput.includes('room=')) { const match = rawInput.match(/room=([a-zA-Z0-9]{6})/i); if(match) friendId = match[1]; }
-            conn = peer.connect(friendId.toUpperCase().slice(0, 6)); myRole = 'guest'; setupConnection();
-        }
+function spawnLevelUpEffect() {
+  for (let i = 0; i < 30; i++) {
+    const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffdd44 });
+    const mesh = new THREE.Mesh(geo, mat);
+    const angle = (i / 30) * Math.PI * 2;
+    mesh.position.set(player.mesh.position.x + Math.cos(angle) * 1.5, 0.2, player.mesh.position.z + Math.sin(angle) * 1.5);
+    scene.add(mesh);
+    particles.push({
+      mesh, life: 1.2, maxLife: 1.2, type: 'hit',
+      vel: new THREE.Vector3(Math.cos(angle) * 2, 6 + Math.random() * 3, Math.sin(angle) * 2)
+    });
+  }
+}
 
-        function setupConnection() {
-            conn.on('open', () => {
-                document.getElementById('lobby').style.display = 'none'; document.getElementById('game-wrapper').style.display = 'flex';
-                document.getElementById('board').classList.add('active'); updateInfo(); showMessage("✅ 連線成功！");
-            });
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life -= dt;
+    if (p.type === 'slash') {
+      p.mesh.material.opacity = (p.life / p.maxLife) * 0.5;
+    } else if (p.type === 'hit') {
+      p.vel.y -= 12 * dt;
+      p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
+      p.mesh.material.opacity = p.life / p.maxLife;
+      p.mesh.material.transparent = true;
+    }
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      particles.splice(i, 1);
+    }
+  }
+}
 
-            conn.on('data', (data) => {
-                if (data.type === 'sync') {
-                    boardData = data.board; currentTurn = data.turn; hostColor = data.hostColor; guestColor = data.guestColor;
-                    redKilled = data.redKilled || []; blackKilled = data.blackKilled || []; selectedIndex = -1;
-                    renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
-                } else if (data.type === 'surrender') {
-                    // 對手投降，判定我方勝利
-                    let winnerColor = data.loserColor === 'red' ? 'black' : 'red';
-                    showVictoryModal(winnerColor, true);
-                }
-            });
-        }
+function showDamageNumber(pos3D, dmg, crit, color) {
+  const vec = pos3D.clone();
+  vec.y += 2;
+  vec.project(camera);
+  const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
 
-        function initGameAsHost() {
-            let shuffled = [...PIECES].sort(() => Math.random() - 0.5);
-            boardData = shuffled.map(p => ({ ...p, isOpen: false, isEmpty: false }));
-            currentTurn = 'host'; hostColor = null; guestColor = null; redKilled = []; blackKilled = []; gameOver = false;
-            syncGame(); renderBoard(); renderKilledPieces(); updateInfo();
-        }
+  const el = document.createElement('div');
+  el.className = 'dmg-num' + (crit ? ' crit' : '');
+  el.textContent = (crit ? '暴擊 ' : '') + dmg;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.color = color || (crit ? '#ff4444' : '#ffdd44');
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
 
-        function syncGame() { if (conn && conn.open) conn.send({ type: 'sync', board: boardData, turn: currentTurn, hostColor, guestColor, redKilled, blackKilled }); }
+// ══════════════════════════════════════
+// LEVELING
+// ══════════════════════════════════════
+function checkLevelUp() {
+  while (player.xp >= player.xpToNext) {
+    player.xp -= player.xpToNext;
+    player.level++;
+    player.xpToNext = Math.round(20 * Math.pow(1.35, player.level - 1));
+    player.hp = player.maxHp; // Full heal on level up
+    spawnLevelUpEffect();
+    showLevelUpModal();
+  }
+  updateHUD();
+}
 
-        function updateInfo() {
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-            let colorStr = myAssignedColor === 'red' ? '🔴 紅方' : (myAssignedColor === 'black' ? '⚫ 黑方' : '⚪ 未定');
-            const turnInfoEl = document.getElementById('turn-info');
-            if (currentTurn === myRole) { turnInfoEl.innerText = '你的回合'; turnInfoEl.style.color = '#00ff00'; turnInfoEl.style.textShadow = '0 0 10px #00ff00'; } 
-            else { turnInfoEl.innerText = '等待對手'; turnInfoEl.style.color = '#ff5252'; turnInfoEl.style.textShadow = '0 0 10px #ff5252'; }
-            document.getElementById('role-info').innerText = `身份：${colorStr}`;
-        }
+function showLevelUpModal() {
+  gameState = 'levelup';
+  const modal = document.getElementById('levelUpModal');
+  modal.classList.add('show');
+  document.getElementById('lvSubText').textContent = `等級 ${player.level} — 選擇一項強化`;
 
-        function renderKilledPieces() {
-            const redContainer = document.querySelector('#red-killed .killed-pieces'); const blackContainer = document.querySelector('#black-killed .killed-pieces');
-            redContainer.innerHTML = ''; blackContainer.innerHTML = '';
-            redKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece red'; div.innerText = p.name; redContainer.appendChild(div); });
-            blackKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.name; blackContainer.appendChild(div); });
-        }
+  // Pick 3 random upgrades
+  const pool = [...UPGRADE_POOL, ...(CLASS_UPGRADES[player.className] || [])];
+  const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 3);
 
-        function renderBoard() {
-            const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
-            boardData.forEach((piece, index) => {
-                const cell = document.createElement('div'); cell.className = 'cell';
-                if (piece.isEmpty) cell.classList.add('empty');
-                else if (!piece.isOpen) cell.classList.add('hidden');
-                else { cell.classList.add('open'); cell.classList.add(piece.color); cell.innerText = piece.name; }
-                if (index === selectedIndex) cell.classList.add('selected');
-                cell.onclick = () => handleCellClick(index); boardEl.appendChild(cell);
-            });
-        }
+  const container = document.getElementById('upgradeCards');
+  container.innerHTML = '';
+  shuffled.forEach(up => {
+    const card = document.createElement('div');
+    card.className = 'upgrade-card';
+    card.innerHTML = `<div class="up-icon">${up.icon}</div><h4>${up.name}</h4><p>${up.desc}</p>`;
+    card.onclick = () => {
+      up.apply(player);
+      modal.classList.remove('show');
+      gameState = 'playing';
+      updateHUD();
+    };
+    container.appendChild(card);
+  });
+}
 
-        function handleCellClick(index) {
-            if (gameOver) return;
-            if (currentTurn !== myRole) return showMessage("⚠️ 現在是對手的回合");
-            const target = boardData[index]; let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
+// ══════════════════════════════════════
+// HUD
+// ══════════════════════════════════════
+function updateHUD() {
+  const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
+  const xpPct = (player.xp / player.xpToNext) * 100;
+  document.getElementById('hpBar').style.width = hpPct + '%';
+  document.getElementById('hpLabel').textContent = `${Math.round(player.hp)}/${Math.round(player.maxHp)}`;
+  document.getElementById('xpBar').style.width = xpPct + '%';
+  document.getElementById('xpLabel').textContent = `${player.xp}/${player.xpToNext}`;
+  document.getElementById('hudLevel').textContent = `Lv.${player.level}`;
+}
 
-            if (!target.isEmpty && target.isOpen && target.color === myAssignedColor) {
-                selectedIndex = selectedIndex === index ? -1 : index; renderBoard(); return;
-            }
+// ══════════════════════════════════════
+// GAME OVER
+// ══════════════════════════════════════
+function gameOver() {
+  if (gameState === 'gameover') return;
+  gameState = 'gameover';
+  document.getElementById('hud').classList.remove('show');
+  document.getElementById('controlsHint').classList.remove('show');
+  const screen = document.getElementById('gameOverScreen');
+  screen.classList.remove('hidden');
+  document.getElementById('goStats').innerHTML =
+    `職業：${CLASS_DATA[player.className].name}<br>` +
+    `等級：${player.level}<br>` +
+    `波次：${wave}<br>` +
+    `擊殺：${killCount}`;
+}
 
-            if (selectedIndex !== -1) {
-                const attacker = boardData[selectedIndex];
-                if (!target.isEmpty && !target.isOpen && attacker.rank !== 2) {
-                    selectedIndex = -1; 
-                } else {
-                    if (tryMoveOrCapture(selectedIndex, index)) return; else return; 
-                }
-            }
+// ══════════════════════════════════════
+// INPUT
+// ══════════════════════════════════════
+function initInput() {
+  window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+  window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
-            if (!target.isEmpty && !target.isOpen) {
-                boardData[index].isOpen = true;
-                if (!hostColor && !guestColor) {
-                    if (myRole === 'host') { hostColor = target.color; guestColor = target.color === 'red' ? 'black' : 'red'; } 
-                    else { guestColor = target.color; hostColor = target.color === 'red' ? 'black' : 'red'; }
-                    showMessage(`你抽到了 ${hostColor === 'red' ? '紅方' : '黑方'}！`);
-                }
-                endTurn();
-            }
-        }
+  const raycaster = new THREE.Raycaster();
+  const mouseNDC = new THREE.Vector2();
 
-        function tryMoveOrCapture(fromIdx, toIdx) {
-            const attacker = boardData[fromIdx]; const target = boardData[toIdx];
-            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
-            const isAdjacent = (Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2);
+  window.addEventListener('mousemove', e => {
+    mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouseNDC, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const pt = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, pt);
+    if (pt) { mousePos.set(pt.x, pt.z); }
+  });
 
-            if (attacker.rank === 2) { 
-                if (target.isEmpty) { if (isAdjacent) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 炮移動空地只能走一步"); return false; } } 
-                else { if (isValidCannonJump(fromIdx, toIdx)) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 炮必須剛好隔一顆棋子"); return false; } }
-            } else {
-                if (!isAdjacent) { showMessage("⚠️ 只能移動一格"); return false; }
-                if (target.isEmpty) { doMove(fromIdx, toIdx); return true; } 
-                else if (!target.isOpen) { showMessage("⚠️ 一般棋子不能吃暗棋"); return false; } 
-                else { if (canCapture(attacker, target)) { doMove(fromIdx, toIdx); return true; } else { showMessage("⚠️ 階級不足，無法吃子"); return false; } }
-            }
-        }
+  window.addEventListener('mousedown', e => {
+    if (e.button === 0) playerAttack();
+  });
+}
 
-        function canCapture(attacker, target) {
-            if (attacker.rank === 1 && target.rank === 7) return true; 
-            if (attacker.rank === 7 && target.rank === 1) return false; 
-            return attacker.rank >= target.rank;
-        }
+// ══════════════════════════════════════
+// GAME LOOP
+// ══════════════════════════════════════
+function startGame(className) {
+  document.getElementById('selectScreen').classList.add('hidden');
+  document.getElementById('hud').classList.add('show');
+  document.getElementById('controlsHint').classList.add('show');
 
-        function isValidCannonJump(fromIdx, toIdx) {
-            const r1 = Math.floor(fromIdx / 4), c1 = fromIdx % 4; const r2 = Math.floor(toIdx / 4), c2 = toIdx % 4;
-            if (r1 !== r2 && c1 !== c2) return false; 
-            let piecesBetween = 0;
-            if (r1 === r2) { 
-                const min = Math.min(c1, c2), max = Math.max(c1, c2);
-                for (let i = min + 1; i < max; i++) if (!boardData[r1 * 4 + i].isEmpty) piecesBetween++;
-            } else { 
-                const min = Math.min(r1, r2), max = Math.max(r1, r2);
-                for (let i = min + 1; i < max; i++) if (!boardData[i * 4 + c1].isEmpty) piecesBetween++;
-            }
-            return piecesBetween === 1; 
-        }
+  createPlayer(className);
+  gameState = 'playing';
+  wave = 1;
+  killCount = 0;
+  spawnWave();
+  animate();
+}
 
-        function doMove(fromIdx, toIdx) {
-            const target = boardData[toIdx];
-            if (!target.isEmpty) {
-                if (target.color === 'red') redKilled.push(target);
-                else if (target.color === 'black') blackKilled.push(target);
-            }
-            boardData[toIdx] = boardData[fromIdx]; boardData[fromIdx] = { isEmpty: true }; 
-            endTurn();
-        }
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
 
-        function endTurn() {
-            currentTurn = currentTurn === 'host' ? 'guest' : 'host'; selectedIndex = -1;
-            syncGame(); renderBoard(); renderKilledPieces(); updateInfo(); checkWinCondition();
-        }
+  if (gameState === 'playing') {
+    // Player movement
+    const move = new THREE.Vector3();
+    if (keys['w'] || keys['arrowup']) move.z -= 1;
+    if (keys['s'] || keys['arrowdown']) move.z += 1;
+    if (keys['a'] || keys['arrowleft']) move.x -= 1;
+    if (keys['d'] || keys['arrowright']) move.x += 1;
+    if (move.length() > 0) {
+      move.normalize().multiplyScalar(player.speed * dt);
+      player.mesh.position.add(move);
+      // Clamp to arena
+      const maxR = 26;
+      if (player.mesh.position.length() > maxR) {
+        player.mesh.position.normalize().multiplyScalar(maxR);
+      }
+      // Face movement direction when not attacking
+      if (player.atkCooldown <= player.atkSpeed * 0.5) {
+        player.mesh.lookAt(player.mesh.position.x + move.x, player.mesh.position.y, player.mesh.position.z + move.z);
+      }
+    }
 
-        /* 勝利判定與投降邏輯 */
-        function checkWinCondition() {
-            if (gameOver) return;
-            if (redKilled.length === 16) { showVictoryModal('black', false); } 
-            else if (blackKilled.length === 16) { showVictoryModal('red', false); }
-        }
+    // Player bob animation
+    player.mesh.position.y = Math.sin(clock.elapsedTime * 3) * 0.05;
+    // Mage crystal spin
+    if (player.mesh.userData.crystal) {
+      player.mesh.userData.crystal.rotation.y = clock.elapsedTime * 2;
+      player.mesh.userData.crystal.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.3;
+    }
+    // Ring pulse
+    const ring = player.mesh.userData.ring;
+    if (ring) {
+      ring.material.opacity = 0.2 + Math.sin(clock.elapsedTime * 4) * 0.1;
+    }
 
-        function surrenderGame() {
-            if (gameOver) return;
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-            if (!myAssignedColor) return showMessage("遊戲還沒決定陣營，無法投降！");
-            
-            if (confirm("確定要舉白旗投降嗎？")) {
-                if (conn && conn.open) conn.send({ type: 'surrender', loserColor: myAssignedColor });
-                let winnerColor = myAssignedColor === 'red' ? 'black' : 'red';
-                showVictoryModal(winnerColor, true);
-            }
-        }
+    // Cooldowns
+    player.atkCooldown = Math.max(0, player.atkCooldown - dt);
+    player.invincibleTimer = Math.max(0, player.invincibleTimer - dt);
 
-        function showVictoryModal(winnerColor, bySurrender) {
-            gameOver = true;
-            const modal = document.getElementById('victory-modal');
-            const title = document.getElementById('victory-title');
-            const msg = document.getElementById('victory-msg');
-            
-            let myAssignedColor = myRole === 'host' ? hostColor : guestColor;
-            let iWon = (winnerColor === myAssignedColor);
-            
-            if (iWon) {
-                title.innerText = "🏆 恭喜獲勝！";
-                msg.innerText = bySurrender ? "對手舉白旗投降了！" : "你成功殲滅了對手所有棋子！";
-                title.style.color = "#4caf50";
-            } else {
-                title.innerText = "💀 挑戰失敗...";
-                msg.innerText = bySurrender ? "你選擇了投降。" : "你的棋子被全數殲滅了...";
-                title.style.color = "#f44336";
-            }
-            modal.style.display = 'flex';
-        }
+    // Regen
+    if (player.regen > 0) {
+      player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
+    }
 
-    </script>
+    // Camera follow
+    const camTarget = new THREE.Vector3(player.mesh.position.x, 22, player.mesh.position.z + 16);
+    camera.position.lerp(camTarget, 3 * dt);
+    camera.lookAt(player.mesh.position.x, 0, player.mesh.position.z);
+
+    // Monster AI
+    monsters.forEach(m => {
+      if (!m.alive) return;
+      const toPlayer = player.mesh.position.clone().sub(m.mesh.position);
+      const dist = toPlayer.length();
+
+      // Move toward player (ranged keep distance)
+      let desiredDist = m.type === 'ranged' ? 8 : 1.0;
+      if (dist > desiredDist + 0.5) {
+        const moveDir = toPlayer.normalize().multiplyScalar(m.speed * dt);
+        m.mesh.position.add(moveDir);
+      } else if (m.type === 'ranged' && dist < desiredDist - 1) {
+        const moveDir = toPlayer.normalize().multiplyScalar(-m.speed * dt * 0.5);
+        m.mesh.position.add(moveDir);
+      }
+      m.mesh.lookAt(player.mesh.position.x, m.mesh.position.y, player.mesh.position.z);
+
+      // Monster bob & float
+      if (m.type === 'ranged') {
+        m.mesh.position.y = Math.sin(clock.elapsedTime * 2.5 + m.mesh.id) * 0.15 + 0.15;
+      } else {
+        m.mesh.position.y = Math.sin(clock.elapsedTime * 2 + m.mesh.id) * 0.03;
+      }
+
+      // HP bar face camera
+      m.hpBarBg.lookAt(camera.position);
+      m.hpBarFill.lookAt(camera.position);
+
+      monsterAttack(m, dt);
+    });
+
+    // Spawning
+    if (player._spawnQueue && player._spawnQueue.length > 0) {
+      spawnTimer -= dt;
+      if (spawnTimer <= 0) {
+        spawnTimer = 0.4;
+        const type = player._spawnQueue.shift();
+        createMonster(type, getSpawnPos());
+      }
+    }
+
+    // Check wave clear
+    const aliveCount = monsters.filter(m => m.alive).length;
+    if (aliveCount === 0 && (!player._spawnQueue || player._spawnQueue.length === 0) && !waveCleared) {
+      waveCleared = true;
+      wave++;
+      setTimeout(() => {
+        if (gameState === 'playing') spawnWave();
+      }, 2000);
+    }
+
+    // Clean dead monsters from array periodically
+    if (monsters.length > 50) {
+      monsters = monsters.filter(m => m.alive);
+    }
+
+    updateProjectiles(dt);
+    updateParticles(dt);
+    updateEnvironment(dt);
+    updateHUD();
+  } else if (gameState === 'levelup') {
+    // Still render but freeze gameplay
+    updateParticles(dt);
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+initThree();
+switchBiome('forest');
+initInput();
+</script>
 </body>
 </html>
