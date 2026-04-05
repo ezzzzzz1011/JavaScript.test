@@ -158,28 +158,69 @@
         .xq-cell.selected .xq-piece { box-shadow:0 0 20px #ff0; border-color:#ff0; transform:scale(1.15); } 
         .xq-flipped-board { transform:rotate(180deg); } .xq-flipped-board .xq-piece { transform:rotate(180deg); }
 
-        /* 大老二撲克牌桌 */
-        #bt-table { width:100%; height:100%; background:radial-gradient(circle at 50% 40%, #388e3c, #1b5e20); border-radius:20px; position:relative; overflow:hidden; border:10px solid #4e342e; min-height:550px; box-shadow:inset 0 0 80px rgba(0,0,0,0.8), 0 15px 40px rgba(0,0,0,0.5); }
-        .poker-card { width:70px; height:100px; background:#fff; border-radius:8px; box-shadow:2px 4px 8px rgba(0,0,0,0.5); display:flex; flex-direction:column; justify-content:space-between; padding:5px 8px; font-weight:bold; cursor:pointer; border:1px solid #ddd; font-size:20px; user-select:none; transition:all 0.2s; }
-        .poker-card.selected { transform:translateY(-25px)!important; box-shadow:0 15px 25px rgba(0,0,0,0.5); border:2px solid #4fc3f7; }
-        .poker-card.red { color:#d32f2f; } .poker-card.black { color:#212121; } 
-        .poker-card.back { background:repeating-linear-gradient(45deg,#b71c1c,#b71c1c 8px,#fff 8px,#fff 12px); color:transparent; border:3px solid #fff; }
-        
-        #bt-my-hand { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; } 
-        #bt-my-hand .poker-card { margin-left:-40px; } 
-        #bt-my-hand .poker-card:first-child { margin-left:0; } 
-        #bt-my-hand .poker-card:hover { transform: translateY(-10px); z-index: 10; }
-        
-        .bt-opp-hand { position:absolute; display:flex; } 
-        .bt-opp-hand .poker-card { margin-left:-50px; } 
-        #bt-opp-left { left:-30px; top:50%; transform:translateY(-50%) rotate(90deg); } 
-        #bt-opp-top { top:20px; left:50%; transform:translateX(-50%); } 
-        #bt-opp-right { right:-30px; top:50%; transform:translateY(-50%) rotate(-90deg); }
-        
-        #bt-center-pile { position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); display:flex; } 
-        #bt-center-pile .poker-card { margin-left:-45px; } 
-        #bt-center-pile .poker-card:first-child { margin-left:0; }
-        
+        /* ================= 大老二撲克牌桌 ================= */
+#bt-table { 
+    width:100%; height:100%; 
+    background:radial-gradient(circle at 50% 40%, #388e3c, #1b5e20); 
+    border-radius:20px; position:relative; overflow:hidden; 
+    border:10px solid #4e342e; min-height:550px; 
+    box-shadow:inset 0 0 80px rgba(0,0,0,0.8), 0 15px 40px rgba(0,0,0,0.5); 
+}
+
+.poker-card { 
+    width:75px; height:105px; background:#fff; border-radius:8px; 
+    box-shadow:2px 4px 8px rgba(0,0,0,0.5); 
+    display:flex; flex-direction:column; justify-content:space-between; 
+    padding:6px 8px; font-weight:bold; cursor:pointer; 
+    border:1px solid #ddd; font-size:20px; user-select:none; 
+    transition:all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    position:relative;
+    box-sizing: border-box; /* 👈 重要：防止邊框把牌撐大 */
+}
+
+/* 左上角數字 */
+.poker-card .card-top { 
+    align-self: flex-start; 
+    text-align: left; 
+} 
+
+/* 右下角數字：旋轉 180 度並靠右 */
+.poker-card .card-bottom { 
+    align-self: flex-end; 
+    transform: rotate(180deg); 
+}
+
+.poker-card.selected { 
+    transform:translateY(-25px)!important; 
+    box-shadow:0 15px 25px rgba(0,0,0,0.5); 
+    border:2px solid #4fc3f7; 
+}
+
+.poker-card.red { color:#d32f2f; } 
+.poker-card.black { color:#212121; } 
+
+.poker-card.back { 
+    background:repeating-linear-gradient(45deg,#b71c1c,#b71c1c 8px,#fff 8px,#fff 12px); 
+    color:transparent; border:3px solid #fff; 
+}
+
+/* 玩家手牌排列 */
+#bt-my-hand { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; } 
+#bt-my-hand .poker-card { margin-left:-45px; } 
+#bt-my-hand .poker-card:first-child { margin-left:0; } 
+#bt-my-hand .poker-card:hover { transform: translateY(-10px); z-index: 10; }
+
+/* 對手手牌排列 */
+.bt-opp-hand { position:absolute; display:flex; } 
+.bt-opp-hand .poker-card { margin-left:-50px; } 
+#bt-opp-left { left:-30px; top:50%; transform:translateY(-50%) rotate(90deg); } 
+#bt-opp-top { top:20px; left:50%; transform:translateX(-50%); } 
+#bt-opp-right { right:-30px; top:50%; transform:translateY(-50%) rotate(-90deg); }
+
+/* 出牌緩衝區 */
+#bt-center-pile { position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); display:flex; } 
+#bt-center-pile .poker-card { margin-left:-45px; } 
+#bt-center-pile .poker-card:first-child { margin-left:0; }
         /* 結算彈窗 */
         #victory-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center; backdrop-filter:blur(8px); }
         .modal-content { background:linear-gradient(145deg, #2c3e50, #1a252f); padding:50px 70px; border-radius:20px; text-align:center; border:2px solid #4fc3f7; box-shadow:0 15px 50px rgba(0,0,0,0.8); }
@@ -950,28 +991,40 @@ function startBigTwoGame() {
     if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1000);
 }
 
-function renBT() {
+
+    function renBT() {
     document.getElementById('bt-turn-info').innerText = btTurn === btMySeat ? "🟩 該你出牌了！" : "🟥 等待對手出牌...";
     document.getElementById('bt-play-controls').style.display = btTurn === btMySeat ? 'flex' : 'none';
     
-    let mh = document.getElementById('bt-my-hand'); mh.innerHTML = '';
+    let mh = document.getElementById('bt-my-hand'); 
+    mh.innerHTML = '';
     btHands[btMySeat].forEach(c => {
         let d = document.createElement('div');
         d.className = 'poker-card ' + (c.c ? 'red' : 'black');
-        d.innerHTML = `<span>${c.s}${c.r}</span><span style="transform:rotate(180deg);">${c.s}${c.r}</span>`;
+        
+        // ✅ 改好了：手牌左上與右下對角顯示
+        d.innerHTML = `<div class="card-top">${c.s}${c.r}</div><div class="card-bottom">${c.s}${c.r}</div>`;
+        
         d.onclick = () => d.classList.toggle('selected');
-        d.card = c; mh.appendChild(d);
-    }); 
+        d.card = c; 
+        mh.appendChild(d);
+    });
     
     ['top','left','right'].forEach((pos, i) => {
         let id = (btMySeat + i + 1) % 4;
-        let el = document.getElementById(`bt-opp-${pos}`); el.innerHTML = '';
-        for(let j=0; j<btHands[id].length; j++) el.innerHTML += '<div class="poker-card back"></div>';
+        let el = document.getElementById(`bt-opp-${pos}`); 
+        el.innerHTML = '';
+        // 防止朋友端資料還沒同步時報錯
+        if (btHands[id]) {
+            for(let j=0; j<btHands[id].length; j++) el.innerHTML += '<div class="poker-card back"></div>';
+        }
     }); 
     
-    let cp = document.getElementById('bt-center-pile'); cp.innerHTML = '';
+    let cp = document.getElementById('bt-center-pile'); 
+    cp.innerHTML = '';
     btTrick.forEach(c => {
-        cp.innerHTML += `<div class="poker-card ${c.c?'red':'black'}"><span>${c.s}${c.r}</span></div>`;
+        // ✅ 改好了：桌面中央的牌也要同步對角顯示
+        cp.innerHTML += `<div class="poker-card ${c.c?'red':'black'}"><div class="card-top">${c.s}${c.r}</div><div class="card-bottom">${c.s}${c.r}</div></div>`;
     });
 }
 
@@ -1075,6 +1128,13 @@ function doBTAI() {
     }
     procBTPass(btTurn); 
 }
-</script>
+
+    </script>
+
 </body>
+
 </html>
+
+
+
+    
