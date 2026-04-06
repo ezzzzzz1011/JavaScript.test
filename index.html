@@ -334,12 +334,29 @@
                 <div style="margin-bottom:15px; font-weight:bold;">紅方陣亡</div>
                 <div id="xq-red-killed" class="killed-pieces"></div>
             </div>
-            <div id="xq-board-container"><div id="xq-board"></div></div>
+            
+            <div id="xq-board-container" style="position: relative; background: #e5c185; padding: 20px; border-radius: 8px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); border: 4px solid #5d4037;">
+                <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 50px; transform: translateY(-50%); display: flex; justify-content: space-around; align-items: center; font-size: 36px; font-family: 'Kaiti', 'STKaiti', serif; color: #3e2723; pointer-events: none; z-index: 1;">
+                    <span style="letter-spacing: 10px; margin-left: 30px;">楚河</span>
+                    <span style="letter-spacing: 10px; margin-right: 30px;">漢界</span>
+                </div>
+                <svg style="position: absolute; top: 20px; left: 20px; width: 450px; height: 500px; pointer-events: none; z-index: 1;">
+                    <line x1="175" y1="25" x2="275" y2="125" stroke="#8d6e63" stroke-width="1.5" />
+                    <line x1="275" y1="25" x2="175" y2="125" stroke="#8d6e63" stroke-width="1.5" />
+                    <line x1="175" y1="375" x2="275" y2="475" stroke="#8d6e63" stroke-width="1.5" />
+                    <line x1="275" y1="375" x2="175" y2="475" stroke="#8d6e63" stroke-width="1.5" />
+                </svg>
+                <div id="xq-board" style="display: grid; grid-template-columns: repeat(9, 50px); grid-template-rows: repeat(10, 50px); position: relative; z-index: 2;"></div>
+            </div>
             <div class="killed-sidebar">
                 <div style="margin-bottom:15px; font-weight:bold;">黑方陣亡</div>
                 <div id="xq-black-killed" class="killed-pieces"></div>
             </div>
         </div>
+        
+        <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降 / 離開</button></div>
+    </div>
+</div>
 
         <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降</button></div>
     </div>
@@ -815,13 +832,35 @@ function renderXQKilledPieces() {
     xqBlackKilled.forEach(p => { const div = document.createElement('div'); div.className = 'killed-piece black'; div.innerText = p.n; bContainer.appendChild(div); });
 }
 
-function renXQ(){
-    let b=document.getElementById('xq-board'); b.innerHTML='';
-    for(let r=0;r<10;r++)for(let c=0;c<9;c++){
-        let el=document.createElement('div'); el.className='xq-cell';
-        if(xqSel&&xqSel.r===r&&xqSel.c===c) el.classList.add('selected');
-        if(xqBoard[r][c]) el.innerHTML=`<div class="xq-piece ${xqBoard[r][c].c}">${xqBoard[r][c].n}</div>`;
-        el.onclick=()=>clkXQ(r,c); b.appendChild(el);
+function renXQ() {
+    let b = document.getElementById('xq-board'); 
+    b.innerHTML = '';
+    for(let r=0; r<10; r++) {
+        for(let c=0; c<9; c++) {
+            let cell = document.createElement('div');
+            cell.className = 'xq-cell';
+            
+            // 加入邊界判定，讓線條不要衝出棋盤
+            if (r === 0) cell.classList.add('edge-top');
+            if (r === 9) cell.classList.add('edge-bottom');
+            if (c === 0) cell.classList.add('edge-left');
+            if (c === 8) cell.classList.add('edge-right');
+            
+            // 加入楚河漢界斷線判定
+            if (r === 4) cell.classList.add('river-top');
+            if (r === 5) cell.classList.add('river-bottom');
+            
+            let p = xqBoard[r][c];
+            if(p) {
+                let div = document.createElement('div');
+                div.className = 'xq-piece ' + p.c;
+                div.innerText = p.n;
+                cell.appendChild(div);
+            }
+            if(xqSel && xqSel.r===r && xqSel.c===c) cell.classList.add('selected');
+            cell.onclick = () => handleXQClick(r,c);
+            b.appendChild(cell);
+        }
     }
 }
 
