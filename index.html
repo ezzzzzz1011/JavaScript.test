@@ -69,7 +69,7 @@
 
         /* ----------------------------------- 各遊戲專屬 ----------------------------------- */
         
-        /* 暗棋 & 陣亡區 */
+        /* 暗棋 & 陣亡區 (維持原尺寸) */
         .killed-sidebar { display:flex; flex-direction:column; align-items:center; width:140px; color:#aaa; } 
         .killed-pieces { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; } 
         .killed-piece { width:50px; height:50px; border-radius:50%; background:#eae4d1; border:2px solid #3e2723; font-size:24px; font-weight:bold; display:flex; justify-content:center; align-items:center; box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
@@ -85,16 +85,17 @@
         .dc-cell.selected { box-shadow:0 0 20px #fff176; border:3px solid #fff176; } 
         .dc-cell.red { color:#bf2121; } .dc-cell.black { color:#004d40; }
 
-        /* 五子棋 */
-        #gomoku-board { background:linear-gradient(135deg,#d4a373,#b5835a); padding:15px; border-radius:12px; display:grid; grid-template-columns:repeat(15,36px); grid-template-rows:repeat(15,36px); pointer-events:none; box-shadow:0 15px 35px rgba(0,0,0,0.6); } 
+        /* 五子棋 (已放大) */
+        #gomoku-board { background:linear-gradient(135deg,#d4a373,#b5835a); padding:15px; border-radius:12px; display:grid; grid-template-columns:repeat(15,42px); grid-template-rows:repeat(15,42px); pointer-events:none; box-shadow:0 15px 35px rgba(0,0,0,0.6); } 
         #gomoku-board.active { pointer-events:auto; }
-        .gm-cell { width:36px; height:36px; position:relative; cursor:pointer; display:flex; justify-content:center; align-items:center; } 
+        .gm-cell { width:42px; height:42px; position:relative; cursor:pointer; display:flex; justify-content:center; align-items:center; } 
         .gm-cell::before { content:''; position:absolute; top:50%; left:0; width:100%; height:1px; background:#5d4037; } 
         .gm-cell::after { content:''; position:absolute; top:0; left:50%; width:1px; height:100%; background:#5d4037; } 
-        .gm-piece { width:30px; height:30px; border-radius:50%; z-index:2; position:absolute; box-shadow:2px 3px 6px rgba(0,0,0,0.6); } 
+        .gm-piece { width:36px; height:36px; border-radius:50%; z-index:2; position:absolute; box-shadow:2px 3px 6px rgba(0,0,0,0.6); } 
         .gm-piece.black { background:radial-gradient(circle at 10px 10px,#444,#000); } .gm-piece.white { background:radial-gradient(circle at 10px 10px,#fff,#ccc); }
 
-        /* 象棋 */
+        /* 象棋 (已放大) */
+        #xq-board-container { transform: scale(1.15); margin: 30px 45px; }
         #xq-board { display: grid; grid-template-columns: repeat(9, 50px); grid-template-rows: repeat(10, 50px); pointer-events: none; }
         #xq-board.active { pointer-events: auto; }
         .xq-cell { width: 50px; height: 50px; position: relative; display: flex; justify-content: center; align-items: center; cursor: pointer;}
@@ -108,7 +109,8 @@
         .xq-cell.selected .xq-piece { transform: scale(1.15) translateY(-3px); box-shadow: 0 10px 15px rgba(0,0,0,0.6), inset -2px -2px 4px rgba(0,0,0,0.2); border: 2px solid #4fc3f7;} 
         .xq-flipped-board { transform: rotate(180deg); } .xq-flipped-board .xq-piece { transform: rotate(180deg); }
 
-        /* 大老二 */
+        /* 大老二 (已放大) */
+        #bt-game-area { transform: scale(1.15); transform-origin: top center; margin-bottom: 90px !important; }
         #bt-table { width:100%; height:100%; background:radial-gradient(circle at 50% 40%, #388e3c, #1b5e20); border-radius:20px; position:relative; overflow:hidden; border:10px solid #4e342e; min-height:550px; box-shadow:inset 0 0 80px rgba(0,0,0,0.8), 0 15px 40px rgba(0,0,0,0.5); }
         .poker-card { width:75px; height:105px; background:#fff; border-radius:8px; box-shadow:2px 4px 8px rgba(0,0,0,0.5); display:flex; flex-direction:column; justify-content:space-between; padding:6px 8px; font-weight:bold; cursor:pointer; border:1px solid #ddd; font-size:20px; user-select:none; transition:all 0.2s; position:relative; box-sizing: border-box;}
         .poker-card .card-top { align-self: flex-start; text-align: left; } 
@@ -125,24 +127,31 @@
         #bt-center-pile { position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); display:flex; } 
         #bt-center-pile .poker-card { margin-left:-45px; } #bt-center-pile .poker-card:first-child { margin-left:0; }
 
-        /* 2048 對戰版 */
+        /* 2048 對戰版 (已放大) */
         .t2048-board-container { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; align-items:center;}
-        .t2048-board { display:grid; grid-template-columns:repeat(4, 75px); grid-template-rows:repeat(4, 75px); gap:10px; background:#bbada0; padding:10px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.5); }
+        .t2048-board { display:grid; grid-template-columns:repeat(4, 90px); grid-template-rows:repeat(4, 90px); gap:10px; background:#bbada0; padding:10px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.5); }
         .t2048-board.opp-board { opacity: 0.85; transform: scale(0.9); pointer-events: none;}
-        .t2048-cell { background:rgba(238, 228, 218, 0.35); border-radius:6px; display:flex; justify-content:center; align-items:center; font-size:32px; font-weight:bold; color:#776e65; transition: transform 0.1s; }
+        .t2048-cell { background:rgba(238, 228, 218, 0.35); border-radius:6px; display:flex; justify-content:center; align-items:center; font-size:38px; font-weight:bold; color:#776e65; transition: transform 0.1s; }
         .tile-2 { background:#eee4da; }
         .tile-4 { background:#ede0c8; }
         .tile-8 { background:#f2b179; color:#f9f6f2; }
         .tile-16 { background:#f59563; color:#f9f6f2; }
         .tile-32 { background:#f67c5f; color:#f9f6f2; }
         .tile-64 { background:#f65e3b; color:#f9f6f2; }
-        .tile-128 { background:#edcf72; color:#f9f6f2; font-size: 28px; box-shadow: 0 0 10px rgba(243, 215, 116, 0.5); }
-        .tile-256 { background:#edcc61; color:#f9f6f2; font-size: 28px; box-shadow: 0 0 15px rgba(243, 215, 116, 0.6); }
-        .tile-512 { background:#edc850; color:#f9f6f2; font-size: 28px; }
-        .tile-1024 { background:#edc53f; color:#f9f6f2; font-size: 24px; }
-        .tile-2048 { background:#edc22e; color:#f9f6f2; font-size: 24px; box-shadow: 0 0 25px rgba(243, 215, 116, 0.8); }
-        .tile-x { background:#534d47; color:#f9f6f2; font-size: 40px;} /* 陷害專用石頭 */
+        .tile-128 { background:#edcf72; color:#f9f6f2; font-size: 32px; box-shadow: 0 0 10px rgba(243, 215, 116, 0.5); }
+        .tile-256 { background:#edcc61; color:#f9f6f2; font-size: 32px; box-shadow: 0 0 15px rgba(243, 215, 116, 0.6); }
+        .tile-512 { background:#edc850; color:#f9f6f2; font-size: 32px; }
+        .tile-1024 { background:#edc53f; color:#f9f6f2; font-size: 26px; }
+        .tile-2048 { background:#edc22e; color:#f9f6f2; font-size: 26px; box-shadow: 0 0 25px rgba(243, 215, 116, 0.8); }
+        .tile-x { background:#534d47; color:#f9f6f2; font-size: 48px;} /* 陷害專用石頭 */
 
+        /* 結算彈窗 */
+        #victory-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:4000; justify-content:center; align-items:center; backdrop-filter:blur(8px); }
+        .modal-content { background:linear-gradient(145deg, #2c3e50, #1a252f); padding:50px 70px; border-radius:20px; text-align:center; border:2px solid #4fc3f7; box-shadow:0 15px 50px rgba(0,0,0,0.8); }
+        .modal-content h1 { margin-top:0; font-size:48px; } 
+        .modal-content p { font-size:22px; color:#cfd8dc; margin-bottom:40px; } 
+        .modal-content button { padding:15px 40px; font-size:22px; cursor:pointer; background:linear-gradient(135deg, #1976d2, #1565c0); color:#fff; border:none; border-radius:30px; font-weight:bold; transition:0.3s; } 
+        .modal-content button:hover { transform:scale(1.05); }
         /* 結算彈窗 */
         #victory-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:4000; justify-content:center; align-items:center; backdrop-filter:blur(8px); }
         .modal-content { background:linear-gradient(145deg, #2c3e50, #1a252f); padding:50px 70px; border-radius:20px; text-align:center; border:2px solid #4fc3f7; box-shadow:0 15px 50px rgba(0,0,0,0.8); }
