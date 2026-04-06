@@ -67,7 +67,7 @@
         .game-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.5);}
         .surrender-btn { background: linear-gradient(135deg, #e53935, #c62828); } 
 
-        /* ----------------------------------- 各遊戲專屬 ----------------------------------- */
+        /* ----------------------------------- 各遊戲專屬 CSS ----------------------------------- */
         
         /* 暗棋 & 陣亡區 (維持原尺寸) */
         .killed-sidebar { display:flex; flex-direction:column; align-items:center; width:140px; color:#aaa; } 
@@ -147,10 +147,10 @@
         .tile-2048 { background:#edc22e; color:#f9f6f2; font-size: 26px; box-shadow: 0 0 25px rgba(243, 215, 116, 0.8); }
         .tile-x { background:#534d47; color:#f9f6f2; font-size: 48px;} /* 陷害專用石頭 */
 
-        /* 手機版 2048 虛擬方向鍵 */
-        .dpad-container { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 30px; margin-bottom: 20px; }
-        .dpad-middle { display: flex; gap: 15px; }
-        .dpad-btn { width: 80px; height: 80px; border-radius: 20px; border: none; font-size: 40px; background: linear-gradient(145deg, #455a64, #263238); color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 2px 5px rgba(255,255,255,0.1); cursor: pointer; transition: 0.1s; display: flex; justify-content: center; align-items: center; user-select: none; -webkit-tap-highlight-color: transparent; }
+        /* 手機版 2048 巨型虛擬方向鍵 */
+        .dpad-container { display: flex; flex-direction: column; align-items: center; gap: 20px; margin-top: 30px; margin-bottom: 30px; }
+        .dpad-middle { display: flex; gap: 20px; }
+        .dpad-btn { width: 110px; height: 110px; border-radius: 25px; border: none; font-size: 60px; background: linear-gradient(145deg, #455a64, #263238); color: white; box-shadow: 0 12px 25px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.1); cursor: pointer; transition: 0.1s; display: flex; justify-content: center; align-items: center; user-select: none; -webkit-tap-highlight-color: transparent; }
         .dpad-btn:active { transform: scale(0.9) translateY(4px); box-shadow: 0 2px 5px rgba(0,0,0,0.5); background: linear-gradient(145deg, #263238, #455a64); }
 
         /* 結算彈窗 */
@@ -582,7 +582,23 @@ function trigger2048Slide(directionKey) {
 
     if(JSON.stringify(tBoard) !== oldBoard) {
         spawn2048(); ren2048(); sync2048(); check2048GameOver();
-        if(attacks > 0 && conn) conn.send({type: 't2048Attack', count: attacks});
+        
+        if(attacks > 0) {
+            if (!isVsAI && conn) {
+                conn.send({type: 't2048Attack', count: attacks});
+            } else if (isVsAI) {
+                for(let i=0; i<attacks; i++) {
+                    let empty = [];
+                    for(let r=0; r<4; r++) for(let c=0; c<4; c++) if(tOppBoard[r][c] === 0) empty.push({r,c});
+                    if(empty.length > 0) {
+                        let pos = empty[Math.floor(Math.random() * empty.length)];
+                        tOppBoard[pos.r][pos.c] = 'X';
+                    }
+                }
+                showMessage("⚔️ 漂亮！你對電腦丟出了陷害石頭！");
+                ren2048(); 
+            }
+        }
     }
 }
 
