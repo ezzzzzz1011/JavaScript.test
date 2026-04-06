@@ -428,20 +428,24 @@
             <div id="bt-turn-info" class="turn-info" style="font-size:22px;">準備發牌...</div>
         </div>
         <div id="bt-game-area" style="width:100%; max-width:950px; position:relative; margin-bottom:15px;">
-            <div id="bt-table">
-                <div id="bt-opp-top" class="bt-opp-hand"></div>
-                <div id="bt-opp-left" class="bt-opp-hand"></div>
-                <div id="bt-opp-right" class="bt-opp-hand"></div>
-                <div id="bt-center-pile"></div>
-                <div id="bt-my-hand"></div>
-            </div>
-        </div>
-        <div id="bt-play-controls" style="margin-bottom:20px; display:none; gap:20px;">
-            <button class="game-btn" style="background: linear-gradient(135deg, #0288d1, #01579b); padding: 15px 50px;" onclick="playBigTwoCards()">🃏 確 認 出 牌</button>
-            <button class="game-btn" style="background: linear-gradient(135deg, #616161, #424242);" onclick="passBigTwoTurn()">PASS (過)</button>
-        </div>
-        <div class="controls" style="margin-top: 10px;"><button class="game-btn surrender-btn" onclick="location.reload()">🏳️ 離開牌桌</button></div>
+    
+    <div id="bt-hand-hint" style="position:absolute; bottom:140px; left:50%; transform:translateX(-50%); font-size:20px; font-weight:bold; color:#aaa; z-index:100; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background:rgba(0,0,0,0.6); padding:8px 20px; border-radius:20px; border: 1px solid rgba(255,255,255,0.2);">請選擇牌型...</div>
+    <div id="bt-table">
+        <div id="bt-opp-top" class="bt-opp-hand"></div>
+        <div id="bt-opp-left" class="bt-opp-hand"></div>
+        <div id="bt-opp-right" class="bt-opp-hand"></div>
+        <div id="bt-center-pile"></div>
+        <div id="bt-my-hand"></div>
     </div>
+</div>
+
+<div id="bt-play-controls" style="margin-bottom:20px; display:none; gap:20px;">
+    <button class="game-btn" style="background: linear-gradient(135deg, #0288d1, #01579b); padding: 15px 50px;" onclick="playBigTwoCards()">🃏 確 認 出 牌</button>
+    <button class="game-btn" style="background: linear-gradient(135deg, #616161, #424242);" onclick="passBigTwoTurn()">PASS (過)</button>
+</div>
+
+<div class="controls" style="margin-top: 10px;">
+    <button class="game-btn surrender-btn" onclick="location.reload()">🏳️ 離開牌桌</button>
 </div>
 
 <script>
@@ -1074,10 +1078,13 @@ function renBT() {
     btHands[btMySeat].forEach(c => {
         let d = document.createElement('div');
         d.className = 'poker-card ' + (c.c ? 'red' : 'black');
-        
         d.innerHTML = `<div class="card-top">${c.s}${c.r}</div><div class="card-bottom">${c.s}${c.r}</div>`;
         
-        d.onclick = () => d.classList.toggle('selected');
+        // 【修改點】點擊牌時除了往上彈，還會觸發牌型偵測
+        d.onclick = () => {
+            d.classList.toggle('selected');
+            updateBigTwoHint(); 
+        };
         d.card = c; 
         mh.appendChild(d);
     });
@@ -1090,6 +1097,47 @@ function renBT() {
             for(let j=0; j<btHands[id].length; j++) el.innerHTML += '<div class="poker-card back"></div>';
         }
     }); 
+    
+    let cp = document.getElementById('bt-center-pile'); 
+    cp.innerHTML = '';
+    btTrick.forEach(c => {
+        cp.innerHTML += `<div class="poker-card ${c.c?'red':'black'}"><div class="card-top">${c.s}${c.r}</div><div class="card-bottom">${c.s}${c.r}</div></div>`;
+    });
+    
+    updateBigTwoHint(); // 重新渲染時重置提示
+}
+
+// --- 👇 新增這個：即時牌型偵測函數 👇 ---
+function updateBigTwoHint() {
+    let hintEl = document.getElementById('bt-hand-hint');
+    if(!hintEl) return;
+    
+    let sel = [...document.getElementById('bt-my-hand').children].filter(e=>e.classList.contains('selected')).map(e=>e.card);
+    
+    if(sel.length === 0) {
+        hintEl.innerText = "請選擇牌型...";
+        hintEl.style.color = "#aaa";
+        return;
+    }
+    
+    let tp = getHType(sel);
+    if(!tp) {
+        hintEl.innerText = "❌ 無效的牌型組合";
+        hintEl.style.color = "#ff5252";
+    } else {
+        let typeName = "";
+        if(tp.t === 1) typeName = "單張";
+        else if(tp.t === 2) typeName = "對子";
+        else if(tp.t === 5) {
+            if(tp.sub === 1) typeName = "順子";
+            else if(tp.sub === 2) typeName = "葫蘆";
+            else if(tp.sub === 3) typeName = "鐵支";
+            else if(tp.sub === 4) typeName = "🌟 同花順 🌟";
+        }
+        hintEl.innerText = "✨ 目前牌型：" + typeName;
+        hintEl.style.color = "#00e676";
+    }
+}
     
     let cp = document.getElementById('bt-center-pile'); 
     cp.innerHTML = '';
@@ -1122,23 +1170,34 @@ function getHType(cs) {
         const rOrder = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
         let idxs = cs.map(c => rOrder.indexOf(c.r)).sort((a,b)=>a-b);
         
+        // 判斷是否為順子
         let isSt = true; 
         for(let i=1; i<5; i++){ if(idxs[i] !== idxs[i-1]+1) isSt = false; }
-        if(isSt) return {t:5, sub:1, v:cs[4].v}; 
+        
+        // 判斷是否為同花 (5張牌花色全相同)
+        let isFlush = new Set(cs.map(c => c.s)).size === 1;
         
         let counts = {};
         cs.forEach(c => counts[c.r] = (counts[c.r] || 0) + 1);
         let valArr = Object.values(counts);
         
+        // 鐵支 (4+1)
         if(valArr.includes(4)) {
             let quadR = Object.keys(counts).find(k => counts[k] === 4);
             return {t:5, sub:3, v: cs.find(c => c.r === quadR).v}; 
         }
         
+        // 葫蘆 (3+2)
         if(valArr.includes(3) && valArr.includes(2)) {
             let trioR = Object.keys(counts).find(k => counts[k] === 3);
             return {t:5, sub:2, v: cs.find(c => c.r === trioR).v}; 
         }
+        
+        // 同花順 (Straight Flush) -> 權重 4 (最高)
+        if(isSt && isFlush) return {t:5, sub:4, v:cs[4].v}; 
+        
+        // 一般順子 (Straight) -> 權重 1
+        if(isSt) return {t:5, sub:1, v:cs[4].v}; 
     } 
     return null;
 }
