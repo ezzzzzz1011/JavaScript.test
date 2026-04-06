@@ -144,20 +144,62 @@
         .gm-piece { width:30px; height:30px; border-radius:50%; z-index:2; position:absolute; box-shadow:2px 3px 6px rgba(0,0,0,0.6); } 
         .gm-piece.black { background:radial-gradient(circle at 10px 10px,#444,#000); } .gm-piece.white { background:radial-gradient(circle at 10px 10px,#fff,#ccc); }
 
-        /* 象棋棋盤 */
-        #xq-board { background:#e5c185; border:4px solid #5d4037; padding:15px; display:grid; grid-template-columns:repeat(9,50px); grid-template-rows:repeat(10,50px); gap:2px; pointer-events:none; box-shadow:0 15px 35px rgba(0,0,0,0.6); border-radius: 8px; } 
-        #xq-board.active { pointer-events:auto; }
-        .xq-cell { width:50px; height:50px; display:flex; justify-content:center; align-items:center; position:relative; cursor:pointer; } 
-        .xq-cell::before { content:''; position:absolute; top:50%; left:0; width:100%; height:2px; background:#8d6e63; z-index:1; } 
-        .xq-cell::after { content:''; position:absolute; top:0; left:50%; width:2px; height:100%; background:#8d6e63; z-index:1; } 
-        .xq-cell.river-top::after { height:50%; } .xq-cell.river-bottom::after { top:50%; height:50%; } 
-        .xq-cell.top-edge::after { top:50%; height:50%; } .xq-cell.bottom-edge::after { height:50%; } 
-        .xq-cell.left-edge::before { left:50%; width:50%; } .xq-cell.right-edge::before { width:50%; } 
-        .xq-piece { width:44px; height:44px; border-radius:50%; background:#faebd7; border:2px solid #5d4037; display:flex; justify-content:center; align-items:center; font-size:26px; font-weight:bold; z-index:2; user-select:none; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: 0.2s;} 
-        .xq-piece.red { color:#d32f2f; } .xq-piece.black { color:#1e1e1e; } 
-        .xq-cell.selected .xq-piece { box-shadow:0 0 20px #ff0; border-color:#ff0; transform:scale(1.15); } 
-        .xq-flipped-board { transform:rotate(180deg); } .xq-flipped-board .xq-piece { transform:rotate(180deg); }
+        /* ================= 象棋盤與立體棋子 ================= */
+#xq-board { 
+    display: grid; 
+    grid-template-columns: repeat(9, 50px); 
+    grid-template-rows: repeat(10, 50px); 
+    pointer-events: none; 
+    /* 背景和邊框交給外層 container 處理了，這裡保持透明 */
+}
+#xq-board.active { pointer-events: auto; }
 
+.xq-cell { 
+    width: 50px; height: 50px; position: relative; 
+    display: flex; justify-content: center; align-items: center; 
+    cursor: pointer;
+}
+
+/* 繪製棋盤的橫線與直線 */
+.xq-cell::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1.5px; background: #8d6e63; z-index: 1; }
+.xq-cell::after { content: ''; position: absolute; top: 0; left: 50%; width: 1.5px; height: 100%; background: #8d6e63; z-index: 1; }
+
+/* 處理邊界與楚河漢界的斷線 (配合 JS 新增的 class) */
+.xq-cell.edge-top::after { top: 50%; height: 50%; }
+.xq-cell.edge-bottom::after { height: 50%; }
+.xq-cell.edge-left::before { left: 50%; width: 50%; }
+.xq-cell.edge-right::before { width: 50%; }
+.xq-cell.river-top::after { height: 50%; }
+.xq-cell.river-bottom::after { top: 50%; height: 50%; }
+
+/* 立體木紋質感棋子 */
+.xq-piece { 
+    width: 42px; height: 42px; border-radius: 50%; 
+    background: radial-gradient(circle at 12px 12px, #fff8dc, #e8c396); /* 木紋高光效果 */
+    border: 1px solid #a0522d; 
+    display: flex; justify-content: center; align-items: center; 
+    font-size: 26px; 
+    font-family: 'Kaiti', 'STKaiti', serif; /* 設定為楷體 */
+    font-weight: bold; 
+    z-index: 2; user-select: none; 
+    box-shadow: 2px 4px 6px rgba(0,0,0,0.5), inset -2px -2px 4px rgba(0,0,0,0.2); 
+    transition: 0.2s; 
+    text-shadow: 1px 1px 0px rgba(255,255,255,0.6);
+}
+
+.xq-piece.red { color: #d32f2f; } 
+.xq-piece.black { color: #212121; } 
+
+/* 選取時的浮空發光特效 */
+.xq-cell.selected .xq-piece { 
+    transform: scale(1.15) translateY(-3px); 
+    box-shadow: 0 10px 15px rgba(0,0,0,0.6), inset -2px -2px 4px rgba(0,0,0,0.2); 
+    border: 2px solid #4fc3f7;
+} 
+
+/* 翻轉視角 (作客時使用) */
+.xq-flipped-board { transform: rotate(180deg); } 
+.xq-flipped-board .xq-piece { transform: rotate(180deg); }
         /* ================= 大老二撲克牌桌 ================= */
 #bt-table { 
     width:100%; height:100%; 
