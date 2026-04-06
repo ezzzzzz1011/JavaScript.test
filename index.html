@@ -78,10 +78,12 @@
         #dc-board-outer { background:#a17f2d; border:10px solid #a17f2d; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.6); } 
         #dc-board { display:grid; grid-template-columns:repeat(4,85px); grid-template-rows:repeat(8,85px); gap:2px; background:#5d4037; padding:4px; pointer-events:none; } 
         #dc-board.active { pointer-events:auto; }
-        .dc-cell { width:85px; height:85px; box-sizing:border-box; background:#f1d382; display:flex; justify-content:center; align-items:center; cursor:pointer; user-select:none; } 
+        .dc-cell { width:85px; height:85px; box-sizing:border-box; background:#f1d382; display:flex; justify-content:center; align-items:center; cursor:pointer; user-select:none; transition: 0.1s; } 
+        .dc-cell:active { transform: scale(0.95); }
         .dc-cell.open { border-radius:50%; background:#eae4d1; border:3px solid #3e2723; font-size:42px; font-weight:bold; } 
         .dc-cell.hidden { background:#ccc; border:3px solid #3e2723; border-radius:50%; color:transparent; } 
         .dc-cell.hidden::after { content:"？"; color:#333; font-size:36px; opacity:0.6; } 
+        .dc-cell.empty { background:transparent; border:1px solid rgba(255,255,255,0.1); cursor:default; }
         .dc-cell.selected { box-shadow:0 0 20px #fff176; border:3px solid #fff176; } 
         .dc-cell.red { color:#bf2121; } .dc-cell.black { color:#004d40; }
 
@@ -145,13 +147,12 @@
         .tile-2048 { background:#edc22e; color:#f9f6f2; font-size: 26px; box-shadow: 0 0 25px rgba(243, 215, 116, 0.8); }
         .tile-x { background:#534d47; color:#f9f6f2; font-size: 48px;} /* 陷害專用石頭 */
 
-        /* 結算彈窗 */
-        #victory-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:4000; justify-content:center; align-items:center; backdrop-filter:blur(8px); }
-        .modal-content { background:linear-gradient(145deg, #2c3e50, #1a252f); padding:50px 70px; border-radius:20px; text-align:center; border:2px solid #4fc3f7; box-shadow:0 15px 50px rgba(0,0,0,0.8); }
-        .modal-content h1 { margin-top:0; font-size:48px; } 
-        .modal-content p { font-size:22px; color:#cfd8dc; margin-bottom:40px; } 
-        .modal-content button { padding:15px 40px; font-size:22px; cursor:pointer; background:linear-gradient(135deg, #1976d2, #1565c0); color:#fff; border:none; border-radius:30px; font-weight:bold; transition:0.3s; } 
-        .modal-content button:hover { transform:scale(1.05); }
+        /* 手機版 2048 虛擬方向鍵 */
+        .dpad-container { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 30px; margin-bottom: 20px; }
+        .dpad-middle { display: flex; gap: 15px; }
+        .dpad-btn { width: 80px; height: 80px; border-radius: 20px; border: none; font-size: 40px; background: linear-gradient(145deg, #455a64, #263238); color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.5), inset 0 2px 5px rgba(255,255,255,0.1); cursor: pointer; transition: 0.1s; display: flex; justify-content: center; align-items: center; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .dpad-btn:active { transform: scale(0.9) translateY(4px); box-shadow: 0 2px 5px rgba(0,0,0,0.5); background: linear-gradient(145deg, #263238, #455a64); }
+
         /* 結算彈窗 */
         #victory-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:4000; justify-content:center; align-items:center; backdrop-filter:blur(8px); }
         .modal-content { background:linear-gradient(145deg, #2c3e50, #1a252f); padding:50px 70px; border-radius:20px; text-align:center; border:2px solid #4fc3f7; box-shadow:0 15px 50px rgba(0,0,0,0.8); }
@@ -325,7 +326,7 @@
     </div>
     <div id="t2048-game-wrapper" class="game-wrapper">
         <div class="top-info-container">
-            <div class="turn-info" style="color:#ffb74d;">⚔️ 即時對戰中！(請使用鍵盤方向鍵)</div>
+            <div class="turn-info" style="color:#ffb74d;">⚔️ 即時對戰中！</div>
             <div class="role-info">合成 128 以上方塊可對敵人降下石頭！</div>
         </div>
         <div style="display:flex; justify-content:center; gap:40px; width:100%; flex-wrap:wrap;">
@@ -338,6 +339,16 @@
                 <div id="t2048-opp-board" class="t2048-board opp-board"></div>
             </div>
         </div>
+
+        <div id="t2048-dpad" class="dpad-container">
+            <button class="dpad-btn" onclick="trigger2048Slide('ArrowUp')">⬆️</button>
+            <div class="dpad-middle">
+                <button class="dpad-btn" onclick="trigger2048Slide('ArrowLeft')">⬅️</button>
+                <button class="dpad-btn" onclick="trigger2048Slide('ArrowDown')">⬇️</button>
+                <button class="dpad-btn" onclick="trigger2048Slide('ArrowRight')">➡️</button>
+            </div>
+        </div>
+
         <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('t2048')">🏳️ 投降 / 離開</button></div>
     </div>
 </div>
@@ -383,7 +394,7 @@ peer.on('connection', c => {
                 else if(currentGame === 'xiangqi') initXiangqiAsHost();
                 else if(currentGame === 't2048') {
                     init2048AsHost();
-                    conn.send({type: 't2048Init'}); // 通知客端初始化
+                    conn.send({type: 't2048Init'});
                 }
             } 
         } 
@@ -494,7 +505,7 @@ function showVictoryModal(winnerCode, surr) {
 }
 
 // ==========================================================================
-// 全新！2048 陷害連線版 (即時對抗系統)
+// 2048 陷害連線版 (即時對抗系統 + 虛擬方向鍵 + 電腦 AI)
 // ==========================================================================
 let tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]], tOppBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
 let tScore = 0, tOppScore = 0;
@@ -504,14 +515,11 @@ function init2048AsHost() {
     tOppBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
     tScore = 0; tOppScore = 0; 
     
-    // 玩家自己的兩顆初始方塊
     spawn2048(); spawn2048(); 
     
-    // 👇 加入這段：如果對手是 AI，幫它隨機產生兩顆初始方塊 (數字 2) 👇
     if (isVsAI) {
         let empty = [];
         for(let r=0; r<4; r++) for(let c=0; c<4; c++) empty.push({r,c});
-        
         let p1 = empty.splice(Math.floor(Math.random() * empty.length), 1)[0];
         let p2 = empty.splice(Math.floor(Math.random() * empty.length), 1)[0];
         tOppBoard[p1.r][p1.c] = 2;
@@ -520,6 +528,7 @@ function init2048AsHost() {
     
     ren2048(); sync2048();
 }
+
 function init2048AsGuest() {
     tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; tScore = 0; spawn2048(); spawn2048(); ren2048(); sync2048();
 }
@@ -528,7 +537,7 @@ function handle2048Data(d) {
     if(d.type === 't2048Init') init2048AsGuest();
     else if(d.type === 't2048Sync') { tOppBoard = d.b; tOppScore = d.s; ren2048(); }
     else if(d.type === 't2048Attack') {
-        for(let i=0; i<d.count; i++) spawn2048(true); // true 代表產生陷害石頭
+        for(let i=0; i<d.count; i++) spawn2048(true); 
         showMessage("⚠️ 遭到對手陷害！天降石頭！", true);
         ren2048(); sync2048(); check2048GameOver();
     }
@@ -545,38 +554,43 @@ function spawn2048(isGarbage = false) {
     }
 }
 
-document.addEventListener('keydown', e => {
+function trigger2048Slide(directionKey) {
     if (currentGame !== 't2048' || gameOver) return;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault(); 
-        let attacks = 0;
-        
-        // 核心滑動與合併邏輯，包含石頭障礙物判定
-        function slideLine(line) {
-            let res = [], skip = false, nz = line.filter(v => v !== 0);
-            for(let i=0; i<nz.length; i++) {
-                if(skip) { skip = false; continue; }
-                if(i < nz.length-1 && nz[i] === nz[i+1] && nz[i] !== 'X') {
-                    let merged = nz[i] * 2;
-                    res.push(merged); tScore += merged;
-                    if(merged >= 128) attacks++; // 合成出 128 以上送攻擊！
-                    skip = true;
-                } else { res.push(nz[i]); }
-            }
-            while(res.length < 4) res.push(0);
-            return res;
+    let attacks = 0;
+    
+    function slideLine(line) {
+        let res = [], skip = false, nz = line.filter(v => v !== 0);
+        for(let i=0; i<nz.length; i++) {
+            if(skip) { skip = false; continue; }
+            if(i < nz.length-1 && nz[i] === nz[i+1] && nz[i] !== 'X') {
+                let merged = nz[i] * 2;
+                res.push(merged); tScore += merged;
+                if(merged >= 128) attacks++; 
+                skip = true;
+            } else { res.push(nz[i]); }
         }
+        while(res.length < 4) res.push(0);
+        return res;
+    }
 
-        let oldBoard = JSON.stringify(tBoard);
+    let oldBoard = JSON.stringify(tBoard);
 
-        if(e.key === 'ArrowLeft') for(let r=0; r<4; r++) tBoard[r] = slideLine(tBoard[r]);
-        else if(e.key === 'ArrowRight') for(let r=0; r<4; r++) tBoard[r] = slideLine(tBoard[r].reverse()).reverse();
-        else if(e.key === 'ArrowUp') for(let c=0; c<4; c++) { let col = slideLine([tBoard[0][c], tBoard[1][c], tBoard[2][c], tBoard[3][c]]); for(let r=0; r<4; r++) tBoard[r][c] = col[r]; }
-        else if(e.key === 'ArrowDown') for(let c=0; c<4; c++) { let col = slideLine([tBoard[3][c], tBoard[2][c], tBoard[1][c], tBoard[0][c]]); for(let r=0; r<4; r++) tBoard[3-r][c] = col[r]; }
+    if(directionKey === 'ArrowLeft') for(let r=0; r<4; r++) tBoard[r] = slideLine(tBoard[r]);
+    else if(directionKey === 'ArrowRight') for(let r=0; r<4; r++) tBoard[r] = slideLine(tBoard[r].reverse()).reverse();
+    else if(directionKey === 'ArrowUp') for(let c=0; c<4; c++) { let col = slideLine([tBoard[0][c], tBoard[1][c], tBoard[2][c], tBoard[3][c]]); for(let r=0; r<4; r++) tBoard[r][c] = col[r]; }
+    else if(directionKey === 'ArrowDown') for(let c=0; c<4; c++) { let col = slideLine([tBoard[3][c], tBoard[2][c], tBoard[1][c], tBoard[0][c]]); for(let r=0; r<4; r++) tBoard[3-r][c] = col[r]; }
 
-        if(JSON.stringify(tBoard) !== oldBoard) {
-            spawn2048(); ren2048(); sync2048(); check2048GameOver();
-            if(attacks > 0 && conn) conn.send({type: 't2048Attack', count: attacks});
+    if(JSON.stringify(tBoard) !== oldBoard) {
+        spawn2048(); ren2048(); sync2048(); check2048GameOver();
+        if(attacks > 0 && conn) conn.send({type: 't2048Attack', count: attacks});
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        if (currentGame === 't2048' && !gameOver) {
+            e.preventDefault(); 
+            trigger2048Slide(e.key);
         }
     }
 });
@@ -605,7 +619,6 @@ function check2048GameOver() {
     }
 }
 
-// 2048 專用簡易 AI 模擬對手
 function do2048AI() {
     if(currentGame !== 't2048' || !isVsAI || gameOver) return;
     let dirs = ['up','down','left','right'], dir = dirs[Math.floor(Math.random()*4)], old = JSON.stringify(tOppBoard);
@@ -637,10 +650,8 @@ function do2048AI() {
 }
 
 // ==========================================================================
-// 棋類遊戲邏輯 (暗棋、五子棋、象棋) 與 大老二 (隱藏，為節省篇幅保留了你前一版的設定)
+// 棋類遊戲 (暗棋、五子棋、象棋) 與 大老二 邏輯
 // ==========================================================================
-// 以下代碼與你剛才完全相同，確保舊遊戲運作正常！
-
 function syncDC() {
     if(!isVsAI&&conn) conn.send({game:'darkchess',type:'sync',b:dcBoard,t:dcTurn,hc:dcHostC,gc:dcGuestC,rk:dcRedKilled,bk:dcBlackKilled});
     document.getElementById('dc-turn-info').innerText = dcTurn === myRole ? "🟩 你的回合 (翻/走)" : "🟥 等待對手...";
