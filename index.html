@@ -491,8 +491,25 @@ let tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]], tOppBoard = [[0,0,0,0],[
 let tScore = 0, tOppScore = 0;
 
 function init2048AsHost() {
-    tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; tOppBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
-    tScore = 0; tOppScore = 0; spawn2048(); spawn2048(); ren2048(); sync2048();
+    tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; 
+    tOppBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    tScore = 0; tOppScore = 0; 
+    
+    // 玩家自己的兩顆初始方塊
+    spawn2048(); spawn2048(); 
+    
+    // 👇 加入這段：如果對手是 AI，幫它隨機產生兩顆初始方塊 (數字 2) 👇
+    if (isVsAI) {
+        let empty = [];
+        for(let r=0; r<4; r++) for(let c=0; c<4; c++) empty.push({r,c});
+        
+        let p1 = empty.splice(Math.floor(Math.random() * empty.length), 1)[0];
+        let p2 = empty.splice(Math.floor(Math.random() * empty.length), 1)[0];
+        tOppBoard[p1.r][p1.c] = 2;
+        tOppBoard[p2.r][p2.c] = 2;
+    }
+    
+    ren2048(); sync2048();
 }
 function init2048AsGuest() {
     tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; tScore = 0; spawn2048(); spawn2048(); ren2048(); sync2048();
