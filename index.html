@@ -658,9 +658,16 @@ function handleDarkchessSync(d) {
     renDC(); renderDCKilledPieces(); chkDCWin();
 }
 
+// --- 暗棋狀態更新 ---
 function syncDC() {
     if(!isVsAI&&conn) conn.send({game:'darkchess',type:'sync',b:dcBoard,t:dcTurn,hc:dcHostC,gc:dcGuestC,rk:dcRedKilled,bk:dcBlackKilled});
-    document.getElementById('dc-turn-info').innerText=dcTurn===myRole?"🟩 你的回合":"🟥 等待對手...";
+    
+    // 更新回合
+    document.getElementById('dc-turn-info').innerText = dcTurn === myRole ? "🟩 你的回合 (翻/走)" : "🟥 等待對手...";
+    
+    // 更新身份
+    let myColor = myRole === 'host' ? dcHostC : dcGuestC;
+    document.getElementById('dc-role-info').innerText = "身份：" + (myColor ? (myColor === 'red' ? '🔴 紅方' : '⚫ 黑方') : '未定 (請先翻牌)');
 }
 
 function renderDCKilledPieces() {
@@ -785,7 +792,16 @@ function makeDCAIMove() {
 let gmBoard=[], gmTurn='black';
 function initGomokuAsHost(){gmBoard=Array(15).fill(0).map(()=>Array(15).fill(null));gmTurn='black';syncGM();renGM();}
 function handleGomokuSync(d){gmBoard=d.b;gmTurn=d.t;renGM();chkGMWin();}
-function syncGM(){if(!isVsAI&&conn)conn.send({game:'gomoku',type:'sync',b:gmBoard,t:gmTurn});document.getElementById('gm-turn-info').innerText=gmTurn===myRole?"🟩 你的回合 (落子)":"🟥 等待對手...";}
+function syncGM() {
+    if(!isVsAI&&conn) conn.send({game:'gomoku',type:'sync',b:gmBoard,t:gmTurn});
+    
+    // 定義自己的顏色 (房主永遠是黑子)
+    let mc = myRole === 'host' ? 'black' : 'white';
+    
+    // 更新回合與身份
+    document.getElementById('gm-turn-info').innerText = gmTurn === mc ? "🟩 你的回合 (落子)" : "🟥 等待對手...";
+    document.getElementById('gm-role-info').innerText = "身份：" + (mc === 'black' ? '⚫ 黑子 (先手)' : '⚪ 白子 (後手)');
+}
 function renGM(){let b=document.getElementById('gomoku-board');b.innerHTML='';for(let r=0;r<15;r++)for(let c=0;c<15;c++){let el=document.createElement('div');el.className='gm-cell';if(gmBoard[r][c])el.innerHTML=`<div class="gm-piece ${gmBoard[r][c]}"></div>`;el.onclick=()=>clkGM(r,c);b.appendChild(el);}}
 function clkGM(r,c){
     if(gameOver) return;
@@ -820,7 +836,13 @@ function handleXiangqiSync(d){
 
 function syncXQ() {
     if(!isVsAI&&conn) conn.send({game:'xiangqi',type:'sync',b:xqBoard,t:xqTurn,rk:xqRedKilled,bk:xqBlackKilled});
-    document.getElementById('xq-turn-info').innerText = xqTurn===myRole ? "🟩 你的回合 (行棋)" : "🟥 等待對手...";
+    
+    // 定義自己的顏色 (房主永遠是紅方)
+    let mc = myRole === 'host' ? 'red' : 'black';
+    
+    // 更新回合與身份
+    document.getElementById('xq-turn-info').innerText = xqTurn === mc ? "🟩 你的回合 (行棋)" : "🟥 等待對手...";
+    document.getElementById('xq-role-info').innerText = "身份：" + (mc === 'red' ? '🔴 紅方 (先手)' : '⚫ 黑方 (後手)');
 }
 
 function renderXQKilledPieces() {
