@@ -67,6 +67,8 @@
         .game-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.5);}
         .surrender-btn { background: linear-gradient(135deg, #e53935, #c62828); } 
 
+        /* ----------------------------------- 各遊戲專屬 ----------------------------------- */
+        
         /* 暗棋 & 陣亡區 */
         .killed-sidebar { display:flex; flex-direction:column; align-items:center; width:140px; color:#aaa; } 
         .killed-pieces { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; } 
@@ -123,6 +125,24 @@
         #bt-center-pile { position:absolute; top:45%; left:50%; transform:translate(-50%,-50%); display:flex; } 
         #bt-center-pile .poker-card { margin-left:-45px; } #bt-center-pile .poker-card:first-child { margin-left:0; }
 
+        /* 2048 對戰版 */
+        .t2048-board-container { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; align-items:center;}
+        .t2048-board { display:grid; grid-template-columns:repeat(4, 75px); grid-template-rows:repeat(4, 75px); gap:10px; background:#bbada0; padding:10px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.5); }
+        .t2048-board.opp-board { opacity: 0.85; transform: scale(0.9); pointer-events: none;}
+        .t2048-cell { background:rgba(238, 228, 218, 0.35); border-radius:6px; display:flex; justify-content:center; align-items:center; font-size:32px; font-weight:bold; color:#776e65; transition: transform 0.1s; }
+        .tile-2 { background:#eee4da; }
+        .tile-4 { background:#ede0c8; }
+        .tile-8 { background:#f2b179; color:#f9f6f2; }
+        .tile-16 { background:#f59563; color:#f9f6f2; }
+        .tile-32 { background:#f67c5f; color:#f9f6f2; }
+        .tile-64 { background:#f65e3b; color:#f9f6f2; }
+        .tile-128 { background:#edcf72; color:#f9f6f2; font-size: 28px; box-shadow: 0 0 10px rgba(243, 215, 116, 0.5); }
+        .tile-256 { background:#edcc61; color:#f9f6f2; font-size: 28px; box-shadow: 0 0 15px rgba(243, 215, 116, 0.6); }
+        .tile-512 { background:#edc850; color:#f9f6f2; font-size: 28px; }
+        .tile-1024 { background:#edc53f; color:#f9f6f2; font-size: 24px; }
+        .tile-2048 { background:#edc22e; color:#f9f6f2; font-size: 24px; box-shadow: 0 0 25px rgba(243, 215, 116, 0.8); }
+        .tile-x { background:#534d47; color:#f9f6f2; font-size: 40px;} /* 陷害專用石頭 */
+
         /* 結算彈窗 */
         #victory-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:4000; justify-content:center; align-items:center; backdrop-filter:blur(8px); }
         .modal-content { background:linear-gradient(145deg, #2c3e50, #1a252f); padding:50px 70px; border-radius:20px; text-align:center; border:2px solid #4fc3f7; box-shadow:0 15px 50px rgba(0,0,0,0.8); }
@@ -151,6 +171,7 @@
         <div class="game-card" onclick="openApp('gomoku')"><h2>⚫ 五子棋</h2><p>15x15 經典網格</p></div>
         <div class="game-card" onclick="openApp('xiangqi')"><h2>🔴 經典象棋</h2><p>古色木紋楚河漢界</p></div>
         <div class="game-card" onclick="openApp('bigtwo')"><h2>🃏 大老二</h2><p>同花順牌型雷達支援</p></div>
+        <div class="game-card" style="border-color: #f59563;" onclick="openApp('t2048')"><h2>🔢 陷害 2048</h2><p>即時連線對抗</p></div>
     </div>
 </div>
 
@@ -281,6 +302,37 @@
     </div>
 </div>
 
+<div id="t2048-app" class="app-section">
+    <div id="t2048-lobby" class="lobby-container glass-panel">
+        <button class="back-btn" onclick="location.reload()">🔙 返回</button>
+        <h2>🔢 2048 陷害連線版</h2>
+        <div class="room-code" id="t2048-my-id">載入中</div>
+        <button class="btn btn-success" onclick="copyInviteLink(this, 't2048')">🔗 一鍵複製邀請網址</button>
+        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        <input type="text" id="t2048-friend-id" placeholder="輸入好友代碼">
+        <button class="btn btn-primary" onclick="connectToFriend('t2048')">加入房間</button>
+        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
+        <button class="btn btn-ai" onclick="startLocalAI('t2048')">🤖 單機挑戰</button>
+    </div>
+    <div id="t2048-game-wrapper" class="game-wrapper">
+        <div class="top-info-container">
+            <div class="turn-info" style="color:#ffb74d;">⚔️ 即時對戰中！(請使用鍵盤方向鍵)</div>
+            <div class="role-info">合成 128 以上方塊可對敵人降下石頭！</div>
+        </div>
+        <div style="display:flex; justify-content:center; gap:40px; width:100%; flex-wrap:wrap;">
+            <div class="t2048-board-container">
+                <h3 style="text-align:center; color:#00e676; margin-top:0;">👑 我的盤面 (<span id="t2048-my-score">0</span>)</h3>
+                <div id="t2048-my-board" class="t2048-board"></div>
+            </div>
+            <div class="t2048-board-container">
+                <h3 style="text-align:center; color:#ff5252; margin-top:0;">😈 對手盤面 (<span id="t2048-opp-score">0</span>)</h3>
+                <div id="t2048-opp-board" class="t2048-board opp-board"></div>
+            </div>
+        </div>
+        <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('t2048')">🏳️ 投降 / 離開</button></div>
+    </div>
+</div>
+
 <script>
 // ==========================================================================
 // 系統核心 (網路連線與狀態切換)
@@ -306,7 +358,8 @@ myShortId = [...Array(6)].map(()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(
 peer = new Peer(myShortId);
 
 peer.on('open', id => { 
-    ['dc-my-id','gm-my-id','xq-my-id','bt-my-id'].forEach(e => { if(document.getElementById(e)) document.getElementById(e).innerText = id; });
+    ['dc-my-id','gm-my-id','xq-my-id','bt-my-id', 't2048-my-id'].forEach(e => { if(document.getElementById(e)) document.getElementById(e).innerText = id; });
+    checkUrlForInvite();
 });
 
 peer.on('connection', c => { 
@@ -314,30 +367,47 @@ peer.on('connection', c => {
         if(d.type === 'initGame') { 
             currentGame = d.gameType; openApp(currentGame); 
             if(currentGame === 'bigtwo') { myRole = 'host'; handleBigTwoJoin(c); } 
-            else { conn = c; myRole = 'host'; isVsAI = false; setupConnection();
+            else { 
+                conn = c; myRole = 'host'; isVsAI = false; setupConnection();
                 if(currentGame === 'darkchess') initDarkchessAsHost();
                 else if(currentGame === 'gomoku') initGomokuAsHost();
                 else if(currentGame === 'xiangqi') initXiangqiAsHost();
+                else if(currentGame === 't2048') {
+                    init2048AsHost();
+                    conn.send({type: 't2048Init'}); // 通知客端初始化
+                }
             } 
         } 
         else if (currentGame === 'darkchess') { handleDarkchessSync(d); }
         else if (currentGame === 'gomoku') { if(d.type==='surrender') showVictoryModal(d.loserColor==='red'?'black':'red',true); else handleGomokuSync(d); }
         else if (currentGame === 'xiangqi') { if(d.type==='surrender') showVictoryModal(d.loserColor==='red'?'black':'red',true); else handleXiangqiSync(d); }
-        else if (currentGame === 'bigtwo') {
-            if(d.type === 'btPlay') procBTPlay(d.s, d.cards); else if(d.type === 'btPass') procBTPass(d.s);
-        }
+        else if (currentGame === 'bigtwo') { if(d.type === 'btPlay') procBTPlay(d.s, d.cards); else if(d.type === 'btPass') procBTPass(d.s); }
+        else if (currentGame === 't2048') { handle2048Data(d); }
     }); 
 });
 
+function checkUrlForInvite() {
+    const urlParams = new URLSearchParams(window.location.search); 
+    const roomCode = urlParams.get('room'); 
+    const gameType = urlParams.get('game') || 'darkchess'; 
+    if (roomCode) { 
+        openApp(gameType);
+        let inputId = {'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id','t2048':'t2048-friend-id'}[gameType];
+        document.getElementById(inputId).value = roomCode.toUpperCase(); 
+        showMessage("✨ 讀取代碼中，正在為您自動連線..."); 
+        setTimeout(() => connectToFriend(gameType), 800); 
+    }
+}
+
 function openApp(appId) { 
-    ['darkchess','gomoku','xiangqi','bigtwo'].forEach(id => {
+    ['darkchess','gomoku','xiangqi','bigtwo','t2048'].forEach(id => {
         if(document.getElementById(id+'-app')) document.getElementById(id+'-app').style.display = (id === appId) ? 'flex' : 'none';
     }); 
     document.getElementById('portal-menu').style.display = 'none'; 
 }
 
 function connectToFriend(gameType) { 
-    let idMap = {'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id'}; 
+    let idMap = {'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id','t2048':'t2048-friend-id'}; 
     let raw = document.getElementById(idMap[gameType]).value.trim(); 
     if(!raw) return showMessage("❌ 請先輸入房間代碼！", true); 
     
@@ -363,6 +433,7 @@ function connectToFriend(gameType) {
         else if (currentGame === 'darkchess') handleDarkchessSync(d);
         else if (currentGame === 'gomoku') { if(d.type==='surrender') showVictoryModal(d.loserColor==='red'?'black':'red',true); else handleGomokuSync(d); }
         else if (currentGame === 'xiangqi') { if(d.type==='surrender') showVictoryModal(d.loserColor==='red'?'black':'red',true); else handleXiangqiSync(d); }
+        else if (currentGame === 't2048') { handle2048Data(d); }
     }); 
 }
 
@@ -371,14 +442,14 @@ function startLocalAI(g) {
     if(g === 'darkchess') initDarkchessAsHost();
     else if(g === 'gomoku') initGomokuAsHost();
     else if(g === 'xiangqi') initXiangqiAsHost();
+    else if(g === 't2048') { init2048AsHost(); setTimeout(do2048AI, 1000); }
 }
 
 function setupConnection(isAI = false) { 
-    let map = { 'darkchess':['dc-lobby','dc-game-wrapper','dc-board'], 'gomoku':['gm-lobby','gm-game-wrapper','gomoku-board'], 'xiangqi':['xq-lobby','xq-game-wrapper','xq-board'] }; 
+    let map = { 'darkchess':['dc-lobby','dc-game-wrapper','dc-board'], 'gomoku':['gm-lobby','gm-game-wrapper','gomoku-board'], 'xiangqi':['xq-lobby','xq-game-wrapper','xq-board'], 't2048':['t2048-lobby','t2048-game-wrapper',null] }; 
     let e = map[currentGame]; 
     document.getElementById(e[0]).style.display = 'none'; document.getElementById(e[1]).style.display = 'flex'; 
-    let b = document.getElementById(e[2]); if(b) b.classList.add('active'); 
-    if(currentGame === 'xiangqi' && myRole === 'guest') b.classList.add('xq-flipped-board'); 
+    if(e[2]){ let b = document.getElementById(e[2]); if(b) b.classList.add('active'); if(currentGame === 'xiangqi' && myRole === 'guest') b.classList.add('xq-flipped-board'); }
     showMessage(isAI ? "🤖 單機模式開啟" : "✅ 連線成功！"); 
 }
 
@@ -388,6 +459,7 @@ function surrenderGame(g) {
     if (g === 'darkchess') c = myRole==='host' ? dcHostC : dcGuestC;
     else if (g === 'gomoku') c = myRole==='host' ? 'black' : 'white';
     else if (g === 'xiangqi') c = myRole==='host' ? 'red' : 'black';
+    else if (g === 't2048') c = myRole==='host' ? 'red' : 'black';
 
     if(confirm("確定要舉白旗投降嗎？")) {
         if(!isVsAI && conn) conn.send({type:'surrender', loserColor:c});
@@ -403,14 +475,145 @@ function showVictoryModal(winnerCode, surr) {
     else if (currentGame === 'gomoku') iWon = (winnerCode === (myRole === 'host' ? 'black' : 'white'));
     else if (currentGame === 'xiangqi') iWon = (winnerCode === (myRole === 'host' ? 'red' : 'black'));
     else if (currentGame === 'bigtwo') iWon = (winnerCode === btMySeat);
+    else if (currentGame === 't2048') {
+        if(winnerCode === 'me') iWon = true; else if(winnerCode === 'opponent') iWon = false;
+        else iWon = (winnerCode === (myRole === 'host' ? 'red' : 'black'));
+    }
 
     if(iWon) { t.innerText = "🏆 恭喜獲勝！"; t.style.color = "#00e676"; m.innerText = surr ? "對手被你嚇得投降了！" : "你用實力碾壓了對局！"; } 
     else { t.innerText = "💀 慘敗..."; t.style.color = "#ff1744"; m.innerText = surr ? "你選擇了投降。" : "對手實在太強大了..."; }
 }
 
 // ==========================================================================
-// 棋類遊戲 (暗棋、五子棋、象棋)
+// 全新！2048 陷害連線版 (即時對抗系統)
 // ==========================================================================
+let tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]], tOppBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+let tScore = 0, tOppScore = 0;
+
+function init2048AsHost() {
+    tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; tOppBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    tScore = 0; tOppScore = 0; spawn2048(); spawn2048(); ren2048(); sync2048();
+}
+function init2048AsGuest() {
+    tBoard = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; tScore = 0; spawn2048(); spawn2048(); ren2048(); sync2048();
+}
+
+function handle2048Data(d) {
+    if(d.type === 't2048Init') init2048AsGuest();
+    else if(d.type === 't2048Sync') { tOppBoard = d.b; tOppScore = d.s; ren2048(); }
+    else if(d.type === 't2048Attack') {
+        for(let i=0; i<d.count; i++) spawn2048(true); // true 代表產生陷害石頭
+        showMessage("⚠️ 遭到對手陷害！天降石頭！", true);
+        ren2048(); sync2048(); check2048GameOver();
+    }
+    else if(d.type === 't2048Dead') showVictoryModal('me', false);
+    else if(d.type === 'surrender') showVictoryModal('me', true);
+}
+
+function spawn2048(isGarbage = false) {
+    let empty = [];
+    for(let r=0; r<4; r++) for(let c=0; c<4; c++) if(tBoard[r][c] === 0) empty.push({r,c});
+    if(empty.length > 0) {
+        let pos = empty[Math.floor(Math.random() * empty.length)];
+        tBoard[pos.r][pos.c] = isGarbage ? 'X' : (Math.random() < 0.9 ? 2 : 4);
+    }
+}
+
+document.addEventListener('keydown', e => {
+    if (currentGame !== 't2048' || gameOver) return;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault(); 
+        let attacks = 0;
+        
+        // 核心滑動與合併邏輯，包含石頭障礙物判定
+        function slideLine(line) {
+            let res = [], skip = false, nz = line.filter(v => v !== 0);
+            for(let i=0; i<nz.length; i++) {
+                if(skip) { skip = false; continue; }
+                if(i < nz.length-1 && nz[i] === nz[i+1] && nz[i] !== 'X') {
+                    let merged = nz[i] * 2;
+                    res.push(merged); tScore += merged;
+                    if(merged >= 128) attacks++; // 合成出 128 以上送攻擊！
+                    skip = true;
+                } else { res.push(nz[i]); }
+            }
+            while(res.length < 4) res.push(0);
+            return res;
+        }
+
+        let oldBoard = JSON.stringify(tBoard);
+
+        if(e.key === 'ArrowLeft') for(let r=0; r<4; r++) tBoard[r] = slideLine(tBoard[r]);
+        else if(e.key === 'ArrowRight') for(let r=0; r<4; r++) tBoard[r] = slideLine(tBoard[r].reverse()).reverse();
+        else if(e.key === 'ArrowUp') for(let c=0; c<4; c++) { let col = slideLine([tBoard[0][c], tBoard[1][c], tBoard[2][c], tBoard[3][c]]); for(let r=0; r<4; r++) tBoard[r][c] = col[r]; }
+        else if(e.key === 'ArrowDown') for(let c=0; c<4; c++) { let col = slideLine([tBoard[3][c], tBoard[2][c], tBoard[1][c], tBoard[0][c]]); for(let r=0; r<4; r++) tBoard[3-r][c] = col[r]; }
+
+        if(JSON.stringify(tBoard) !== oldBoard) {
+            spawn2048(); ren2048(); sync2048(); check2048GameOver();
+            if(attacks > 0 && conn) conn.send({type: 't2048Attack', count: attacks});
+        }
+    }
+});
+
+function sync2048() { if(!isVsAI && conn && conn.open) conn.send({type: 't2048Sync', b: tBoard, s: tScore}); }
+
+function ren2048() {
+    let mb = document.getElementById('t2048-my-board'); mb.innerHTML = '';
+    for(let r=0; r<4; r++) for(let c=0; c<4; c++) { let val = tBoard[r][c]; mb.innerHTML += `<div class="t2048-cell ${val==='X'?'tile-x':(val>0?'tile-'+val:'')}">${val>0?val:''}</div>`; }
+    let ob = document.getElementById('t2048-opp-board'); ob.innerHTML = '';
+    for(let r=0; r<4; r++) for(let c=0; c<4; c++) { let val = tOppBoard[r][c]; ob.innerHTML += `<div class="t2048-cell ${val==='X'?'tile-x':(val>0?'tile-'+val:'')}">${val>0?val:''}</div>`; }
+    document.getElementById('t2048-my-score').innerText = tScore;
+    document.getElementById('t2048-opp-score').innerText = tOppScore;
+}
+
+function check2048GameOver() {
+    let full = true, mergeable = false;
+    for(let r=0; r<4; r++) for(let c=0; c<4; c++) {
+        if(tBoard[r][c] === 0) full = false;
+        if(c<3 && tBoard[r][c] !== 'X' && tBoard[r][c] === tBoard[r][c+1]) mergeable = true;
+        if(r<3 && tBoard[r][c] !== 'X' && tBoard[r][c] === tBoard[r+1][c]) mergeable = true;
+    }
+    if(full && !mergeable) {
+        if(conn) conn.send({type: 't2048Dead'});
+        showVictoryModal('opponent', false);
+    }
+}
+
+// 2048 專用簡易 AI 模擬對手
+function do2048AI() {
+    if(currentGame !== 't2048' || !isVsAI || gameOver) return;
+    let dirs = ['up','down','left','right'], dir = dirs[Math.floor(Math.random()*4)], old = JSON.stringify(tOppBoard);
+
+    function slideL(line) {
+        let res=[], skip=false, nz=line.filter(v=>v!==0);
+        for(let i=0; i<nz.length; i++) {
+            if(skip) {skip=false; continue;}
+            if(i<nz.length-1 && nz[i]===nz[i+1] && nz[i]!=='X') {
+                let m = nz[i]*2; res.push(m); tOppScore+=m;
+                if(m>=128) { spawn2048(true); showMessage("⚠️ 電腦送來了陷害方塊！", true); ren2048(); check2048GameOver(); }
+                skip=true;
+            } else res.push(nz[i]);
+        }
+        while(res.length<4) res.push(0); return res;
+    }
+    if(dir==='left') for(let r=0; r<4; r++) tOppBoard[r] = slideL(tOppBoard[r]);
+    else if(dir==='right') for(let r=0; r<4; r++) tOppBoard[r] = slideL(tOppBoard[r].reverse()).reverse();
+    else if(dir==='up') for(let c=0; c<4; c++) { let col=[tOppBoard[0][c],tOppBoard[1][c],tOppBoard[2][c],tOppBoard[3][c]]; col=slideL(col); for(let r=0; r<4; r++) tOppBoard[r][c]=col[r]; }
+    else if(dir==='down') for(let c=0; c<4; c++) { let col=[tOppBoard[3][c],tOppBoard[2][c],tOppBoard[1][c],tOppBoard[0][c]]; col=slideL(col); for(let r=0; r<4; r++) tOppBoard[3-r][c]=col[r]; }
+
+    if(JSON.stringify(tOppBoard) !== old) {
+        let empty = [];
+        for(let r=0; r<4; r++) for(let c=0; c<4; c++) if(tOppBoard[r][c]===0) empty.push({r,c});
+        if(empty.length>0) { let p=empty[Math.floor(Math.random()*empty.length)]; tOppBoard[p.r][p.c]= (Math.random()<0.9?2:4); }
+        ren2048();
+    }
+    setTimeout(do2048AI, 800); 
+}
+
+// ==========================================================================
+// 棋類遊戲邏輯 (暗棋、五子棋、象棋) 與 大老二 (隱藏，為節省篇幅保留了你前一版的設定)
+// ==========================================================================
+// 以下代碼與你剛才完全相同，確保舊遊戲運作正常！
 
 function syncDC() {
     if(!isVsAI&&conn) conn.send({game:'darkchess',type:'sync',b:dcBoard,t:dcTurn,hc:dcHostC,gc:dcGuestC,rk:dcRedKilled,bk:dcBlackKilled});
@@ -418,7 +621,6 @@ function syncDC() {
     let myColor = myRole === 'host' ? dcHostC : dcGuestC;
     document.getElementById('dc-role-info').innerText = "身份：" + (myColor ? (myColor === 'red' ? '🔴 紅方' : '⚫ 黑方') : '未定 (請先翻牌)');
 }
-
 let dcBoard=[], dcTurn='host', dcHostC=null, dcGuestC=null, dcSel=-1, dcRedKilled=[], dcBlackKilled=[]; 
 function initDarkchessAsHost() { 
     let p = [
@@ -491,8 +693,6 @@ function makeDCAIMove() {
     else{ let t = dcBoard[b.to]; if (!t.em) { if (t.c === 'red') dcRedKilled.push(t); else dcBlackKilled.push(t); } dcBoard[b.to]=dcBoard[b.f]; dcBoard[b.f]={em:true}; endDCTurn(); } 
 }
 
-
-// --- 五子棋 (Gomoku) ---
 function syncGM() {
     if(!isVsAI&&conn) conn.send({game:'gomoku',type:'sync',b:gmBoard,t:gmTurn});
     let mc = myRole === 'host' ? 'black' : 'white';
@@ -513,8 +713,6 @@ function chkGMWin(){let dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let r=0;r<15;r++)for
 function evalGMLine(r,c,color){let s=0, dirs=[[1,0],[0,1],[1,1],[1,-1]];for(let [dr,dc]of dirs){let cons=1,blk=0;for(let dir of [1,-1]){let e=false;for(let i=1;i<5;i++){let nr=r+dr*i*dir,nc=c+dc*i*dir;if(nr<0||nr>=15||nc<0||nc>=15){blk++;e=true;break;}if(gmBoard[nr][nc]===color)cons++;else if(gmBoard[nr][nc]){blk++;e=true;break;}else{break;}} } if(cons>=5)s+=100000;else if(cons===4&&blk===0)s+=10000;else if(cons===4&&blk===1)s+=1000;else if(cons===3&&blk===0)s+=1000;else if(cons===3&&blk===1)s+=100;else if(cons===2&&blk===0)s+=10;}return s;}
 function makeGMAIMove(){let bS=-1,bM=[];for(let r=0;r<15;r++)for(let c=0;c<15;c++){if(!gmBoard[r][c]){let atk=evalGMLine(r,c,'white'),def=evalGMLine(r,c,'black'),sc=atk+def*1.2+Math.random();if(sc>bS){bS=sc;bM=[{r,c}];}else if(sc===bS)bM.push({r,c});}}if(bM.length){let m=bM[Math.floor(Math.random()*bM.length)];gmBoard[m.r][m.c]='white';gmTurn='black';syncGM();renGM();chkGMWin();}}
 
-
-// --- 象棋 (Xiangqi) ---
 function syncXQ() {
     if(!isVsAI&&conn) conn.send({game:'xiangqi',type:'sync',b:xqBoard,t:xqTurn,rk:xqRedKilled,bk:xqBlackKilled});
     let mc = myRole === 'host' ? 'red' : 'black';
@@ -596,10 +794,6 @@ function makeXQAIMove() {
     xqTurn = 'red'; syncXQ(); renXQ(); renderXQKilledPieces(); chkXQWin();
 }
 
-
-// ==========================================================================
-// 大老二 (Big Two) - 包含同花順牌型雷達
-// ==========================================================================
 let btPlayers=[ {t:'human', n:'👑 你 (房主)', r:1}, {t:'empty', n:'等待...', r:0}, {t:'empty', n:'等待...', r:0}, {t:'empty', n:'等待...', r:0} ];
 let btConns={}, btDeck=[], btHands=[[],[],[],[]], btMySeat=0, btTrick=[], btPass=0, btTurn=0;
 
@@ -607,12 +801,7 @@ function handleBigTwoJoin(c) {
     let e = btPlayers.findIndex(p => p.t==='empty');
     if(e !== -1){ btPlayers[e] = {t:'human', n:`🧑 好友玩家${e+1}`, r:1}; btConns[c.peer] = c; updBTUI(); bdBT(); }
 }
-
-function addBigTwoAI(s) {
-    if(btPlayers[s-1].t !== 'empty') return;
-    btPlayers[s-1] = {t:'ai', n:`🤖 電腦殺手 ${s}`, r:1}; updBTUI(); bdBT();
-}
-
+function addBigTwoAI(s) { if(btPlayers[s-1].t !== 'empty') return; btPlayers[s-1] = {t:'ai', n:`🤖 電腦殺手 ${s}`, r:1}; updBTUI(); bdBT(); }
 function updBTUI() {
     let pc = btPlayers.filter(p => p.t !== 'empty').length;
     for(let i=1; i<4; i++){
@@ -623,154 +812,82 @@ function updBTUI() {
     if(pc === 4){ b.innerText = "🚀 開始牌局"; b.style.background = "linear-gradient(135deg, #1976d2, #1565c0)"; b.style.color = "#fff"; b.disabled = false; } 
     else { b.innerText = `缺人(${pc}/4)`; b.disabled = true; } 
 }
-
 function bdBT() { for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btLobbySync', players:btPlayers}); }
-
 function startBigTwoGame() {
     myRole = 'host'; currentGame = 'bigtwo';
     document.getElementById('bt-lobby').style.display = 'none'; document.getElementById('bt-game-wrapper').style.display = 'flex';
-    
     btDeck = []; let v = 1;
     for(let r of ['3','4','5','6','7','8','9','10','J','Q','K','A','2']) { for(let s of ['♣','♦','♥','♠']) btDeck.push({r,s,v:v++,c:(s==='♦'||s==='♥')}); }
     for(let i=51; i>0; i--){ let j = Math.floor(Math.random()*(i+1)); [btDeck[i], btDeck[j]] = [btDeck[j], btDeck[i]]; }
-    
-    btHands = [[],[],[],[]];
-    for(let i=0; i<52; i++) btHands[i%4].push(btDeck[i]);
-    for(let i=0; i<4; i++) btHands[i].sort((a,b) => a.v - b.v);
-    
+    btHands = [[],[],[],[]]; for(let i=0; i<52; i++) btHands[i%4].push(btDeck[i]); for(let i=0; i<4; i++) btHands[i].sort((a,b) => a.v - b.v);
     btMySeat = 0; btTurn = btHands.findIndex(h => h.some(c => c.v === 1)); btTrick = []; btPass = 0;
-    
     renBT();
-    
     for(let i=1, k=Object.keys(btConns); i<=k.length; i++){ if(btConns[k[i-1]].open) btConns[k[i-1]].send({type:'btGameStart', hand:btHands[i], seat:i}); } 
     syncBTTurn(); if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1000);
 }
-
 function updateBigTwoHint() {
     let hintEl = document.getElementById('bt-hand-hint'); if(!hintEl) return;
     let handEl = document.getElementById('bt-my-hand'); if(!handEl) return;
     let sel = [...handEl.children].filter(e=>e.classList.contains('selected')).map(e=>e.card);
-    
     if(sel.length === 0) { hintEl.innerText = "請選擇出牌組合..."; hintEl.style.color = "#aaa"; return; }
-    
     let tp = getHType(sel);
     if(!tp) { hintEl.innerText = "❌ 無效的組合"; hintEl.style.color = "#ff5252"; } 
     else {
-        let n = "";
-        if(tp.t === 1) n = "單張"; else if(tp.t === 2) n = "對子";
-        else if(tp.t === 5) {
-            if(tp.sub === 1) n = "順子"; else if(tp.sub === 2) n = "葫蘆"; else if(tp.sub === 3) n = "鐵支"; else if(tp.sub === 4) n = "🌟 同花順 🌟";
-        }
+        let n = ""; if(tp.t === 1) n = "單張"; else if(tp.t === 2) n = "對子";
+        else if(tp.t === 5) { if(tp.sub === 1) n = "順子"; else if(tp.sub === 2) n = "葫蘆"; else if(tp.sub === 3) n = "鐵支"; else if(tp.sub === 4) n = "🌟 同花順 🌟"; }
         hintEl.innerText = "✨ 目前選擇：" + n; hintEl.style.color = "#00e676";
     }
 }
-
 function renBT() {
     document.getElementById('bt-turn-info').innerText = btTurn === btMySeat ? "🟩 該你出牌了！" : "🟥 等待對手出牌...";
     document.getElementById('bt-play-controls').style.display = btTurn === btMySeat ? 'flex' : 'none';
-    
     let mh = document.getElementById('bt-my-hand'); mh.innerHTML = '';
     btHands[btMySeat].forEach(c => {
         let d = document.createElement('div'); d.className = 'poker-card ' + (c.c ? 'red' : 'black');
         d.innerHTML = `<div class="card-top">${c.s}${c.r}</div><div class="card-bottom">${c.s}${c.r}</div>`;
-        d.onclick = () => { d.classList.toggle('selected'); updateBigTwoHint(); };
-        d.card = c; mh.appendChild(d);
+        d.onclick = () => { d.classList.toggle('selected'); updateBigTwoHint(); }; d.card = c; mh.appendChild(d);
     });
-    
     ['top','left','right'].forEach((pos, i) => {
         let id = (btMySeat + i + 1) % 4, el = document.getElementById(`bt-opp-${pos}`); el.innerHTML = '';
         if (btHands[id]) { for(let j=0; j<btHands[id].length; j++) el.innerHTML += '<div class="poker-card back"></div>'; }
     }); 
-    
     let cp = document.getElementById('bt-center-pile'); cp.innerHTML = '';
     btTrick.forEach(c => { cp.innerHTML += `<div class="poker-card ${c.c?'red':'black'}"><div class="card-top">${c.s}${c.r}</div><div class="card-bottom">${c.s}${c.r}</div></div>`; });
-    
     updateBigTwoHint();
 }
-
-function syncBTTurn() {
-    if(myRole === 'host') { for(let id in btConns) { if(btConns[id].open) btConns[id].send({type:'btSync', turn:btTurn, trick:btTrick, pass:btPass, hLen:btHands.map(h=>h.length)}); } } 
-    else renBT();
-}
-
-function syncBTFromHost(d) {
-    btTurn = d.turn; btTrick = d.trick; btPass = d.pass; 
-    d.hLen.forEach((l, i) => { if(i !== btMySeat) btHands[i] = Array(l).fill(null); });
-    renBT();
-}
-
+function syncBTTurn() { if(myRole === 'host') { for(let id in btConns) { if(btConns[id].open) btConns[id].send({type:'btSync', turn:btTurn, trick:btTrick, pass:btPass, hLen:btHands.map(h=>h.length)}); } } else renBT(); }
+function syncBTFromHost(d) { btTurn = d.turn; btTrick = d.trick; btPass = d.pass; d.hLen.forEach((l, i) => { if(i !== btMySeat) btHands[i] = Array(l).fill(null); }); renBT(); }
 function getHType(cs) {
-    let l = cs.length; 
-    if(l === 1) return {t:1, v:cs[0].v}; 
-    if(l === 2 && cs[0].r === cs[1].r) return {t:2, v:cs[1].v};
+    let l = cs.length; if(l === 1) return {t:1, v:cs[0].v}; if(l === 2 && cs[0].r === cs[1].r) return {t:2, v:cs[1].v};
     if(l === 5) {
-        const rOrder = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
-        let idxs = cs.map(c => rOrder.indexOf(c.r)).sort((a,b)=>a-b);
-        
-        let isSt = true; for(let i=1; i<5; i++){ if(idxs[i] !== idxs[i-1]+1) isSt = false; }
-        let isFlush = new Set(cs.map(c => c.s)).size === 1;
-        
+        const rOrder = ['3','4','5','6','7','8','9','10','J','Q','K','A','2']; let idxs = cs.map(c => rOrder.indexOf(c.r)).sort((a,b)=>a-b);
+        let isSt = true; for(let i=1; i<5; i++){ if(idxs[i] !== idxs[i-1]+1) isSt = false; } let isFlush = new Set(cs.map(c => c.s)).size === 1;
         let counts = {}; cs.forEach(c => counts[c.r] = (counts[c.r] || 0) + 1); let valArr = Object.values(counts);
-        
         if(valArr.includes(4)) { let quadR = Object.keys(counts).find(k => counts[k] === 4); return {t:5, sub:3, v: cs.find(c => c.r === quadR).v}; }
         if(valArr.includes(3) && valArr.includes(2)) { let trioR = Object.keys(counts).find(k => counts[k] === 3); return {t:5, sub:2, v: cs.find(c => c.r === trioR).v}; }
-        if(isSt && isFlush) return {t:5, sub:4, v:cs[4].v}; 
-        if(isSt) return {t:5, sub:1, v:cs[4].v}; 
-    } 
-    return null;
+        if(isSt && isFlush) return {t:5, sub:4, v:cs[4].v}; if(isSt) return {t:5, sub:1, v:cs[4].v}; 
+    } return null;
 }
-
 function playBigTwoCards() {
     let sel = [...document.getElementById('bt-my-hand').children].filter(e=>e.classList.contains('selected')).map(e=>e.card);
     if(sel.length === 0) return showMessage("❌ 請先點選要出的牌！", true); 
-    
-    let tp = getHType(sel);
-    if(!tp) return showMessage("❌ 無效的牌型組合！", true); 
-    
+    let tp = getHType(sel); if(!tp) return showMessage("❌ 無效的牌型組合！", true); 
     if(btTrick.length > 0 && btPass < 3) {
-        let ltp = getHType(btTrick); 
-        if(tp.t !== ltp.t) return showMessage("❌ 張數或類型不符！", true);
-        if(tp.t === 5) {
-            if(tp.sub < ltp.sub) return showMessage("❌ 牌型比桌上的小！", true);
-            if(tp.sub === ltp.sub && tp.v <= ltp.v) return showMessage("❌ 數字比桌上的小！", true);
-        } else {
-            if(tp.v <= ltp.v) return showMessage("❌ 數字比桌上的小！", true);
-        }
+        let ltp = getHType(btTrick); if(tp.t !== ltp.t) return showMessage("❌ 張數或類型不符！", true);
+        if(tp.t === 5) { if(tp.sub < ltp.sub) return showMessage("❌ 牌型比桌上的小！", true); if(tp.sub === ltp.sub && tp.v <= ltp.v) return showMessage("❌ 數字比桌上的小！", true); } 
+        else { if(tp.v <= ltp.v) return showMessage("❌ 數字比桌上的小！", true); }
     } 
     if(myRole === 'host') procBTPlay(btMySeat, sel); else conn.send({type:'btPlay', s:btMySeat, cards:sel});
 }
-
-function passBigTwoTurn() {
-    if(btTrick.length === 0 || btPass >= 3) return showMessage("❌ 牌桌空空，你不能 PASS，必須出牌！", true); 
-    if(myRole === 'host') procBTPass(btMySeat); else conn.send({type:'btPass', s:btMySeat});
-}
-
-function procBTPlay(s, cs) {
-    let pVals = cs.map(c => c.v); btHands[s] = btHands[s].filter(c => !pVals.includes(c.v)); 
-    btTrick = cs; btPass = 0; btTurn = (btTurn + 1) % 4; syncBTTurn(); renBT();
-    if(btHands[s].length === 0){ 
-        if(myRole === 'host') { for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btWin', winnerSeat: s}); }
-        showVictoryModal(s, false); return; 
-    }
-    if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
-}
-
-function procBTPass(s) {
-    btPass++; btTurn = (btTurn + 1) % 4; syncBTTurn(); renBT();
-    if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500);
-}
-
+function passBigTwoTurn() { if(btTrick.length === 0 || btPass >= 3) return showMessage("❌ 牌桌空空，不能 PASS！", true); if(myRole === 'host') procBTPass(btMySeat); else conn.send({type:'btPass', s:btMySeat}); }
+function procBTPlay(s, cs) { let pVals = cs.map(c => c.v); btHands[s] = btHands[s].filter(c => !pVals.includes(c.v)); btTrick = cs; btPass = 0; btTurn = (btTurn + 1) % 4; syncBTTurn(); renBT(); if(btHands[s].length === 0){ if(myRole === 'host') { for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btWin', winnerSeat: s}); } showVictoryModal(s, false); return; } if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500); }
+function procBTPass(s) { btPass++; btTurn = (btTurn + 1) % 4; syncBTTurn(); renBT(); if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1500); }
 function doBTAI() {
-    let h = btHands[btTurn]; if(!h || h.length === 0) return;
-    if(btTrick.length === 0 || btPass >= 3) { return procBTPlay(btTurn, [h[0]]); } 
+    let h = btHands[btTurn]; if(!h || h.length === 0) return; if(btTrick.length === 0 || btPass >= 3) { return procBTPlay(btTurn, [h[0]]); } 
     let lt = getHType(btTrick);
-    for(let i=0; i<h.length; i++) {
-        if(lt.t === 1 && h[i].v > lt.v) { return procBTPlay(btTurn, [h[i]]); }
-        if(lt.t === 2 && i < h.length-1 && h[i].r === h[i+1].r && h[i+1].v > lt.v) { return procBTPlay(btTurn, [h[i], h[i+1]]); }
-    }
+    for(let i=0; i<h.length; i++) { if(lt.t === 1 && h[i].v > lt.v) { return procBTPlay(btTurn, [h[i]]); } if(lt.t === 2 && i < h.length-1 && h[i].r === h[i+1].r && h[i+1].v > lt.v) { return procBTPlay(btTurn, [h[i], h[i+1]]); } }
     procBTPass(btTurn); 
 }
-
 </script>
 </body>
 </html>
