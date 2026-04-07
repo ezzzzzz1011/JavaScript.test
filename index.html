@@ -231,11 +231,17 @@
     <div id="dc-lobby" class="lobby-container glass-panel">
         <button class="back-btn" onclick="location.reload()">🔙 返回</button>
         <h2>♟️ 暗棋對戰室</h2>
-        <div class="room-code" id="dc-my-id">載入中</div>
-        <button class="btn btn-success" onclick="copyInviteLink(this, 'darkchess')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <input type="text" id="dc-friend-id" placeholder="輸入好友代碼">
-        <button class="btn btn-primary" onclick="connectToFriend('darkchess')">加入房間</button>
+        <div id="dc-host-panel">
+            <div class="room-code" id="dc-my-id">載入中</div>
+            <button class="btn btn-success" onclick="copyInviteLink(this, 'darkchess')">🔗 一鍵複製邀請網址</button>
+            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        </div>
+        <div id="dc-join-section">
+            <input type="text" id="dc-friend-id" placeholder="輸入好友代碼">
+            <button class="btn btn-primary" onclick="connectToFriend('darkchess')">加入房間</button>
+        </div>
+        <div id="dc-players-status" style="margin-top: 15px; font-size: 18px; color: #aaa;">等待對手加入...</div>
+        <button id="dc-start-btn" class="btn" style="width:100%; margin-top:15px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888; display: none;" disabled onclick="start2PGame('darkchess')">🚀 開始遊戲</button>
         <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('darkchess')">🤖 單機挑戰</button>
     </div>
@@ -254,11 +260,17 @@
     <div id="gm-lobby" class="lobby-container glass-panel">
         <button class="back-btn" onclick="location.reload()">🔙 返回</button>
         <h2>⚫ 五子棋對戰室</h2>
-        <div class="room-code" id="gm-my-id">載入中</div>
-        <button class="btn btn-success" onclick="copyInviteLink(this, 'gomoku')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <input type="text" id="gm-friend-id" placeholder="輸入好友代碼">
-        <button class="btn btn-primary" onclick="connectToFriend('gomoku')">加入房間</button>
+        <div id="gm-host-panel">
+            <div class="room-code" id="gm-my-id">載入中</div>
+            <button class="btn btn-success" onclick="copyInviteLink(this, 'gomoku')">🔗 一鍵複製邀請網址</button>
+            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        </div>
+        <div id="gm-join-section">
+            <input type="text" id="gm-friend-id" placeholder="輸入好友代碼">
+            <button class="btn btn-primary" onclick="connectToFriend('gomoku')">加入房間</button>
+        </div>
+        <div id="gm-players-status" style="margin-top: 15px; font-size: 18px; color: #aaa;">等待對手加入...</div>
+        <button id="gm-start-btn" class="btn" style="width:100%; margin-top:15px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888; display: none;" disabled onclick="start2PGame('gomoku')">🚀 開始遊戲</button>
         <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('gomoku')">🤖 單機挑戰</button>
     </div>
@@ -273,11 +285,17 @@
     <div id="xq-lobby" class="lobby-container glass-panel">
         <button class="back-btn" onclick="location.reload()">🔙 返回</button>
         <h2>🔴 象棋對戰室</h2>
-       <div class="room-code" id="xq-my-id">載入中</div>
-        <button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <input type="text" id="xq-friend-id" placeholder="輸入好友代碼">
-        <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button>
+        <div id="xq-host-panel">
+            <div class="room-code" id="xq-my-id">載入中</div>
+            <button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button>
+            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        </div>
+        <div id="xq-join-section">
+            <input type="text" id="xq-friend-id" placeholder="輸入好友代碼">
+            <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button>
+        </div>
+        <div id="xq-players-status" style="margin-top: 15px; font-size: 18px; color: #aaa;">等待對手加入...</div>
+        <button id="xq-start-btn" class="btn" style="width:100%; margin-top:15px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888; display: none;" disabled onclick="start2PGame('xiangqi')">🚀 開始遊戲</button>
         <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機挑戰</button>
     </div>
@@ -353,11 +371,17 @@
     <div id="t2048-lobby" class="lobby-container glass-panel">
         <button class="back-btn" onclick="location.reload()">🔙 返回</button>
         <h2>🔢 2048 陷害連線版</h2>
-        <div class="room-code" id="t2048-my-id">載入中</div>
-         <button class="btn btn-success" onclick="copyInviteLink(this, 't2048')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        <input type="text" id="t2048-friend-id" placeholder="輸入好友代碼">
-        <button class="btn btn-primary" onclick="connectToFriend('t2048')">加入房間</button>
+        <div id="t2048-host-panel">
+            <div class="room-code" id="t2048-my-id">載入中</div>
+            <button class="btn btn-success" onclick="copyInviteLink(this, 't2048')">🔗 一鍵複製邀請網址</button>
+            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        </div>
+        <div id="t2048-join-section">
+            <input type="text" id="t2048-friend-id" placeholder="輸入好友代碼">
+            <button class="btn btn-primary" onclick="connectToFriend('t2048')">加入房間</button>
+        </div>
+        <div id="t2048-players-status" style="margin-top: 15px; font-size: 18px; color: #aaa;">等待對手加入...</div>
+        <button id="t2048-start-btn" class="btn" style="width:100%; margin-top:15px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888; display: none;" disabled onclick="start2PGame('t2048')">🚀 開始遊戲</button>
         <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('t2048')">🤖 單機挑戰</button>
     </div>
@@ -489,13 +513,14 @@ peer.on('connection', c => {
             else if (currentGame === 'drawguess') { myRole = 'host'; handleDGJoin(c); }
             else { 
                 conn = c; myRole = 'host'; isVsAI = false; 
-                setupConnection();
-                if(currentGame === 'darkchess') initDarkchessAsHost();
-                else if(currentGame === 'gomoku') initGomokuAsHost();
-                else if(currentGame === 'xiangqi') initXiangqiAsHost();
-                else if(currentGame === 't2048') {
-                    init2048AsHost();
-                    conn.send({type: 't2048Init'});
+                let prefix = {'darkchess':'dc', 'gomoku':'gm', 'xiangqi':'xq', 't2048':'t2048'}[currentGame];
+                let status = document.getElementById(prefix + '-players-status');
+                if(status) { status.innerText = "🧑 對手已加入！"; status.style.color = "#00e676"; }
+                let btn = document.getElementById(prefix + '-start-btn');
+                if(btn) { 
+                    btn.style.display = 'block'; btn.innerText = "🚀 開始遊戲"; 
+                    btn.style.background = "linear-gradient(135deg, #1976d2, #1565c0)"; 
+                    btn.style.color = "#fff"; btn.disabled = false; 
                 }
             } 
         } 
@@ -546,7 +571,17 @@ function connectToFriend(gameType) {
             showMessage("✅ 成功加入畫室！等待房主開始...");
             document.getElementById('dg-host-panel').style.display = 'none'; document.getElementById('dg-join-section').style.display = 'none';
             let btn = document.getElementById('dg-start-btn'); btn.innerText = "等待遊戲開始..."; btn.disabled = true;
-        } else setupConnection(); 
+        } else {
+            showMessage("✅ 成功加入房間！等待房主開始...");
+            let prefix = {'darkchess':'dc', 'gomoku':'gm', 'xiangqi':'xq', 't2048':'t2048'}[currentGame];
+            let hostPanel = document.getElementById(prefix + '-host-panel');
+            if(hostPanel) hostPanel.style.display = 'none';
+            document.getElementById(prefix + '-join-section').style.display = 'none';
+            let status = document.getElementById(prefix + '-players-status');
+            if(status) { status.innerText = "✅ 已連線，等待房主開始..."; status.style.color = "#00e676"; }
+            let btn = document.getElementById(prefix + '-start-btn');
+            if(btn) { btn.style.display = 'block'; btn.innerText = "等待房主開始..."; btn.disabled = true; }
+        }
     });
     
     conn.on('data', d => { 
@@ -567,11 +602,29 @@ function connectToFriend(gameType) {
             }
             else { handleGuestReceivesDG(d); }
         }
+        else if (d.type === 'gameStart2P') { execute2PStart(currentGame); }
         else if (currentGame === 'darkchess') handleDarkchessSync(d);
         else if (currentGame === 'gomoku') { if(d.type==='surrender') showVictoryModal(d.loserColor==='red'?'black':'red',true); else handleGomokuSync(d); }
         else if (currentGame === 'xiangqi') { if(d.type==='surrender') showVictoryModal(d.loserColor==='red'?'black':'red',true); else handleXiangqiSync(d); }
         else if (currentGame === 't2048') { handle2048Data(d); }
     });
+}
+
+function start2PGame(g) {
+    if(conn && conn.open) {
+        conn.send({type: 'gameStart2P'});
+        execute2PStart(g);
+    }
+}
+
+function execute2PStart(g) {
+    setupConnection();
+    if(myRole === 'host') {
+        if(g === 'darkchess') initDarkchessAsHost();
+        else if(g === 'gomoku') initGomokuAsHost();
+        else if(g === 'xiangqi') initXiangqiAsHost();
+        else if(g === 't2048') { init2048AsHost(); conn.send({type: 't2048Init'}); }
+    }
 }
 
 function startLocalAI(g) {
