@@ -285,11 +285,11 @@
     <div id="xq-lobby" class="lobby-container glass-panel">
         <button class="back-btn" onclick="location.reload()">🔙 返回</button>
         <h2>🔴 象棋對戰室</h2>
-        <div id="xq-host-panel">
-            <div class="room-code" id="xq-my-id">載入中</div>
-            <button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button>
-            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
-        </div>
+       <div id="xq-host-panel">
+           <div class="room-code" id="xq-my-id">載入中</div>
+           <button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button>
+           <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+       </div>
         <div id="xq-join-section">
             <input type="text" id="xq-friend-id" placeholder="輸入好友代碼">
             <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button>
@@ -505,6 +505,18 @@ peer.on('open', id => {
     checkUrlForInvite();
 });
 
+// 錯誤處理：當輸入無效代碼或房主已離開時觸發
+peer.on('error', err => {
+    if(err.type === 'peer-unavailable') {
+        showMessage("❌ 找不到該房間，代碼錯誤或房主已離開！", true);
+    } else {
+        showMessage("❌ 連線發生錯誤：" + err.type, true);
+    }
+    document.querySelectorAll('.btn-primary').forEach(b => {
+        if(b.innerText === '連線中...') { b.innerText = '加入房間'; b.disabled = false; }
+    });
+});
+
 peer.on('connection', c => { 
     c.on('data', d => { 
         if(d.type === 'initGame') { 
@@ -555,22 +567,31 @@ function openApp(appId) {
 
 function connectToFriend(gameType) { 
     let idMap = {'darkchess':'dc-friend-id','gomoku':'gm-friend-id','xiangqi':'xq-friend-id','bigtwo':'bt-friend-id','t2048':'t2048-friend-id','drawguess':'dg-friend-id'}; 
-    let raw = document.getElementById(idMap[gameType]).value.trim();
+    let inputEl = document.getElementById(idMap[gameType]);
+    let raw = inputEl.value.trim();
     if(!raw) return showMessage("❌ 請先輸入房間代碼！", true); 
     
+    // UI 反饋
+    let joinBtn = inputEl.nextElementSibling;
+    let oldBtnText = joinBtn.innerText;
+    joinBtn.innerText = "連線中...";
+    joinBtn.disabled = true;
+
     currentGame = gameType; conn = peer.connect(raw.toUpperCase().slice(0,6)); 
     myRole = 'guest'; isVsAI = false;
     
     conn.on('open', () => { 
+        joinBtn.innerText = oldBtnText; joinBtn.disabled = false; // 恢復按鈕
         conn.send({type:'initGame', gameType:currentGame}); 
+        
         if(currentGame === 'bigtwo') { 
             showMessage("✅ 成功加入包廂！等待房主..."); 
             document.getElementById('bt-host-panel').style.display = 'none'; document.getElementById('bt-join-section').style.display = 'none'; 
-            let btn = document.getElementById('bt-start-btn'); btn.innerText = "等待發牌..."; btn.disabled = true;
+            let btn = document.getElementById('bt-start-btn'); btn.innerText = "等待房主開始..."; btn.disabled = true;
         } else if(currentGame === 'drawguess') {
             showMessage("✅ 成功加入畫室！等待房主開始...");
             document.getElementById('dg-host-panel').style.display = 'none'; document.getElementById('dg-join-section').style.display = 'none';
-            let btn = document.getElementById('dg-start-btn'); btn.innerText = "等待遊戲開始..."; btn.disabled = true;
+            let btn = document.getElementById('dg-start-btn'); btn.innerText = "等待房主開始..."; btn.disabled = true;
         } else {
             showMessage("✅ 成功加入房間！等待房主開始...");
             let prefix = {'darkchess':'dc', 'gomoku':'gm', 'xiangqi':'xq', 't2048':'t2048'}[currentGame];
@@ -672,7 +693,7 @@ function showVictoryModal(winnerCode, surr) {
         if(winnerCode === 'me') iWon = true; else if(winnerCode === 'opponent') iWon = false;
         else iWon = (winnerCode === (myRole === 'host' ? 'red' : 'black'));
     }
-    else if (currentGame === 'drawguess') { iWon = (winnerCode === dgMySeat); }
+    else if (currentGame === 'drawguess') { iWon = (winnerCode === dgMySeat); } // 已修復：精準比對座位
 
     if(iWon) { t.innerText = "🏆 恭喜獲勝！"; t.style.color = "#00e676"; m.innerText = surr ? "對手被你嚇得投降了！" : "你用實力碾壓了對局！"; } 
     else { t.innerText = "💀 慘敗..."; t.style.color = "#ff1744"; m.innerText = surr ? "你選擇了投降。" : "對手實在太強大了..."; }
@@ -718,7 +739,23 @@ let xqBoard=[], xqTurn='red', xqSel=null, xqRedKilled=[], xqBlackKilled=[], xqLa
 let btPlayers=[ {t:'human', n:'👑 你 (房主)', r:1}, {t:'empty', n:'等待...', r:0}, {t:'empty', n:'等待...', r:0}, {t:'empty', n:'等待...', r:0} ]; let btConns={}, btDeck=[], btHands=[[],[],[],[]], btMySeat=0, btTrick=[], btPass=0, btTurn=0;
 function handleBigTwoJoin(c) { let e = btPlayers.findIndex(p => p.t==='empty'); if(e !== -1){ btPlayers[e] = {t:'human', n:`🧑 好友玩家${e+1}`, r:1}; btConns[c.peer] = c; updBTUI(); bdBT(); } }
 function addBigTwoAI(s) { if(btPlayers[s-1].t !== 'empty') return; btPlayers[s-1] = {t:'ai', n:`🤖 電腦殺手 ${s}`, r:1}; updBTUI(); bdBT(); }
-function updBTUI() { let pc = btPlayers.filter(p => p.t !== 'empty').length; for(let i=1; i<4; i++){ let p = btPlayers[i], s = document.getElementById(`bt-seat-${i+1}`), b = document.getElementById(`bt-ai-btn-${i+1}`); if(p.t !== 'empty'){ if(s){ s.innerText = p.n; s.style.color = p.t === 'ai' ? '#ff9800' : '#00e676'; } if(b) b.style.display = 'none'; } } let b = document.getElementById('bt-start-btn'); if(pc === 4){ b.innerText = "🚀 開始牌局"; b.style.background = "linear-gradient(135deg, #1976d2, #1565c0)"; b.style.color = "#fff"; b.disabled = false; } else { b.innerText = `缺人(${pc}/4)`; b.disabled = true; } }
+function updBTUI() { 
+    let pc = btPlayers.filter(p => p.t !== 'empty').length; 
+    for(let i=1; i<4; i++){ 
+        let p = btPlayers[i], s = document.getElementById(`bt-seat-${i+1}`), b = document.getElementById(`bt-ai-btn-${i+1}`); 
+        if(p.t !== 'empty'){ if(s){ s.innerText = p.n; s.style.color = p.t === 'ai' ? '#ff9800' : '#00e676'; } if(b) b.style.display = 'none'; } 
+    } 
+    let b = document.getElementById('bt-start-btn'); 
+    if(pc === 4){ 
+        if (myRole === 'host') {
+            b.innerText = "🚀 開始牌局"; b.style.background = "linear-gradient(135deg, #1976d2, #1565c0)"; b.style.color = "#fff"; b.disabled = false; 
+        } else {
+            b.innerText = "等待房主開始..."; b.style.background = "rgba(255,255,255,0.1)"; b.style.color = "#888"; b.disabled = true; 
+        }
+    } else { 
+        b.innerText = `缺人(${pc}/4)`; b.disabled = true; b.style.background = "rgba(255,255,255,0.1)"; b.style.color = "#888";
+    } 
+}
 function bdBT() { for(let id in btConns) if(btConns[id].open) btConns[id].send({type:'btLobbySync', players:btPlayers}); }
 function startBigTwoGame() { myRole = 'host'; currentGame = 'bigtwo'; document.getElementById('bt-lobby').style.display = 'none'; document.getElementById('bt-game-wrapper').style.display = 'flex'; btDeck = []; let v = 1; for(let r of ['3','4','5','6','7','8','9','10','J','Q','K','A','2']) { for(let s of ['♣','♦','♥','♠']) btDeck.push({r,s,v:v++,c:(s==='♦'||s==='♥')}); } for(let i=51; i>0; i--){ let j = Math.floor(Math.random()*(i+1)); [btDeck[i], btDeck[j]] = [btDeck[j], btDeck[i]]; } btHands = [[],[],[],[]]; for(let i=0; i<52; i++) btHands[i%4].push(btDeck[i]); for(let i=0; i<4; i++) btHands[i].sort((a,b) => a.v - b.v); btMySeat = 0; btTurn = btHands.findIndex(h => h.some(c => c.v === 1)); btTrick = []; btPass = 0; renBT(); for(let i=1, k=Object.keys(btConns); i<=k.length; i++){ if(btConns[k[i-1]].open) btConns[k[i-1]].send({type:'btGameStart', hand:btHands[i], seat:i}); } syncBTTurn(); if(btPlayers[btTurn].t === 'ai') setTimeout(doBTAI, 1000); }
 function updateBigTwoHint() { let hintEl = document.getElementById('bt-hand-hint'); if(!hintEl) return; let handEl = document.getElementById('bt-my-hand'); if(!handEl) return; let sel = [...handEl.children].filter(e=>e.classList.contains('selected')).map(e=>e.card); if(sel.length === 0) { hintEl.innerText = "請選擇出牌組合..."; hintEl.style.color = "#aaa"; return; } let tp = getHType(sel); if(!tp) { hintEl.innerText = "❌ 無效的組合"; hintEl.style.color = "#ff5252"; } else { let n = ""; if(tp.t === 1) n = "單張"; else if(tp.t === 2) n = "對子"; else if(tp.t === 5) { if(tp.sub === 1) n = "順子"; else if(tp.sub === 2) n = "葫蘆"; else if(tp.sub === 3) n = "鐵支"; else if(tp.sub === 4) n = "🌟 同花順 🌟"; } hintEl.innerText = "✨ 目前選擇：" + n; hintEl.style.color = "#00e676"; } }
@@ -774,7 +811,11 @@ function updDGUI() {
     }
     let b = document.getElementById('dg-start-btn');
     if(pc >= 2) {
-        b.innerText = "🚀 開始遊戲"; b.disabled = false; b.style.background = "linear-gradient(135deg, #1976d2, #1565c0)"; b.style.color = "#fff";
+        if(myRole === 'host') {
+            b.innerText = "🚀 開始遊戲"; b.disabled = false; b.style.background = "linear-gradient(135deg, #1976d2, #1565c0)"; b.style.color = "#fff";
+        } else {
+            b.innerText = "等待房主開始..."; b.disabled = true; b.style.background = "rgba(255,255,255,0.1)"; b.style.color = "#888";
+        }
     } else {
         b.innerText = "需至少2人"; b.disabled = true; b.style.background = "rgba(255,255,255,0.1)"; b.style.color = "#888";
     }
@@ -925,7 +966,7 @@ function handleHostReceivesDG(d, senderPeerId) {
             broadcastDG({type: 'dgScoreSync', players: dgPlayers});
             
             if(dgPlayers[senderSeat].score >= dgTargetScore) {
-                showVictoryModal(senderSeat === dgMySeat ? 'me' : 'opponent', false);
+                showVictoryModal(senderSeat, false);
                 broadcastDG({type: 'dgWin', winnerSeat: senderSeat});
             } else {
                 dgTurn = (dgTurn + 1) % dgPlayers.length;
@@ -948,7 +989,7 @@ function handleGuestReceivesDG(d) {
     else if(d.type === 'dgClear' && dgCtx) { dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height); } 
     else if(d.type === 'dgChat') { addDGChat(d.sender, d.msg); } 
     else if(d.type === 'dgScoreSync') { dgPlayers = d.players; renDGScore(); } 
-    else if(d.type === 'dgWin') { showVictoryModal(d.winnerSeat === dgMySeat ? 'me' : 'opponent', false); }
+    else if(d.type === 'dgWin') { showVictoryModal(d.winnerSeat, false); }
 }
 
 function initDrawGuess() {
