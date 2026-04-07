@@ -443,6 +443,7 @@
         <div class="top-info-container">
             <div id="dg-turn-info" class="turn-info">等待連線...</div>
             <div id="dg-role-info" class="role-info">題目：等待中</div>
+            <div id="dg-timer-info" style="font-size:32px; color:#ff5252; font-weight:900; margin-top:5px; display:none; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">⏳ 90</div>
             <div style="font-size:14px; color:#ffb74d; margin-top:8px;">先得 8 分者勝</div>
             <div id="dg-score-info" style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; justify-content:center;"></div>
         </div>
@@ -475,7 +476,6 @@
         <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('drawguess')">🏳️ 投降 / 離開</button></div>
     </div>
 </div>
-
 <script>
 // ==========================================================================
 // 系統核心 (網路連線與狀態切換)
@@ -776,23 +776,50 @@ let dgCanvas, dgCtx, isDrawing = false, dgWord = '', dgIsMyTurn = false;
 let dgPlayers = [{isHost: true, n: '👑 你 (房主)', score: 0, peerId: 'host'}];
 let dgConns = {}, dgTurn = 0, dgMySeat = 0, dgTargetScore = 8;
 let currentWordOptions = [];
+let dgTimer = null, dgTimeLeft = 90; // ★ 新增：90秒計時器變數
 
-// 豐富的 80+ 個題目，增加遊戲耐玩度
+// 超簡單、特徵明顯的 180+ 個題目
 const dgWords = [
-    '蘋果','電腦','香蕉','汽車','飛機','房子','太陽','火車','蜘蛛','眼鏡',
-    '手錶','手機','雨傘','長頸鹿','麥克風','腳踏車','火箭','漢堡','大象','西瓜',
-    '雪人','蛋糕','吉他','剪刀','牙刷','籃球','恐龍','企鵝','獅子','老虎',
-    '護士','警察','消防員','醫生','老師','廚師','游泳','跑步','睡覺','唱歌',
-    '跳舞','看書','電視','沙發','冰箱','洗衣機','滑鼠','鍵盤','耳機','披薩',
-    '薯條','珍珠奶茶','壽司','牛排','麵包','草莓','葡萄','橘子','芒果','兔子',
-    '烏龜','青蛙','蛇','蝸牛','蝴蝶','蜜蜂','螞蟻','章魚','海豚','鯊魚',
-    '鯨魚','外星人','機器人','城堡','燈塔','火山','冰山','龍捲風','彩虹','閃電',
-    '星星','月亮','地球','火鍋','咖啡','冰淇淋','氣球','風箏','帽子','鞋子'
-];
+    // 🌟 自然與形狀
+    '太陽', '月亮', '星星', '雲', '雨', '雪花', '閃電', '彩虹', '樹', '花', 
+    '葉子', '草', '山', '火', '石頭', '水滴', '波浪', '愛心', '圓形', '正方形', 
+    '三角形', '箭頭', '十字架', '鑽石',
 
+    // 🍎 水果與食物
+    '蘋果', '香蕉', '西瓜', '葡萄', '草莓', '櫻桃', '檸檬', '鳳梨', '蘿蔔', '玉米', 
+    '南瓜', '蘑菇', '漢堡', '披薩', '薯條', '熱狗', '麵包', '吐司', '蛋糕', '冰淇淋', 
+    '布丁', '甜甜圈', '糖果', '棒棒糖', '巧克力', '荷包蛋', '水餃', '壽司', '飯糰', '珍珠奶茶', 
+    '牛奶', '咖啡',
+
+    // 🐱 動物與昆蟲
+    '貓', '狗', '豬', '兔子', '老鼠', '獅子', '老虎', '大象', '長頸鹿', '猴子', 
+    '熊', '熊貓', '牛', '羊', '馬', '蛇', '烏龜', '青蛙', '魚', '鯊魚', 
+    '鯨魚', '章魚', '螃蟹', '企鵝', '鴨子', '雞', '鳥', '貓頭鷹', '蝙蝠', '蝴蝶', 
+    '蜜蜂', '蜘蛛', '螞蟻', '蝸牛', '毛毛蟲', '恐龍',
+
+    // 🏠 日常用品與家具
+    '杯子', '碗', '盤子', '筷子', '湯匙', '叉子', '刀子', '剪刀', '梳子', '牙刷', 
+    '鏡子', '毛巾', '衛生紙', '垃圾桶', '雨傘', '鑰匙', '門', '窗戶', '桌子', '椅子', 
+    '床', '沙發', '時鐘', '手錶', '電視', '電腦', '手機', '冰箱', '電風扇', '燈泡', 
+    '手電筒', '蠟燭', '磁鐵', '放大鏡',
+
+    // 👕 衣物與配件
+    '衣服', '褲子', '裙子', '洋裝', '外套', '襪子', '鞋子', '拖鞋', '高跟鞋', '帽子', 
+    '皇冠', '圍巾', '手套', '領帶', '眼鏡', '戒指', '項鍊', '背包', '口罩',
+
+    // 🚗 交通工具與文具
+    '汽車', '公車', '警車', '救護車', '消防車', '腳踏車', '機車', '飛機', '直升機', '火箭', 
+    '船', '帆船', '火車', '飛碟', '鉛筆', '橡皮擦', '尺', '書本', '信封', '畫筆', 
+    '調色盤',
+
+    // 👤 身體、表情與其他
+    '臉', '眼睛', '鼻子', '嘴巴', '耳朵', '手', '腳', '頭髮', '牙齒', '骨頭', 
+    '笑臉', '哭臉', '睡覺', '唱歌', '跑步', '游泳', '氣球', '禮物', '蝴蝶結', '雪人', 
+    '國旗'
+];
 function handleDGJoin(c) {
     let idx = dgPlayers.length;
-    if(idx < 8) { // 擴展至最多 8 人
+    if(idx < 8) { 
         dgPlayers.push({isHost: false, n: `🧑 玩家${idx+1}`, score: 0, peerId: c.peer});
         dgConns[c.peer] = c;
         updDGUI();
@@ -840,9 +867,9 @@ function startDGGame() {
 }
 
 function startDGTurnHost() {
+    clearInterval(dgTimer); // 清除可能殘留的計時器
     if(dgCtx) dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height);
     
-    // 隨機選出兩個不同的題目
     let w1 = dgWords[Math.floor(Math.random() * dgWords.length)];
     let w2 = dgWords[Math.floor(Math.random() * dgWords.length)];
     while(w1 === w2) w2 = dgWords[Math.floor(Math.random() * dgWords.length)];
@@ -858,11 +885,12 @@ function startDGTurnHost() {
 
 function setupDGWordSelection(w1, w2, turnIdx) {
     let isMe = (turnIdx === dgMySeat);
-    dgIsMyTurn = false; // 選題階段還不能畫畫
+    dgIsMyTurn = false; 
     let drawerName = dgPlayers[turnIdx].n;
 
     document.getElementById('dg-tools').style.display = 'none';
     document.getElementById('dg-guess-input').disabled = true;
+    document.getElementById('dg-timer-info').style.display = 'none'; // 選題時隱藏計時器
 
     if(isMe) {
         currentWordOptions = [w1, w2];
@@ -890,6 +918,37 @@ function selectDGWord(idx) {
     }
 }
 
+// ★ 新增：90秒計時器啟動函數 (由房主管理)
+function startDGTimer() {
+    clearInterval(dgTimer);
+    dgTimeLeft = 90;
+    document.getElementById('dg-timer-info').style.display = 'block';
+    document.getElementById('dg-timer-info').innerText = `⏳ ${dgTimeLeft}`;
+    broadcastDG({type: 'dgTimeSync', timeLeft: dgTimeLeft});
+
+    dgTimer = setInterval(() => {
+        dgTimeLeft--;
+        document.getElementById('dg-timer-info').innerText = `⏳ ${dgTimeLeft}`;
+        broadcastDG({type: 'dgTimeSync', timeLeft: dgTimeLeft});
+
+        if (dgTimeLeft <= 0) {
+            clearInterval(dgTimer);
+            handleTimeUp(); // 時間到處理
+        }
+    }, 1000);
+}
+
+// ★ 新增：時間到沒人猜中
+function handleTimeUp() {
+    let msg = `⏰ 時間到！沒有人猜中，這局正確答案是「${dgWord}」`;
+    addDGChat('系統', msg);
+    broadcastDG({type: 'dgChat', sender: '系統', msg: msg});
+    broadcastDG({type: 'dgTimeUp'});
+    
+    dgTurn = (dgTurn + 1) % dgPlayers.length; // 換下一位
+    setTimeout(startDGTurnHost, 4000); // 暫停 4 秒讓大家看答案後進入下一局
+}
+
 function proceedWithChosenWord(word) {
     dgWord = word;
     for(let id in dgConns) {
@@ -899,6 +958,7 @@ function proceedWithChosenWord(word) {
         }
     }
     setupDGTurnUI(dgTurn === 0 ? word : null, word.length, dgTurn);
+    startDGTimer(); // 選完題目後，開始 90 秒倒數
 }
 
 function renDGScore() {
@@ -924,13 +984,13 @@ function setupDGTurnUI(word, len, turnIdx) {
         document.getElementById('dg-role-info').innerText = "題目：" + word;
         document.getElementById('dg-tools').style.display = 'flex';
         document.getElementById('dg-guess-input').disabled = true;
-        addDGChat('系統', `你現在是畫家，請畫出「${word}」。`);
+        addDGChat('系統', `你現在是畫家，請畫出「${word}」。限時 90 秒！`);
     } else {
         document.getElementById('dg-turn-info').innerText = `🟥 ${drawerName} 正在作畫...`;
         document.getElementById('dg-role-info').innerText = `題目：${len} 個字`;
         document.getElementById('dg-tools').style.display = 'none';
         document.getElementById('dg-guess-input').disabled = false;
-        addDGChat('系統', `請根據畫面猜出單字！猜中得1分！`);
+        addDGChat('系統', `請根據畫面猜出單字！限時 90 秒！`);
     }
     if(dgCtx) dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height);
 }
@@ -957,6 +1017,8 @@ function handleHostReceivesDG(d, senderPeerId) {
     else if(d.type === 'dgGuess') {
         if(senderSeat === dgTurn) return;
         if(d.text === dgWord) {
+            clearInterval(dgTimer); // ★ 猜中了，立刻停止計時！
+
             let msg = `🎉 ${dgPlayers[senderSeat].n} 猜中啦！答案是「${dgWord}」`;
             addDGChat('系統', msg);
             broadcastDG({type: 'dgChat', sender: '系統', msg: msg});
@@ -966,11 +1028,11 @@ function handleHostReceivesDG(d, senderPeerId) {
             broadcastDG({type: 'dgScoreSync', players: dgPlayers});
             
             if(dgPlayers[senderSeat].score >= dgTargetScore) {
-                showVictoryModal(senderSeat, false);
+                showVictoryModal(senderSeat === dgMySeat ? 'me' : 'opponent', false);
                 broadcastDG({type: 'dgWin', winnerSeat: senderSeat});
             } else {
                 dgTurn = (dgTurn + 1) % dgPlayers.length;
-                setTimeout(startDGTurnHost, 3000);
+                setTimeout(startDGTurnHost, 3000); // 暫停3秒進入下一局
             }
         } else {
             addDGChat(dgPlayers[senderSeat].n, d.text);
@@ -982,6 +1044,14 @@ function handleHostReceivesDG(d, senderPeerId) {
 function handleGuestReceivesDG(d) {
     if(d.type === 'dgSelectWord') { setupDGWordSelection(d.w1, d.w2, d.turn); }
     else if(d.type === 'dgTurnSync') { setupDGTurnUI(d.word, d.wordLen, d.turn); } 
+    else if(d.type === 'dgTimeSync') { // ★ 同步計時器 UI
+        let timerEl = document.getElementById('dg-timer-info');
+        timerEl.style.display = 'block';
+        timerEl.innerText = `⏳ ${d.timeLeft}`;
+    }
+    else if(d.type === 'dgTimeUp') { // ★ 時間到 UI
+        document.getElementById('dg-timer-info').innerText = `⏳ 時間到！`;
+    }
     else if(d.type === 'dgDraw' && dgCtx) {
         dgCtx.lineWidth = d.w; dgCtx.strokeStyle = d.c; dgCtx.lineTo(d.x, d.y); dgCtx.stroke(); dgCtx.beginPath(); dgCtx.moveTo(d.x, d.y);
     } 
@@ -989,7 +1059,7 @@ function handleGuestReceivesDG(d) {
     else if(d.type === 'dgClear' && dgCtx) { dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height); } 
     else if(d.type === 'dgChat') { addDGChat(d.sender, d.msg); } 
     else if(d.type === 'dgScoreSync') { dgPlayers = d.players; renDGScore(); } 
-    else if(d.type === 'dgWin') { showVictoryModal(d.winnerSeat, false); }
+    else if(d.type === 'dgWin') { showVictoryModal(d.winnerSeat === dgMySeat ? 'me' : 'opponent', false); }
 }
 
 function initDrawGuess() {
