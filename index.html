@@ -223,7 +223,7 @@
         <div class="game-card" onclick="openApp('xiangqi')"><h2>🔴 經典象棋</h2><p>古色木紋楚河漢界</p></div>
         <div class="game-card" onclick="openApp('bigtwo')"><h2>🃏 大老二</h2><p>同花順牌型雷達支援</p></div>
         <div class="game-card" style="border-color: #f59563;" onclick="openApp('t2048')"><h2>🔢 陷害 2048</h2><p>即時連線對抗</p></div>
-        <div class="game-card" style="border-color: #00e676;" onclick="openApp('drawguess')"><h2>🎨 你畫我猜</h2><p>2~4人 多人派對包廂</p></div>
+        <div class="game-card" style="border-color: #00e676;" onclick="openApp('drawguess')"><h2>🎨 你畫我猜</h2><p>最多 8 人派對包廂</p></div>
     </div>
 </div>
 
@@ -402,11 +402,15 @@
             <button class="btn btn-primary" onclick="connectToFriend('drawguess')">加入房間</button>
         </div>
         <hr>
-        <div id="dg-seats" style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+        <div id="dg-seats" style="display:flex; flex-direction:column; gap:12px; align-items:center; width:100%; max-height: 250px; overflow-y: auto; padding-right: 10px;">
             <div class="player-seat"><span class="seat-name">👑 玩家 1 (你)</span><span class="seat-status" style="color:#00e676; border:1px solid #00e676;">已就坐</span></div>
             <div class="player-seat"><span class="seat-name" id="dg-seat-2" style="color:#aaa;">等待加入...</span></div>
             <div class="player-seat"><span class="seat-name" id="dg-seat-3" style="color:#aaa;">等待加入...</span></div>
             <div class="player-seat"><span class="seat-name" id="dg-seat-4" style="color:#aaa;">等待加入...</span></div>
+            <div class="player-seat"><span class="seat-name" id="dg-seat-5" style="color:#aaa;">等待加入...</span></div>
+            <div class="player-seat"><span class="seat-name" id="dg-seat-6" style="color:#aaa;">等待加入...</span></div>
+            <div class="player-seat"><span class="seat-name" id="dg-seat-7" style="color:#aaa;">等待加入...</span></div>
+            <div class="player-seat"><span class="seat-name" id="dg-seat-8" style="color:#aaa;">等待加入...</span></div>
         </div>
         <button id="dg-start-btn" class="btn" style="width:100%; margin-top:25px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888;" disabled onclick="startDGGame()">需至少2人</button>
     </div>
@@ -418,6 +422,15 @@
             <div style="font-size:14px; color:#ffb74d; margin-top:8px;">先得 8 分者勝</div>
             <div id="dg-score-info" style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; justify-content:center;"></div>
         </div>
+        
+        <div id="dg-word-selection" style="display:none; flex-direction:column; align-items:center; gap:10px; margin-bottom: 15px;">
+            <div style="color:#ffb74d; font-size:18px; font-weight:bold;">請選擇一個你要畫的題目：</div>
+            <div style="display:flex; gap:15px;">
+                <button id="dg-word-opt-1" class="btn btn-primary" style="font-size: 20px; padding: 10px 30px;" onclick="selectDGWord(1)"></button>
+                <button id="dg-word-opt-2" class="btn btn-success" style="font-size: 20px; padding: 10px 30px; margin:0;" onclick="selectDGWord(2)"></button>
+            </div>
+        </div>
+
         <div style="display:flex; flex-direction:column; align-items:center; width:100%; max-width:600px;">
             <canvas id="dg-canvas" width="500" height="400" style="background:#fff; border-radius:10px; cursor:crosshair; box-shadow:0 10px 30px rgba(0,0,0,0.5);"></canvas>
             
@@ -667,16 +680,29 @@ function procBTPass(s) { btPass++; btTurn = (btTurn + 1) % 4; syncBTTurn(); renB
 function doBTAI() { let h = btHands[btTurn]; if(!h || h.length === 0) return; if(btTrick.length === 0 || btPass >= 3) { return procBTPlay(btTurn, [h[0]]); } let lt = getHType(btTrick); for(let i=0; i<h.length; i++) { if(lt.t === 1 && h[i].v > lt.v) { return procBTPlay(btTurn, [h[i]]); } if(lt.t === 2 && i < h.length-1 && h[i].r === h[i+1].r && h[i+1].v > lt.v) { return procBTPlay(btTurn, [h[i], h[i+1]]); } } procBTPass(btTurn); }
 
 // ==========================================================================
-// 你畫我猜 (Draw & Guess) 2~4人 核心邏輯
+// 你畫我猜 (Draw & Guess) 2~8人 核心邏輯
 // ==========================================================================
 let dgCanvas, dgCtx, isDrawing = false, dgWord = '', dgIsMyTurn = false;
 let dgPlayers = [{isHost: true, n: '👑 你 (房主)', score: 0, peerId: 'host'}];
 let dgConns = {}, dgTurn = 0, dgMySeat = 0, dgTargetScore = 8;
-const dgWords = ['蘋果','電腦','香蕉','汽車','飛機','房子','太陽','火車','蜘蛛','眼鏡','手錶','手機','雨傘','長頸鹿','麥克風','腳踏車','火箭','漢堡','大象','西瓜','雪人','蛋糕','吉他','剪刀','牙刷','籃球','恐龍'];
+let currentWordOptions = [];
+
+// 豐富的 80+ 個題目，增加遊戲耐玩度
+const dgWords = [
+    '蘋果','電腦','香蕉','汽車','飛機','房子','太陽','火車','蜘蛛','眼鏡',
+    '手錶','手機','雨傘','長頸鹿','麥克風','腳踏車','火箭','漢堡','大象','西瓜',
+    '雪人','蛋糕','吉他','剪刀','牙刷','籃球','恐龍','企鵝','獅子','老虎',
+    '護士','警察','消防員','醫生','老師','廚師','游泳','跑步','睡覺','唱歌',
+    '跳舞','看書','電視','沙發','冰箱','洗衣機','滑鼠','鍵盤','耳機','披薩',
+    '薯條','珍珠奶茶','壽司','牛排','麵包','草莓','葡萄','橘子','芒果','兔子',
+    '烏龜','青蛙','蛇','蝸牛','蝴蝶','蜜蜂','螞蟻','章魚','海豚','鯊魚',
+    '鯨魚','外星人','機器人','城堡','燈塔','火山','冰山','龍捲風','彩虹','閃電',
+    '星星','月亮','地球','火鍋','咖啡','冰淇淋','氣球','風箏','帽子','鞋子'
+];
 
 function handleDGJoin(c) {
     let idx = dgPlayers.length;
-    if(idx < 4) {
+    if(idx < 8) { // 擴展至最多 8 人
         dgPlayers.push({isHost: false, n: `🧑 玩家${idx+1}`, score: 0, peerId: c.peer});
         dgConns[c.peer] = c;
         updDGUI();
@@ -686,7 +712,7 @@ function handleDGJoin(c) {
 
 function updDGUI() {
     let pc = dgPlayers.length;
-    for(let i=1; i<4; i++) {
+    for(let i=1; i<8; i++) {
         let s = document.getElementById(`dg-seat-${i+1}`);
         if(s) {
             if(dgPlayers[i]) { s.innerText = dgPlayers[i].n; s.style.color = '#00e676'; }
@@ -720,16 +746,65 @@ function startDGGame() {
 }
 
 function startDGTurnHost() {
-    dgWord = dgWords[Math.floor(Math.random() * dgWords.length)];
     if(dgCtx) dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height);
     
+    // 隨機選出兩個不同的題目
+    let w1 = dgWords[Math.floor(Math.random() * dgWords.length)];
+    let w2 = dgWords[Math.floor(Math.random() * dgWords.length)];
+    while(w1 === w2) w2 = dgWords[Math.floor(Math.random() * dgWords.length)];
+
     for(let id in dgConns) {
         if(dgConns[id].open) {
             let isDrawer = (dgPlayers.findIndex(p => p.peerId === id) === dgTurn);
-            dgConns[id].send({type: 'dgTurnSync', turn: dgTurn, wordLen: dgWord.length, word: isDrawer ? dgWord : null});
+            dgConns[id].send({type: 'dgSelectWord', turn: dgTurn, w1: isDrawer ? w1 : null, w2: isDrawer ? w2 : null});
         }
     }
-    setupDGTurnUI(dgTurn === 0 ? dgWord : null, dgWord.length, dgTurn);
+    setupDGWordSelection(dgTurn === 0 ? w1 : null, dgTurn === 0 ? w2 : null, dgTurn);
+}
+
+function setupDGWordSelection(w1, w2, turnIdx) {
+    let isMe = (turnIdx === dgMySeat);
+    dgIsMyTurn = false; // 選題階段還不能畫畫
+    let drawerName = dgPlayers[turnIdx].n;
+
+    document.getElementById('dg-tools').style.display = 'none';
+    document.getElementById('dg-guess-input').disabled = true;
+
+    if(isMe) {
+        currentWordOptions = [w1, w2];
+        document.getElementById('dg-turn-info').innerText = "🟩 你的回合：請選擇題目！";
+        document.getElementById('dg-role-info').innerText = "等待你選擇題目...";
+        document.getElementById('dg-word-selection').style.display = 'flex';
+        document.getElementById('dg-word-opt-1').innerText = w1;
+        document.getElementById('dg-word-opt-2').innerText = w2;
+        addDGChat('系統', '請在上方按鈕選擇一個你要畫的題目。');
+    } else {
+        document.getElementById('dg-turn-info').innerText = `⏳ ${drawerName} 正在選擇題目...`;
+        document.getElementById('dg-role-info').innerText = "等待選擇中...";
+        document.getElementById('dg-word-selection').style.display = 'none';
+        addDGChat('系統', `等待 ${drawerName} 選擇題目...`);
+    }
+}
+
+function selectDGWord(idx) {
+    let chosenWord = currentWordOptions[idx-1];
+    document.getElementById('dg-word-selection').style.display = 'none';
+    if(myRole === 'host') {
+        proceedWithChosenWord(chosenWord);
+    } else {
+        if(conn && conn.open) conn.send({type: 'dgWordChosen', word: chosenWord});
+    }
+}
+
+function proceedWithChosenWord(word) {
+    dgWord = word;
+    for(let id in dgConns) {
+        if(dgConns[id].open) {
+            let isDrawer = (dgPlayers.findIndex(p => p.peerId === id) === dgTurn);
+            dgConns[id].send({type: 'dgTurnSync', turn: dgTurn, wordLen: word.length, word: isDrawer ? word : null});
+        }
+    }
+    setupDGTurnUI(dgTurn === 0 ? word : null, word.length, dgTurn);
 }
 
 function renDGScore() {
@@ -746,10 +821,12 @@ function setupDGTurnUI(word, len, turnIdx) {
     let isMe = (turnIdx === dgMySeat);
     dgIsMyTurn = isMe;
     let drawerName = dgPlayers[turnIdx].n;
+    
+    document.getElementById('dg-word-selection').style.display = 'none';
 
     if(isMe) {
         dgWord = word;
-        document.getElementById('dg-turn-info').innerText = "🟩 你的回合：請作畫！";
+        document.getElementById('dg-turn-info').innerText = "🟩 你的回合：請開始作畫！";
         document.getElementById('dg-role-info').innerText = "題目：" + word;
         document.getElementById('dg-tools').style.display = 'flex';
         document.getElementById('dg-guess-input').disabled = true;
@@ -778,6 +855,11 @@ function handleHostReceivesDG(d, senderPeerId) {
         else if(d.type==='dgClear' && dgCtx) { dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height); }
         for(let id in dgConns) if(id !== senderPeerId && dgConns[id].open) dgConns[id].send(d);
     } 
+    else if(d.type === 'dgWordChosen') {
+        if(senderSeat === dgTurn) {
+            proceedWithChosenWord(d.word);
+        }
+    }
     else if(d.type === 'dgGuess') {
         if(senderSeat === dgTurn) return;
         if(d.text === dgWord) {
@@ -804,7 +886,8 @@ function handleHostReceivesDG(d, senderPeerId) {
 }
 
 function handleGuestReceivesDG(d) {
-    if(d.type === 'dgTurnSync') { setupDGTurnUI(d.word, d.wordLen, d.turn); } 
+    if(d.type === 'dgSelectWord') { setupDGWordSelection(d.w1, d.w2, d.turn); }
+    else if(d.type === 'dgTurnSync') { setupDGTurnUI(d.word, d.wordLen, d.turn); } 
     else if(d.type === 'dgDraw' && dgCtx) {
         dgCtx.lineWidth = d.w; dgCtx.strokeStyle = d.c; dgCtx.lineTo(d.x, d.y); dgCtx.stroke(); dgCtx.beginPath(); dgCtx.moveTo(d.x, d.y);
     } 
