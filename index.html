@@ -315,7 +315,7 @@
         <div class="game-card" onclick="openApp('xiangqi')"><h2>🔴 經典象棋</h2><p>古色木紋楚河漢界</p></div>
         <div class="game-card" onclick="openApp('bigtwo')"><h2>🃏 大老二</h2><p>同花順牌型雷達支援</p></div>
         <div class="game-card" style="border-color: #f59563;" onclick="openApp('t2048')"><h2>🔢 陷害 2048</h2><p>即時連線對抗</p></div>
-        <div class="game-card" style="border-color: #00e676;" onclick="openApp('drawguess')"><h2>🎨 你畫我猜</h2><p>靈魂畫手對決</p></div>
+        <div class="game-card" style="border-color: #00e676;" onclick="openApp('drawguess')"><h2>🎨 你畫我猜</h2><p>先得 8 分獲勝</p></div>
     </div>
 </div>
 
@@ -350,12 +350,10 @@
         <h2>⚫ 五子棋對戰室</h2>
         <div class="room-code" id="gm-my-id">載入中</div>
         <button class="btn btn-success" onclick="copyInviteLink(this, 'gomoku')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0;
- border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
         <input type="text" id="gm-friend-id" placeholder="輸入好友代碼">
         <button class="btn btn-primary" onclick="connectToFriend('gomoku')">加入房間</button>
-        <hr style="border:0;
- border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
+        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('gomoku')">🤖 單機挑戰</button>
     </div>
     <div id="gm-game-wrapper" class="game-wrapper">
@@ -372,46 +370,35 @@
   
        <div class="room-code" id="xq-my-id">載入中</div>
         <button class="btn btn-success" onclick="copyInviteLink(this, 'xiangqi')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0;
- border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
+        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
         <input type="text" id="xq-friend-id" placeholder="輸入好友代碼">
         <button class="btn btn-primary" onclick="connectToFriend('xiangqi')">加入房間</button>
-        <hr style="border:0;
- border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
+        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('xiangqi')">🤖 單機挑戰</button>
     </div>
     <div id="xq-game-wrapper" class="game-wrapper">
         <div class="top-info-container"><div id="xq-turn-info" class="turn-info">等待連線...</div><div id="xq-role-info" class="role-info">身份：未定</div></div>
         
-        <div style="display:flex;
- align-items:flex-start; justify-content:center; width:100%;">
+        <div style="display:flex; align-items:flex-start; justify-content:center; width:100%;">
             <div class="killed-sidebar"><div>紅方陣亡</div><div id="xq-red-killed" class="killed-pieces"></div></div>
             
             <div id="xq-board-container">
-                <div style="position: absolute;
- top: 50%; left: 0; width: 100%; height: 50px; transform: translateY(-50%); display: flex; justify-content: space-around; align-items: center; font-size: 36px;
- font-family: 'Kaiti', 'STKaiti', serif; color: #3e2723; pointer-events: none; z-index: 1;">
-                    <span style="letter-spacing: 10px;
- margin-left: 30px;">楚河</span>
-                    <span style="letter-spacing: 10px;
- margin-right: 30px;">漢界</span>
+                <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 50px; transform: translateY(-50%); display: flex; justify-content: space-around; align-items: center; font-size: 36px; font-family: 'Kaiti', 'STKaiti', serif; color: #3e2723; pointer-events: none; z-index: 1;">
+                    <span style="letter-spacing: 10px; margin-left: 30px;">楚河</span>
+                    <span style="letter-spacing: 10px; margin-right: 30px;">漢界</span>
                 </div>
-                <svg style="position: absolute;
- top: 20px; left: 20px; width: 450px; height: 500px; pointer-events: none;
- z-index: 1;">
+                <svg style="position: absolute; top: 20px; left: 20px; width: 450px; height: 500px; pointer-events: none; z-index: 1;">
                     <line x1="175" y1="25" x2="275" y2="125" stroke="#8d6e63" stroke-width="1.5" />
                     <line x1="275" y1="25" x2="175" y2="125" stroke="#8d6e63" stroke-width="1.5" />
                     <line x1="175" y1="375" x2="275" y2="475" stroke="#8d6e63" stroke-width="1.5" />
-                  
-   <line x1="275" y1="375" x2="175" y2="475" stroke="#8d6e63" stroke-width="1.5" />
+                    <line x1="275" y1="375" x2="175" y2="475" stroke="#8d6e63" stroke-width="1.5" />
                 </svg>
                 <div id="xq-board"></div>
             </div>
             
             <div class="killed-sidebar"><div>黑方陣亡</div><div id="xq-black-killed" class="killed-pieces"></div></div>
         </div>
-        <div class="controls"><button class="game-btn 
- surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降 / 離開</button></div>
+        <div class="controls"><button class="game-btn surrender-btn" onclick="surrenderGame('xiangqi')">🏳️ 投降 / 離開</button></div>
     </div>
 </div>
 
@@ -430,19 +417,13 @@
             <button class="btn btn-primary" onclick="connectToFriend('bigtwo')">加入房間</button>
         </div>
         <hr>
-        <div id="bt-seats" style="display:flex;
- flex-direction:column; gap:12px; align-items:center;">
-            <div class="player-seat"><span class="seat-name">👑 玩家 1 (你)</span><span class="seat-status" style="color:#00e676;
- border:1px solid #00e676;">已就坐</span></div>
-            <div class="player-seat"><span class="seat-name" id="bt-seat-2" style="color:#aaa;">等待加入...</span><button id="bt-ai-btn-2" class="btn btn-ai" style="margin:0;
- padding:8px 15px; width:auto;" onclick="addBigTwoAI(2)">+ 補電腦</button></div>
-            <div class="player-seat"><span class="seat-name" id="bt-seat-3" style="color:#aaa;">等待加入...</span><button id="bt-ai-btn-3" class="btn btn-ai" style="margin:0;
- padding:8px 15px; width:auto;" onclick="addBigTwoAI(3)">+ 補電腦</button></div>
-            <div class="player-seat"><span class="seat-name" id="bt-seat-4" style="color:#aaa;">等待加入...</span><button id="bt-ai-btn-4" class="btn btn-ai" style="margin:0;
- padding:8px 15px; width:auto;" onclick="addBigTwoAI(4)">+ 補電腦</button></div>
+        <div id="bt-seats" style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <div class="player-seat"><span class="seat-name">👑 玩家 1 (你)</span><span class="seat-status" style="color:#00e676; border:1px solid #00e676;">已就坐</span></div>
+            <div class="player-seat"><span class="seat-name" id="bt-seat-2" style="color:#aaa;">等待加入...</span><button id="bt-ai-btn-2" class="btn btn-ai" style="margin:0; padding:8px 15px; width:auto;" onclick="addBigTwoAI(2)">+ 補電腦</button></div>
+            <div class="player-seat"><span class="seat-name" id="bt-seat-3" style="color:#aaa;">等待加入...</span><button id="bt-ai-btn-3" class="btn btn-ai" style="margin:0; padding:8px 15px; width:auto;" onclick="addBigTwoAI(3)">+ 補電腦</button></div>
+            <div class="player-seat"><span class="seat-name" id="bt-seat-4" style="color:#aaa;">等待加入...</span><button id="bt-ai-btn-4" class="btn btn-ai" style="margin:0; padding:8px 15px; width:auto;" onclick="addBigTwoAI(4)">+ 補電腦</button></div>
         </div>
-        <button id="bt-start-btn" class="btn" style="width:100%;
- margin-top:25px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888;" disabled onclick="startBigTwoGame()">🚀 人數未滿</button>
+        <button id="bt-start-btn" class="btn" style="width:100%; margin-top:25px; padding: 15px; font-size: 20px; background: rgba(255,255,255,0.1); color: #888;" disabled onclick="startBigTwoGame()">🚀 人數未滿</button>
     </div>
 
     <div id="bt-game-wrapper" class="game-wrapper">
@@ -451,9 +432,7 @@
         </div>
         <div id="bt-game-area">
             
-            <div id="bt-hand-hint" style="position:absolute;
- bottom:140px; left:50%; transform:translateX(-50%); font-size:20px; font-weight:bold; color:#aaa; z-index:100; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background:rgba(0,0,0,0.6); padding:8px 20px; border-radius:20px; border: 1px solid rgba(255,255,255,0.2);
- pointer-events:none;">請選擇出牌組合...</div>
+            <div id="bt-hand-hint" style="position:absolute; bottom:140px; left:50%; transform:translateX(-50%); font-size:20px; font-weight:bold; color:#aaa; z-index:100; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background:rgba(0,0,0,0.6); padding:8px 20px; border-radius:20px; border: 1px solid rgba(255,255,255,0.2); pointer-events:none;">請選擇出牌組合...</div>
             
             <div id="bt-table">
                 <div id="bt-opp-top" class="bt-opp-hand"></div>
@@ -464,10 +443,8 @@
              <div id="bt-my-hand"></div>
             </div>
         </div>
-        <div id="bt-play-controls" style="margin-bottom:20px;
- display:none; gap:20px;">
-            <button class="game-btn" style="background: linear-gradient(135deg, #0288d1, #01579b);
- padding: 15px 50px;" onclick="playBigTwoCards()">🃏 確 認 出 牌</button>
+        <div id="bt-play-controls" style="margin-bottom:20px; display:none; gap:20px;">
+            <button class="game-btn" style="background: linear-gradient(135deg, #0288d1, #01579b); padding: 15px 50px;" onclick="playBigTwoCards()">🃏 確 認 出 牌</button>
             <button class="game-btn" style="background: linear-gradient(135deg, #616161, #424242);" onclick="passBigTwoTurn()">PASS (過)</button>
         </div>
         <div class="controls" style="margin-top: 10px;"><button class="game-btn surrender-btn" onclick="location.reload()">🏳️ 離開牌桌</button></div>
@@ -481,12 +458,10 @@
         <div class="room-code" id="t2048-my-id">載入中</div>
        
          <button class="btn btn-success" onclick="copyInviteLink(this, 't2048')">🔗 一鍵複製邀請網址</button>
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1);
- margin: 25px 0;">
+        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 25px 0;">
         <input type="text" id="t2048-friend-id" placeholder="輸入好友代碼">
         <button class="btn btn-primary" onclick="connectToFriend('t2048')">加入房間</button>
-        <hr style="border:0;
- border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
+        <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin: 25px 0;">
         <button class="btn btn-ai" onclick="startLocalAI('t2048')">🤖 單機挑戰</button>
     </div>
     <div id="t2048-game-wrapper" class="game-wrapper">
@@ -494,16 +469,13 @@
             <div class="turn-info" style="color:#ffb74d;">⚔️ 即時對戰中！</div>
             <div class="role-info">合成 128 以上方塊可對敵人降下石頭！</div>
         </div>
-        <div style="display:flex;
- justify-content:center; gap:40px; width:100%; flex-wrap:wrap;">
+        <div style="display:flex; justify-content:center; gap:40px; width:100%; flex-wrap:wrap;">
             <div class="t2048-board-container">
-                <h3 style="text-align:center;
- color:#00e676; margin-top:0;">👑 我的盤面 (<span id="t2048-my-score">0</span>)</h3>
+                <h3 style="text-align:center; color:#00e676; margin-top:0;">👑 我的盤面 (<span id="t2048-my-score">0</span>)</h3>
                 <div id="t2048-my-board" class="t2048-board"></div>
             </div>
             <div class="t2048-board-container">
-                <h3 style="text-align:center;
- color:#ff5252; margin-top:0;">😈 對手盤面 (<span id="t2048-opp-score">0</span>)</h3>
+                <h3 style="text-align:center; color:#ff5252; margin-top:0;">😈 對手盤面 (<span id="t2048-opp-score">0</span>)</h3>
                 <div id="t2048-opp-board" class="t2048-board opp-board"></div>
             </div>
         </div>
@@ -536,6 +508,7 @@
         <div class="top-info-container">
             <div id="dg-turn-info" class="turn-info">等待連線...</div>
             <div id="dg-role-info" class="role-info">題目：等待中</div>
+            <div id="dg-score-info" style="color:#ffb74d; font-size:18px; margin-top:5px; font-weight:bold;">得分 - 我: 0 | 對手: 0 (先得 8 分者勝)</div>
         </div>
         <div style="display:flex; flex-direction:column; align-items:center; width:100%; max-width:600px;">
             <canvas id="dg-canvas" width="500" height="400" style="background:#fff; border-radius:10px; cursor:crosshair; box-shadow:0 10px 30px rgba(0,0,0,0.5);"></canvas>
@@ -559,9 +532,12 @@
 </div>
 
 <script>
-// 全域變數擴充
+// ==========================================================================
+// 全域變數擴充 (包含你畫我猜計分)
+// ==========================================================================
 let dgCanvas, dgCtx, isDrawing = false, dgRole = '', dgWord = '', dgIsMyTurn = false;
-const dgWords = ['蘋果', '電腦', '香蕉', '狗', '貓', '汽車', '飛機', '房子', '太陽', '火車', '蜘蛛', '眼鏡', '手錶', '手機', '雨傘', '長頸鹿', '麥克風', '腳踏車', '火箭', '漢堡'];
+let dgMyScore = 0, dgOppScore = 0, dgTargetScore = 8;
+const dgWords = ['蘋果', '電腦', '香蕉', '狗', '貓', '汽車', '飛機', '房子', '太陽', '火車', '蜘蛛', '眼鏡', '手錶', '手機', '雨傘', '長頸鹿', '麥克風', '腳踏車', '火箭', '漢堡', '大象', '西瓜', '冰淇淋', '雪人', '蛋糕', '吉他', '剪刀', '牙刷', '籃球', '恐龍'];
 
 // ==========================================================================
 // 系統核心 (網路連線與狀態切換)
@@ -688,7 +664,11 @@ function setupConnection(isAI = false) {
     if(e[2]){ let b = document.getElementById(e[2]); if(b) b.classList.add('active');
  if(currentGame === 'xiangqi' && myRole === 'guest') b.classList.add('xq-flipped-board'); }
     
-    if(currentGame === 'drawguess' && typeof dgCanvas === 'undefined') { initDrawGuess(); }
+    if(currentGame === 'drawguess') {
+        if(typeof dgCanvas === 'undefined') initDrawGuess();
+        dgMyScore = 0; dgOppScore = 0; 
+        updateDGScoreUI();
+    }
 
     showMessage(isAI ? "🤖 單機模式開啟" : "✅ 連線成功！");
  }
@@ -1261,6 +1241,11 @@ function doBTAI() {
 // ==========================================================================
 // 你畫我猜 (Draw & Guess) 核心邏輯
 // ==========================================================================
+function updateDGScoreUI() {
+    let el = document.getElementById('dg-score-info');
+    if(el) el.innerText = `得分 - 我: ${dgMyScore} | 對手: ${dgOppScore} (先得 ${dgTargetScore} 分者勝)`;
+}
+
 function initDrawGuess() {
     dgCanvas = document.getElementById('dg-canvas');
     if(!dgCanvas) return;
@@ -1336,8 +1321,7 @@ function addDGChat(sender, msg) {
     log.scrollTop = log.scrollHeight;
 }
 
-function initDGAsHost() {
-    dgRole = 'host'; 
+function startDGTurn() {
     dgIsMyTurn = true;
     dgWord = dgWords[Math.floor(Math.random() * dgWords.length)];
     
@@ -1345,22 +1329,26 @@ function initDGAsHost() {
     document.getElementById('dg-role-info').innerText = "題目：" + dgWord;
     document.getElementById('dg-tools').style.display = 'flex';
     document.getElementById('dg-guess-input').disabled = true;
-    document.getElementById('dg-chat-log').innerHTML = '<div style="color:#aaa;">系統：你現在是畫家，請在畫布上畫出題目。</div>';
+    document.getElementById('dg-chat-log').innerHTML = '<div style="color:#aaa;">系統：你現在是畫家，請在畫布上畫出題目。對手猜中即可獲得一分！</div>';
     
     if(dgCtx) dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height);
     if(conn && conn.open) conn.send({type: 'dgStart', word: dgWord});
+}
+
+function initDGAsHost() {
+    dgRole = 'host'; 
+    startDGTurn();
 }
 
 function handleDGSync(d) {
     if(d.type === 'dgStart') {
         dgWord = d.word; 
         dgIsMyTurn = false; 
-        dgRole = 'guest';
         document.getElementById('dg-turn-info').innerText = "🟥 你的回合：請猜題！";
         document.getElementById('dg-role-info').innerText = `題目：${dgWord.length} 個字`;
         document.getElementById('dg-tools').style.display = 'none';
         document.getElementById('dg-guess-input').disabled = false;
-        document.getElementById('dg-chat-log').innerHTML = '<div style="color:#aaa;">系統：對手正在作畫，請根據畫面猜出單字！</div>';
+        document.getElementById('dg-chat-log').innerHTML = '<div style="color:#aaa;">系統：對手正在作畫，請根據畫面猜出單字！猜中即可獲得一分！</div>';
         if(dgCtx) dgCtx.clearRect(0, 0, dgCanvas.width, dgCanvas.height);
     } 
     else if(d.type === 'dgDraw' && dgCtx) {
@@ -1379,13 +1367,37 @@ function handleDGSync(d) {
     } 
     else if(d.type === 'dgGuess') {
         addDGChat("對手猜", d.text);
+        // 如果我是畫家，檢查對手是否猜中
         if(dgIsMyTurn && d.text === dgWord) {
-            showMessage("🎉 對手猜中啦！", false);
-            if(conn && conn.open) conn.send({type: 'dgWin'});
-            showVictoryModal('opponent', false);
+            showMessage("🎉 對手猜中了！加一分！現在換對手畫！", false);
+            dgOppScore++;
+            updateDGScoreUI();
+            
+            // 檢查對手是否滿 8 分
+            if(dgOppScore >= dgTargetScore) {
+                if(conn && conn.open) conn.send({type: 'dgGameEnd', mScore: dgMyScore, oScore: dgOppScore});
+                showVictoryModal('opponent', false);
+            } else {
+                // 如果還沒結束，交換回合
+                dgIsMyTurn = false;
+                document.getElementById('dg-turn-info').innerText = "⏳ 等待對手出題...";
+                document.getElementById('dg-tools').style.display = 'none';
+                if(conn && conn.open) conn.send({type: 'dgCorrect', mScore: dgMyScore, oScore: dgOppScore});
+            }
         }
     } 
-    else if(d.type === 'dgWin') {
+    else if(d.type === 'dgCorrect') {
+        showMessage("🎉 恭喜你猜中了！加一分！現在換你畫！", false);
+        // 對手傳來的分數要顛倒過來儲存
+        dgMyScore = d.oScore; 
+        dgOppScore = d.mScore;
+        updateDGScoreUI();
+        startDGTurn();
+    } 
+    else if(d.type === 'dgGameEnd') {
+        dgMyScore = d.oScore;
+        dgOppScore = d.mScore;
+        updateDGScoreUI();
         showVictoryModal('me', false); 
     } 
     else if(d.type === 'surrender') {
